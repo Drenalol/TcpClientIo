@@ -10,4 +10,11 @@
       <PackageReference Include="System.IO.Pipelines" Version="4.7.1" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Remove="MOCK_DATA" />
+      <Content Include="MOCK_DATA">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
+
 </Project>
