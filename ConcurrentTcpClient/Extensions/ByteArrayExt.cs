@@ -1,7 +1,7 @@
 using System;
 using System.Text;
 
-namespace TcpClientDuplex.Extensions
+namespace Drenalol.Extensions
 {
     public static class ByteArrayExt
     {

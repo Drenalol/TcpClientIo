@@ -1,9 +1,9 @@
 using System.Collections.Generic;
+using Drenalol.Sub;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
-using TcpClientDuplex.Sub;
 
-namespace TcpClientDuplex.Extensions
+namespace Drenalol.Extensions
 {
     public static class JsonExt
     {

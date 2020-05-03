@@ -1,9 +1,10 @@
 ﻿using System;
-using TcpClientDuplex.Extensions;
+using System.Text;
+using Drenalol.Extensions;
 
-namespace TcpClientDuplex.Models
+namespace Drenalol.Models
 {
-    public class Mock
+    public class Mock : ITcpDataModel
     {
         public Guid Id { get; set; }
         public string FirstName { get; set; }
@@ -15,5 +16,7 @@ namespace TcpClientDuplex.Models
         public string Data { get; set; }
         
         public override string ToString() => JsonExt.Serialize(this);
+
+        public byte[] GetBytes() => Encoding.ASCII.GetBytes(ToString());
     }
 }

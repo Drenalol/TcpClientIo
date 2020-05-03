@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <TargetFramework>netcoreapp3.1</TargetFramework>
-
+        <RootNamespace>Drenalol</RootNamespace>
         <IsPackable>false</IsPackable>
     </PropertyGroup>
 
@@ -13,14 +13,14 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\TcpClientDuplex\TcpClientDuplex.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
       <None Remove="MOCK_DATA" />
       <Content Include="MOCK_DATA">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\ConcurrentTcpClient\ConcurrentTcpClient.csproj" />
     </ItemGroup>
 
 </Project>
