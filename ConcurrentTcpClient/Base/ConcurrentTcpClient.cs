@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Linq;
@@ -18,8 +17,8 @@ namespace Drenalol.Base
 
         private readonly BlockingCollection<byte[]> _readyToSend;
 
-        //private readonly ConcurrentDictionary<uint, TaskCompletionSource<TcpPackage>> _readyToRead;
-        private ImmutableDictionary<uint, TaskCompletionSource<TcpPackageExperiment>> _immutableDictionary;
+        private readonly ConcurrentDictionary<uint, TaskCompletionSource<TcpPackageExperiment>> _readResults;
+        //private ImmutableDictionary<uint, TaskCompletionSource<TcpPackageExperiment>> _immutableDictionary;
 
         //private ImmutableDictionary<uint, TaskCompletionSource<TcpPackage>> _immutableDictionary;
         private readonly TcpClient _tcpClient;
@@ -32,7 +31,7 @@ namespace Drenalol.Base
         /// <summary>
         /// WARNING! This method lock internal <see cref="ConcurrentDictionary{TKey,TValue}"/>, be careful of frequently use.
         /// </summary>
-        public int ReadCount => _immutableDictionary.Count;
+        public int ReadCount => _readResults.Count;
 
         public int SendQueue => _readyToSend.Count;
 
@@ -65,9 +64,9 @@ namespace Drenalol.Base
         {
             _internalCancellationTokenSource = new CancellationTokenSource();
             _internalCancellationToken = _internalCancellationTokenSource.Token;
-            _immutableDictionary = ImmutableDictionary<uint, TaskCompletionSource<TcpPackageExperiment>>.Empty;
+            //_immutableDictionary = ImmutableDictionary<uint, TaskCompletionSource<TcpPackageExperiment>>.Empty;
             _readyToSend = new BlockingCollection<byte[]>();
-            //_readyToRead = new ConcurrentDictionary<uint, TaskCompletionSource<TcpPackage>>();
+            _readResults = new ConcurrentDictionary<uint, TaskCompletionSource<TcpPackageExperiment>>();
         }
 
         private void SetupTcpClient(ConcurrentTcpClientOptions tcpClientAsyncOptions)
@@ -112,8 +111,8 @@ namespace Drenalol.Base
 
         private Task<TcpPackageExperiment> InternalReceiveAsync(uint packageId, CancellationToken token)
         {
-            if (!ImmutableInterlocked.TryRemove(ref _immutableDictionary, packageId, out var tcs))
-                tcs = ImmutableInterlocked.GetOrAdd(ref _immutableDictionary, packageId, CreateLazyTcs);
+            if (!_readResults.TryRemove(packageId, out var tcs))
+                tcs = _readResults.GetOrAdd(packageId, CreateLazyTcs);
 
             using (token.Register(() =>
             {
@@ -137,7 +136,7 @@ namespace Drenalol.Base
                 {
                     _internalCancellationToken.ThrowIfCancellationRequested();
                     await Writer.WriteAsync(bytesArray, _internalCancellationToken);
-                    Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} -> {bytesArray.Length.ToString()} bytes");
+                    Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} -> PackageWrite {bytesArray.Length.ToString()} bytes");
                 }
             }
             catch (OperationCanceledException canceledException)
@@ -171,11 +170,11 @@ namespace Drenalol.Base
 
                     if (package == null)
                     {
-                        Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff}) <- package == null, waiters: {_immutableDictionary.Count.ToString()}");
+                        Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff}) <- package == null, waiters: {_readResults.Count.ToString()}");
                         continue;
                     }
 
-                    if (ImmutableInterlocked.TryRemove(ref _immutableDictionary, package.PackageId, out var tcs))
+                    if (_readResults.TryRemove(package.PackageId, out var tcs))
                     {
                         switch (tcs.Task.Status)
                         {
@@ -193,20 +192,20 @@ namespace Drenalol.Base
                     void NewPackageResult(TaskCompletionSource<TcpPackageExperiment> innerTcs = null)
                     {
                         packageResult = new TcpPackageExperiment(package);
-                        tcs = innerTcs ?? ImmutableInterlocked.GetOrAdd(ref _immutableDictionary, package.PackageId, CreateLazyTcs);
-                        Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} <- PackageResult (new) {packageResult.PackageId.ToString()}, {packageResult.QueueCount.ToString()}");
+                        tcs = innerTcs ?? _readResults.GetOrAdd(package.PackageId, CreateLazyTcs);
+                        Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} <- PackageRead (tcs new, TaskId: {tcs.Task.Id.ToString()}) PackageId: {packageResult.PackageId.ToString()}, PackageSize: {package.PackageSize.ToString()} bytes, PackageResult.QueueCount: {packageResult.QueueCount.ToString()}");
                     }
 
                     async Task ExistsPackageResult()
                     {
                         packageResult = await tcs.Task;
                         packageResult.Enqueue(package);
-                        tcs = ImmutableInterlocked.GetOrAdd(ref _immutableDictionary, package.PackageId, CreateLazyTcs);
-                        Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} <- PackageResult (exists) {packageResult.PackageId.ToString()}, {packageResult.QueueCount.ToString()}");
+                        tcs = _readResults.GetOrAdd(package.PackageId, CreateLazyTcs);
+                        Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} <- PackageRead (tcs exists, TaskId: {tcs.Task.Id.ToString()}) PackageId: {packageResult.PackageId.ToString()}, PackageSize: {package.PackageSize.ToString()} bytes, PackageResult.QueueCount: {packageResult.QueueCount.ToString()}");
                     }
 
-                    Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} <- PackageId {package.PackageId.ToString()}, {package.PackageSize.ToString()} bytes, {tcs.Task.Status.ToString()}");
-                    tcs.TrySetResult(packageResult);
+                    var setResult = tcs.TrySetResult(packageResult);
+                    Debug.WriteLine($"{tcs.Task.Id.ToString()}:{setResult.ToString()}");
                 }
             }
             catch (OperationCanceledException canceledException)
@@ -229,7 +228,7 @@ namespace Drenalol.Base
         private async Task StopReader(Exception exception)
         {
             Debug.WriteLine("Stopping reader");
-            foreach (var (_, tcs) in _immutableDictionary.Where(tcs => tcs.Value.Task.Status == TaskStatus.WaitingForActivation))
+            foreach (var (_, tcs) in _readResults.Where(tcs => tcs.Value.Task.Status == TaskStatus.WaitingForActivation))
             {
                 var innerException = exception ?? new OperationCanceledException();
                 Debug.WriteLine($"Set force {innerException.GetType()} in TaskCompletionSource in TaskStatus.WaitingForActivation");
