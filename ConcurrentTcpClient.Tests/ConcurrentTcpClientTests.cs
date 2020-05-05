@@ -71,7 +71,7 @@ namespace Drenalol
                 var sw = Stopwatch.StartNew();
                 var mock = Mocks[TestContext.CurrentContext.Random.Next(Mocks.Count)];
                 var package = new TcpPackage((uint) id, mock);
-                tcpClient.Send(package.ToArray(), CancellationToken.None);
+                tcpClient.Send(package, CancellationToken.None);
                 sw.Stop();
                 Interlocked.Increment(ref sended);
                 sendMs.Add(sw.ElapsedMilliseconds);
@@ -91,13 +91,19 @@ namespace Drenalol
                 receiveMs.Add(sw.ElapsedMilliseconds);
             }
 
+            var readCount = tcpClient.Awaiters;
             TestContext.WriteLine($"Send Min Avg Max ms: {sendMs.Min().ToString()} {sendMs.Average().ToString(CultureInfo.CurrentCulture)} {sendMs.Max().ToString()}");
             TestContext.WriteLine($"Receive Min Avg Max ms: {receiveMs.Min().ToString()} {receiveMs.Average().ToString(CultureInfo.CurrentCulture)} {receiveMs.Max().ToString()}");
+            TestContext.WriteLine($"Receive > 1 sec: {receiveMs.Count(l => l > 1000).ToString()}");
+            TestContext.WriteLine($"Receive > 2 sec: {receiveMs.Count(l => l > 2000).ToString()}");
+            TestContext.WriteLine($"Receive > 5 sec: {receiveMs.Count(l => l > 5000).ToString()}");
+            TestContext.WriteLine($"Receive > 10 sec: {receiveMs.Count(l => l > 10000).ToString()}");
+            TestContext.WriteLine($"Receive > 30 sec: {receiveMs.Count(l => l > 30000).ToString()}");
             TestContext.WriteLine($"SendQueue: {tcpClient.SendQueue.ToString()}");
-            TestContext.WriteLine($"ReadCount: {tcpClient.ReadCount.ToString()}");
+            TestContext.WriteLine($"ReadCount: {readCount.ToString()}");
             TestContext.WriteLine($"Sended: {sended.ToString()}");
             TestContext.WriteLine($"Received: {received.ToString()}");
-            tcpClient.Dispose();
+            tcpClient.Dispose(); 
         }
 
         [Test]
@@ -108,7 +114,7 @@ namespace Drenalol
             var count = 0;
             var tcpClient = new ConcurrentTcpClient(IPAddress.Any, 10000, ReadFactory);
 
-            _ = Task.Run(() => Parallel.For(0, requests, i => Assert.IsTrue(tcpClient.TrySend(new TcpPackage(1337, Mocks[TestContext.CurrentContext.Random.Next(Mocks.Count)]).ToArray()))));
+            _ = Task.Run(() => Parallel.For(0, requests, i => Assert.IsTrue(tcpClient.TrySend(new TcpPackage(1337, Mocks[TestContext.CurrentContext.Random.Next(Mocks.Count)])))));
 
             while (count < requests)
             {
@@ -124,7 +130,7 @@ namespace Drenalol
                     list.Add(package.PackageSize);
                 }
 
-                TestContext.WriteLine($"({count.ToString()}/{requests.ToString()}) +{queue.ToString()}, by {delay.ToString()} ms, SendQueue: {tcpClient.SendQueue.ToString()}, ReadCount: {tcpClient.ReadCount.ToString()}");
+                TestContext.WriteLine($"({count.ToString()}/{requests.ToString()}) +{queue.ToString()}, by {delay.ToString()} ms, SendQueue: {tcpClient.SendQueue.ToString()}, ReadCount: {tcpClient.Awaiters.ToString()}");
             }
 
             var havingCount = list.GroupBy(u => u).Where(p => p.Count() > 1).Select(ig => ig.Key.ToString()).Aggregate((prev, next) => $"{prev}, {next}");
@@ -148,7 +154,7 @@ namespace Drenalol
             {
                 try
                 {
-                    tcpClient.TrySend(new TcpPackage(1337, mock).ToArray());
+                    tcpClient.TrySend(new TcpPackage(1337, mock));
                     await tcpClient.ReceiveAsync(1337);
                 }
                 catch (Exception e)
@@ -176,7 +182,7 @@ namespace Drenalol
                 {
                     try
                     {
-                        tcpClient.Send(new TcpPackage(1337, mock).ToArray(), cts.Token);
+                        tcpClient.Send(new TcpPackage(1337, mock), cts.Token);
                         await tcpClient.ReceiveAsync(1337, cts.Token);
                     }
                     catch (Exception e)
@@ -221,6 +227,88 @@ namespace Drenalol
             TestContext.WriteLine(mockS.Length);
             TestContext.WriteLine(mockS2.Length);
             Assert.AreEqual(mockS2.Length, mockS.Length);
+        }
+
+        [TestCase(1000)]
+        [TestCase(10000)]
+        [TestCase(100000)]
+        [TestCase(1000000)]
+        public void CreateReceiveAndAfterWriteTest(int requests)
+        {
+            ThreadPool.SetMaxThreads(1000, 1000);
+            var tcpClient = new ConcurrentTcpClient(IPAddress.Any, 10000, ReadFactory);
+            var receiveTasks = Enumerable.Range(0, requests).Select(id => ThreadPool.QueueUserWorkItem(cb => tcpClient.ReceiveAsync((uint) id))).ToArray();
+
+            while (tcpClient.Awaiters < requests)
+            {
+                Thread.Sleep(100);
+            }
+            
+            var writeTasks = Enumerable.Range(0, requests).Select(id => ThreadPool.QueueUserWorkItem(cb => tcpClient.Send(new TcpPackage((uint) id, Mocks[TestContext.CurrentContext.Random.Next(Mocks.Count)])))).ToArray();
+            
+            while (tcpClient.Awaiters > 0)
+            {
+                Thread.Sleep(100);
+            }
+            
+            Assert.AreEqual(0, tcpClient.SendQueue);
+            Assert.AreEqual(0, tcpClient.Awaiters);
+            tcpClient.Dispose();
+        }
+        
+        [TestCase(1000)]
+        [TestCase(10000)]
+        [TestCase(100000)]
+        [TestCase(1000000)]
+        public async Task WriteAndWaitResultsAndAfterReceiveTest(int requests)
+        {
+            var tcpClient = new ConcurrentTcpClient(IPAddress.Any, 10000, ReadFactory);
+            var writeTasks = Enumerable.Range(0, requests).Select(id => Task.Run(() => tcpClient.Send(new TcpPackage((uint) id, Mocks[TestContext.CurrentContext.Random.Next(Mocks.Count)])))).ToArray();
+            await Task.WhenAll(writeTasks);
+            while (tcpClient.Awaiters < requests)
+            {
+                await Task.Delay(100);
+            }
+
+            var receiveTasks = Enumerable.Range(0, requests).Select(id => Task.Run(() => tcpClient.ReceiveAsync((uint) id))).ToArray();
+            await Task.WhenAll(receiveTasks);
+            Assert.AreEqual(0, tcpClient.SendQueue);
+            Assert.AreEqual(0, tcpClient.Awaiters);
+            tcpClient.Dispose();
+        }
+
+        [Test]
+        public async Task AttributeParsingTest()
+        {
+            
+        }
+
+        [Test]
+        public void Test()
+        {
+            var package1 = new TcpPackage(123, "1");
+            var package2 = new TcpPackage(123, "2");
+            Console.WriteLine(package1.PackageId.GetHashCode());
+            Console.WriteLine(package2.PackageId.GetHashCode());
+            var dict = new ConcurrentDictionary<int, TaskCompletionSource<string>>();
+            var lazy = new Lazy<TaskCompletionSource<string>>(Work);
+            Console.WriteLine(lazy.IsValueCreated);
+            var tcs = dict.GetOrAdd(1, lazy.Value);
+            tcs.Task.ContinueWith(task => Console.WriteLine($"Continuation done {task.Status.ToString()}"));
+            Console.WriteLine(lazy.IsValueCreated);
+            Task.Run(async () =>
+            {
+                Console.WriteLine("Await task");
+                var result = await tcs.Task;
+                Console.WriteLine(result);
+            });
+            static TaskCompletionSource<string> Work()
+            {
+                var tcs = new TaskCompletionSource<string>();
+                Console.WriteLine("Start");
+                tcs.SetResult("ed");
+                return tcs;
+            }
         }
     }
 }

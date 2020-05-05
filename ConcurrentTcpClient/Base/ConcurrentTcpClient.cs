@@ -14,68 +14,62 @@ namespace Drenalol.Base
     {
         private readonly CancellationTokenSource _internalCancellationTokenSource;
         private readonly CancellationToken _internalCancellationToken;
-
-        private readonly BlockingCollection<byte[]> _readyToSend;
-
-        private readonly ConcurrentDictionary<uint, TaskCompletionSource<TcpPackageExperiment>> _readResults;
-        //private ImmutableDictionary<uint, TaskCompletionSource<TcpPackageExperiment>> _immutableDictionary;
-
-        //private ImmutableDictionary<uint, TaskCompletionSource<TcpPackage>> _immutableDictionary;
+        private readonly BlockingCollection<byte[]> _packagesToSend;
+        private readonly ConcurrentDictionary<uint, TaskCompletionSource<TcpPackageExperiment>> _awaiters;
         private readonly TcpClient _tcpClient;
-
+        private readonly object _lock = new object();
         private PipeReader Reader { get; set; }
-        PipeReader IDuplexPipe.Input => Reader;
         private PipeWriter Writer { get; set; }
+        PipeReader IDuplexPipe.Input => Reader;
         PipeWriter IDuplexPipe.Output => Writer;
 
         /// <summary>
         /// WARNING! This method lock internal <see cref="ConcurrentDictionary{TKey,TValue}"/>, be careful of frequently use.
         /// </summary>
-        public int ReadCount => _readResults.Count;
+        public int Awaiters => _awaiters.Count;
 
-        public int SendQueue => _readyToSend.Count;
+        public int SendQueue => _packagesToSend.Count;
 
-        public ConcurrentTcpClient(IPAddress address, int port, Func<PipeReader, CancellationToken, Task<TcpPackage>> readFactory, ConcurrentTcpClientOptions tcpClientAsyncOptions = null)
-            : this(address, port, tcpClientAsyncOptions)
+        public ConcurrentTcpClient(IPAddress address, int port, Func<PipeReader, CancellationToken, Task<TcpPackage>> readFactory, ConcurrentTcpClientOptions concurrentTcpClientOptions = null)
+            : this(address, port, concurrentTcpClientOptions)
         {
             SetupTasks(readFactory);
         }
 
-        public ConcurrentTcpClient(TcpClient tcpClient, Func<PipeReader, CancellationToken, Task<TcpPackage>> readFactory, ConcurrentTcpClientOptions tcpClientAsyncOptions = null)
-            : this(tcpClient, tcpClientAsyncOptions)
+        public ConcurrentTcpClient(TcpClient tcpClient, Func<PipeReader, CancellationToken, Task<TcpPackage>> readFactory, ConcurrentTcpClientOptions concurrentTcpClientOptions = null)
+            : this(tcpClient, concurrentTcpClientOptions)
         {
             SetupTasks(readFactory);
         }
 
-        private ConcurrentTcpClient(TcpClient tcpClient, ConcurrentTcpClientOptions tcpClientAsyncOptions) : this()
+        private ConcurrentTcpClient(TcpClient tcpClient, ConcurrentTcpClientOptions concurrentTcpClientOptions) : this()
         {
             _tcpClient = tcpClient;
-            SetupTcpClient(tcpClientAsyncOptions);
+            SetupTcpClient(concurrentTcpClientOptions);
         }
 
-        private ConcurrentTcpClient(IPAddress address, int port, ConcurrentTcpClientOptions tcpClientAsyncOptions) : this()
+        private ConcurrentTcpClient(IPAddress address, int port, ConcurrentTcpClientOptions concurrentTcpClientOptions) : this()
         {
             _tcpClient = new TcpClient();
             _tcpClient.Connect(address, port);
-            SetupTcpClient(tcpClientAsyncOptions);
+            SetupTcpClient(concurrentTcpClientOptions);
         }
 
         private ConcurrentTcpClient()
         {
             _internalCancellationTokenSource = new CancellationTokenSource();
             _internalCancellationToken = _internalCancellationTokenSource.Token;
-            //_immutableDictionary = ImmutableDictionary<uint, TaskCompletionSource<TcpPackageExperiment>>.Empty;
-            _readyToSend = new BlockingCollection<byte[]>();
-            _readResults = new ConcurrentDictionary<uint, TaskCompletionSource<TcpPackageExperiment>>();
+            _packagesToSend = new BlockingCollection<byte[]>();
+            _awaiters = new ConcurrentDictionary<uint, TaskCompletionSource<TcpPackageExperiment>>();
         }
 
-        private void SetupTcpClient(ConcurrentTcpClientOptions tcpClientAsyncOptions)
+        private void SetupTcpClient(ConcurrentTcpClientOptions concurrentTcpClientOptions)
         {
             if (!_tcpClient.Connected)
                 throw new SocketException(10057);
-
-            Reader = PipeReader.Create(_tcpClient.GetStream(), tcpClientAsyncOptions?.StreamPipeReaderOptions);
-            Writer = PipeWriter.Create(_tcpClient.GetStream(), tcpClientAsyncOptions?.StreamPipeWriterOptions);
+            var options = concurrentTcpClientOptions ?? ConcurrentTcpClientOptions.Default;
+            Reader = PipeReader.Create(_tcpClient.GetStream(), options.StreamPipeReaderOptions);
+            Writer = PipeWriter.Create(_tcpClient.GetStream(), options.StreamPipeWriterOptions);
         }
 
         private void SetupTasks(Func<PipeReader, CancellationToken, Task<TcpPackage>> readFactory)
@@ -84,17 +78,20 @@ namespace Drenalol.Base
             Task.Factory.StartNew(() => TcpReadAsync(readFactory), TaskCreationOptions.LongRunning);
         }
 
-        public bool TrySend(byte[] data, int timeout, CancellationToken? token = default) => InternalTrySend(data, timeout, token ?? _internalCancellationToken);
+        public bool TrySend(TcpPackage package, int timeout, CancellationToken? token = default) => InternalTrySend(package, timeout, token ?? _internalCancellationToken);
 
-        public bool TrySend(byte[] data) => InternalTrySend(data, 0, new CancellationToken());
+        public bool TrySend(TcpPackage package) => InternalTrySend(package, 0, new CancellationToken());
 
-        public void Send(byte[] data, CancellationToken? token = default) => InternalTrySend(data, -1, token);
+        public void Send(TcpPackage package, CancellationToken? token = default) => InternalTrySend(package, -1, token);
 
-        private bool InternalTrySend(byte[] data, int timeout, CancellationToken? token = default)
+        private bool InternalTrySend(TcpPackage package, int timeout, CancellationToken? token = default)
         {
             try
             {
-                return !_readyToSend.IsAddingCompleted && _readyToSend.TryAdd(data, timeout, token ?? _internalCancellationToken);
+                if (package.PackageSize <= 0)
+                    throw new ArgumentException("Package is empty");
+
+                return !_packagesToSend.IsAddingCompleted && _packagesToSend.TryAdd(package.ToArray(), timeout, token ?? _internalCancellationToken);
             }
             catch (ObjectDisposedException)
             {
@@ -107,12 +104,21 @@ namespace Drenalol.Base
             }
         }
 
+        private TaskCompletionSource<TcpPackageExperiment> InternalGetOrAddLazyTcs(uint key) => _awaiters.GetOrAdd(key, _ => InternalCreateLazyTcs().Value);
+
+        private Lazy<TaskCompletionSource<TcpPackageExperiment>> InternalCreateLazyTcs() => new Lazy<TaskCompletionSource<TcpPackageExperiment>>(() => new TaskCompletionSource<TcpPackageExperiment>());
+
         public async Task<TcpPackageExperiment> ReceiveAsync(uint packageId, CancellationToken? token = default) => await InternalReceiveAsync(packageId, token ?? _internalCancellationToken);
 
         private Task<TcpPackageExperiment> InternalReceiveAsync(uint packageId, CancellationToken token)
         {
-            if (!_readResults.TryRemove(packageId, out var tcs))
-                tcs = _readResults.GetOrAdd(packageId, CreateLazyTcs);
+            TaskCompletionSource<TcpPackageExperiment> tcs;
+            // Info about lock read below on another lock
+            lock (_lock)
+            {
+                if (!_awaiters.TryRemove(packageId, out tcs))
+                    tcs = InternalGetOrAddLazyTcs(packageId);
+            }
 
             using (token.Register(() =>
             {
@@ -124,15 +130,13 @@ namespace Drenalol.Base
             }
         }
 
-        private TaskCompletionSource<TcpPackageExperiment> CreateLazyTcs(uint key) => new Lazy<TaskCompletionSource<TcpPackageExperiment>>(() => new TaskCompletionSource<TcpPackageExperiment>(TaskCreationOptions.None)).Value;
-
         private async Task TcpWriteAsync()
         {
             Exception innerException = null;
 
             try
             {
-                foreach (var bytesArray in _readyToSend.GetConsumingEnumerable())
+                foreach (var bytesArray in _packagesToSend.GetConsumingEnumerable())
                 {
                     _internalCancellationToken.ThrowIfCancellationRequested();
                     await Writer.WriteAsync(bytesArray, _internalCancellationToken);
@@ -170,42 +174,51 @@ namespace Drenalol.Base
 
                     if (package == null)
                     {
-                        Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff}) <- package == null, waiters: {_readResults.Count.ToString()}");
+                        Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff}) <- package == null, waiters: {_awaiters.Count.ToString()}");
                         continue;
                     }
 
-                    if (_readResults.TryRemove(package.PackageId, out var tcs))
+                    TaskCompletionSource<TcpPackageExperiment> tcs;
+                    // From MSDN: ConcurrentDictionary<TKey,TValue> is designed for multithreaded scenarios.
+                    // You do not have to use locks in your code to add or remove items from the collection.
+                    // However, it is always possible for one thread to retrieve a value, and another thread
+                    // to immediately update the collection by giving the same key a new value.
+                    lock (_lock)
                     {
-                        switch (tcs.Task.Status)
+                        if (_awaiters.TryRemove(package.PackageId, out tcs))
                         {
-                            case TaskStatus.WaitingForActivation:
-                                NewPackageResult(tcs);
-                                break;
-                            case TaskStatus.RanToCompletion:
-                                await ExistsPackageResult();
-                                break;
+                            switch (tcs.Task.Status)
+                            {
+                                case TaskStatus.WaitingForActivation:
+                                    NewPackageResult(tcs);
+                                    break;
+                                case TaskStatus.RanToCompletion:
+                                    ExistsPackageResult();
+                                    break;
+                            }
                         }
+                        else
+                            NewPackageResult();
                     }
-                    else
-                        NewPackageResult();
 
                     void NewPackageResult(TaskCompletionSource<TcpPackageExperiment> innerTcs = null)
                     {
                         packageResult = new TcpPackageExperiment(package);
-                        tcs = innerTcs ?? _readResults.GetOrAdd(package.PackageId, CreateLazyTcs);
-                        Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} <- PackageRead (tcs new, TaskId: {tcs.Task.Id.ToString()}) PackageId: {packageResult.PackageId.ToString()}, PackageSize: {package.PackageSize.ToString()} bytes, PackageResult.QueueCount: {packageResult.QueueCount.ToString()}");
+                        tcs = innerTcs ?? InternalGetOrAddLazyTcs(package.PackageId);
+                        Debug.WriteLine(
+                            $"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} <- PackageRead (tcs {(innerTcs == null ? "new" : "exists")}, TaskId: {tcs.Task.Id.ToString()}) PackageId: {packageResult.PackageId.ToString()}, PackageSize: {package.PackageSize.ToString()} bytes, PackageResult.QueueCount: {packageResult.QueueCount.ToString()}");
                     }
 
-                    async Task ExistsPackageResult()
+                    void ExistsPackageResult()
                     {
-                        packageResult = await tcs.Task;
+                        packageResult = tcs.Task.Result;
                         packageResult.Enqueue(package);
-                        tcs = _readResults.GetOrAdd(package.PackageId, CreateLazyTcs);
-                        Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} <- PackageRead (tcs exists, TaskId: {tcs.Task.Id.ToString()}) PackageId: {packageResult.PackageId.ToString()}, PackageSize: {package.PackageSize.ToString()} bytes, PackageResult.QueueCount: {packageResult.QueueCount.ToString()}");
+                        tcs = InternalGetOrAddLazyTcs(package.PackageId);
+                        Debug.WriteLine(
+                            $"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} <- PackageRead (tcs exists, TaskId: {tcs.Task.Id.ToString()}) PackageId: {packageResult.PackageId.ToString()}, PackageSize: {package.PackageSize.ToString()} bytes, PackageResult.QueueCount: {packageResult.QueueCount.ToString()}");
                     }
 
-                    var setResult = tcs.TrySetResult(packageResult);
-                    Debug.WriteLine($"{tcs.Task.Id.ToString()}:{setResult.ToString()}");
+                    tcs.SetResult(packageResult);
                 }
             }
             catch (OperationCanceledException canceledException)
@@ -228,7 +241,7 @@ namespace Drenalol.Base
         private async Task StopReader(Exception exception)
         {
             Debug.WriteLine("Stopping reader");
-            foreach (var (_, tcs) in _readResults.Where(tcs => tcs.Value.Task.Status == TaskStatus.WaitingForActivation))
+            foreach (var (_, tcs) in _awaiters.Where(tcs => tcs.Value.Task.Status == TaskStatus.WaitingForActivation))
             {
                 var innerException = exception ?? new OperationCanceledException();
                 Debug.WriteLine($"Set force {innerException.GetType()} in TaskCompletionSource in TaskStatus.WaitingForActivation");
@@ -243,7 +256,7 @@ namespace Drenalol.Base
         private async Task StopWriter(Exception exception)
         {
             Debug.WriteLine("Stopping writer");
-            _readyToSend.CompleteAdding();
+            _packagesToSend.CompleteAdding();
             await Writer.CompleteAsync(exception);
             Writer.CancelPendingFlush();
             Debug.WriteLine("Stopping writer end");
@@ -255,7 +268,7 @@ namespace Drenalol.Base
             if (_internalCancellationTokenSource != null && !_internalCancellationTokenSource.IsCancellationRequested)
                 _internalCancellationTokenSource.Cancel();
 
-            _readyToSend?.Dispose();
+            _packagesToSend?.Dispose();
             _tcpClient?.Dispose();
             Debug.WriteLine("Disposing end");
         }

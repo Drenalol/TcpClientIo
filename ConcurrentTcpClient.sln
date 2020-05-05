@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConcurrentTcpClient", "ConcurrentTcpClient\ConcurrentTcpClient.csproj", "{59A8FA2B-8FE5-4657-BB52-C4FC7E24D408}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConcurrentTcpClient.Tests", "ConcurrentTcpClient.Tests\ConcurrentTcpClient.Tests.csproj", "{07F8A424-1F99-4CF4-97FF-635EDADC9904}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{59A8FA2B-8FE5-4657-BB52-C4FC7E24D408}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{59A8FA2B-8FE5-4657-BB52-C4FC7E24D408}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{59A8FA2B-8FE5-4657-BB52-C4FC7E24D408}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{59A8FA2B-8FE5-4657-BB52-C4FC7E24D408}.Release|Any CPU.Build.0 = Release|Any CPU
+		{07F8A424-1F99-4CF4-97FF-635EDADC9904}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{07F8A424-1F99-4CF4-97FF-635EDADC9904}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{07F8A424-1F99-4CF4-97FF-635EDADC9904}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{07F8A424-1F99-4CF4-97FF-635EDADC9904}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
