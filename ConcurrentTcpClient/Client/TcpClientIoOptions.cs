@@ -1,13 +1,13 @@
 using System.IO.Pipelines;
 
-namespace Drenalol.Base
+namespace Drenalol.Client
 {
-    public sealed class ConcurrentTcpClientOptions
+    public sealed class TcpClientIoOptions
     {
         public StreamPipeReaderOptions StreamPipeReaderOptions { get; set; }
         public StreamPipeWriterOptions StreamPipeWriterOptions { get; set; }
         
-        public static ConcurrentTcpClientOptions Default => new ConcurrentTcpClientOptions
+        public static TcpClientIoOptions Default => new TcpClientIoOptions
         {
             StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 65536),
             StreamPipeWriterOptions = new StreamPipeWriterOptions()

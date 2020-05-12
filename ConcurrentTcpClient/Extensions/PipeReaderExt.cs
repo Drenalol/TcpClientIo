@@ -1,3 +1,4 @@
+using System;
 using System.Buffers;
 using System.IO.Pipelines;
 using System.Threading;
@@ -7,35 +8,30 @@ namespace Drenalol.Extensions
 {
     public static class PipeReaderExt
     {
-        public static async Task<byte[]> ReadExactlyAsync(this PipeReader reader, long length, CancellationToken cancellationToken = default, long start = 0)
+        public static async Task<byte[]> ReadLengthAsync(this PipeReader reader, long length, CancellationToken cancellationToken = default, long start = 0)
         {
+            if (length < 1 || start < 0)
+                throw new ArgumentOutOfRangeException();
+            
             while (true)
             {
-                try
+                cancellationToken.ThrowIfCancellationRequested();
+                var readResult = await reader.ReadAsync(cancellationToken);
+
+                if (readResult.Buffer.IsEmpty)
+                    continue;
+                
+                var readResultLength = readResult.Buffer.Length;
+
+                if (readResultLength < length)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    
-                    var result = await reader.ReadAsync(cancellationToken);
-
-                    var readResultLength = result.Buffer.Length;
-
-                    if (result.Buffer.IsEmpty)
-                        continue;
-
-                    if (readResultLength < length)
-                    {
-                        reader.AdvanceTo(result.Buffer.Start, result.Buffer.GetPosition(readResultLength));
-                        continue;
-                    }
-
-                    var data = result.Buffer.Slice(start, length).ToArray();
-                    reader.AdvanceTo(result.Buffer.GetPosition(length));
-                    return data;
+                    reader.AdvanceTo(readResult.Buffer.Start, readResult.Buffer.GetPosition(readResultLength));
+                    continue;
                 }
-                catch
-                {
-                    return null;
-                }
+
+                var data = readResult.Buffer.Slice(start, length).ToArray();
+                reader.AdvanceTo(readResult.Buffer.GetPosition(length));
+                return data;
             }
         }
     }
