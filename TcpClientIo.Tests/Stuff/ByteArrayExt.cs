@@ -1,7 +1,7 @@
 using System;
 using System.Text;
 
-namespace Drenalol.Extensions
+namespace Drenalol.Stuff
 {
     public static class ByteArrayExt
     {

@@ -14,6 +14,7 @@ using Drenalol.Base;
 using Drenalol.Client;
 using Drenalol.Extensions;
 using Drenalol.Helpers;
+using Drenalol.Stuff;
 using NUnit.Framework;
 
 namespace Drenalol

@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Text;
 using Drenalol.Attributes;
-using Drenalol.Extensions;
 
-namespace Drenalol
+namespace Drenalol.Stuff
 {
     public class Mock
     {

@@ -20,7 +20,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\ConcurrentTcpClient\ConcurrentTcpClient.csproj" />
+      <ProjectReference Include="..\TcpClientIo\TcpClientIo.csproj" />
     </ItemGroup>
 
 </Project>

@@ -2,7 +2,7 @@ using System;
 using Drenalol.Attributes;
 using NUnit.Framework;
 
-namespace Drenalol
+namespace Drenalol.Stuff
 {
     public class AttributeMock
     {

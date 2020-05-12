@@ -1,9 +1,8 @@
 using System.Collections.Generic;
-using Drenalol.Sub;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
-namespace Drenalol.Extensions
+namespace Drenalol.Stuff
 {
     public static class JsonExt
     {
