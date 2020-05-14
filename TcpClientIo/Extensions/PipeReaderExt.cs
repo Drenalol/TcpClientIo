@@ -6,12 +6,14 @@ using System.Threading.Tasks;
 
 namespace Drenalol.Extensions
 {
-    public static class PipeReaderExt
+    internal static class PipeReaderExt
     {
         public static async Task<byte[]> ReadLengthAsync(this PipeReader reader, long length, CancellationToken cancellationToken = default, long start = 0)
         {
-            if (length < 1 || start < 0)
-                throw new ArgumentOutOfRangeException();
+            if (length < 1)
+                throw new ArgumentOutOfRangeException(nameof(length));
+            if (start < 0)
+                throw new ArgumentOutOfRangeException(nameof(start));
             
             while (true)
             {

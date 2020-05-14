@@ -13,8 +13,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Remove="MOCK_DATA" />
-      <Content Include="MOCK_DATA">
+      <Content Include="MOCK_DATA_1000">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
     </ItemGroup>

@@ -12,16 +12,25 @@ using System.Threading;
 using System.Threading.Tasks;
 using Drenalol.Base;
 using Drenalol.Client;
-using Drenalol.Extensions;
 using Drenalol.Helpers;
 using Drenalol.Stuff;
 using NUnit.Framework;
 
 namespace Drenalol
 {
+    [Parallelizable]
+    [TestFixture(TestOf = typeof(TcpClientIo<,>))]
     public class TcpClientIoTests
     {
-        private static readonly List<Mock> Mocks = JsonExt.Deserialize<List<Mock>>(File.ReadAllText("MOCK_DATA")).Select(mock => mock.Build()).ToList();
+        private List<Mock> _mocks;
+        private List<Guid> _guids;
+
+        [OneTimeSetUp]
+        public void Load()
+        {
+            _mocks = JsonExt.Deserialize<List<Mock>>(File.ReadAllText("MOCK_DATA_1000")).Select(mock => mock.Build()).ToList();
+            _guids = Enumerable.Range(0, 1000000).AsParallel().Select(i => Guid.NewGuid()).ToList();
+        }
 
         [TestCase(1, 1)]
         [TestCase(10, 4)]
@@ -39,9 +48,13 @@ namespace Drenalol
         [TestCase(1000000, 3)]
         [TestCase(1000000, 4)]
         [TestCase(1000000, -1)]
-        public async Task ParallelTest(int requests, int degree)
+        public async Task SingleConsumerInParallelTest(int requests, int degree)
         {
-            var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000);
+            var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000, new TcpClientIoOptions
+            {
+                StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 131072),
+                StreamPipeWriterOptions = new StreamPipeWriterOptions(minimumBufferSize: 131072)
+            });
             var parallelOptions = new ParallelOptions {MaxDegreeOfParallelism = degree};
             var sendMs = new ConcurrentBag<long>();
             var receiveMs = new ConcurrentBag<long>();
@@ -57,8 +70,8 @@ namespace Drenalol
             void Send(int id)
             {
                 var sw = Stopwatch.StartNew();
-                var mock = Mocks[TestContext.CurrentContext.Random.Next(Mocks.Count)];
-                mock.SetId();
+                var mock = _mocks[TestContext.CurrentContext.Random.Next(_mocks.Count)];
+                mock.Id = _guids[id];
                 sendedGuids.Add(mock.Id);
                 tcpClient.Send(mock, CancellationToken.None);
                 sw.Stop();
@@ -70,11 +83,12 @@ namespace Drenalol
             {
                 var sw = Stopwatch.StartNew();
                 var package = await tcpClient.ReceiveAsync(guid);
-
+                
                 if (package != null)
                 {
                     sw.Stop();
                     Interlocked.Increment(ref received);
+                    Debug.WriteLine($"Readed {guid} {package.QueueCount.ToString()}");
                 }
 
                 receiveMs.Add(sw.ElapsedMilliseconds);
@@ -94,6 +108,142 @@ namespace Drenalol
             TestContext.WriteLine($"Received: {received.ToString()}");
             await tcpClient.DisposeAsync();
         }
+        
+        [TestCase(1000000, 4)]
+        public void MultipleConsumersAsyncTest(int requests, int consumers)
+        {
+            var requestsPerConsumer = requests / consumers;
+            var consumersList = Enumerable.Range(0, consumers).Select(i => new TcpClientIo<Mock, Mock>(IPAddress.Parse("192.168.31.95"), 10000, new TcpClientIoOptions
+            {
+                StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 131072),
+                StreamPipeWriterOptions = new StreamPipeWriterOptions(minimumBufferSize: 131072)
+            })).ToList();
+            var parallelOptions = new ParallelOptions {MaxDegreeOfParallelism = 4};
+            var sendQueue = 0;
+            var receiveQueue = 0;
+            var sendMs = new ConcurrentBag<long>();
+            var receiveMs = new ConcurrentBag<long>();
+            var sended = 0;
+            var received = 0;
+            var totalSize = 0;
+            
+            Parallel.ForEach(consumersList, parallelOptions, tcpClient =>
+            {
+                var sendedGuids = new ConcurrentBag<Guid>();
+                var writeTask = Task.Run(() => Parallel.For(0, requestsPerConsumer, parallelOptions, Send));
+                Task.WaitAll(writeTask);
+                var readTask = Task.Run(() => Parallel.ForEach(sendedGuids, parallelOptions, guid => ReadAsync(guid).GetAwaiter().GetResult()));
+                Task.WaitAll(readTask);
+
+                void Send(int id)
+                {
+                    var sw = Stopwatch.StartNew();
+                    var mock = _mocks[TestContext.CurrentContext.Random.Next(_mocks.Count)];
+                    mock.Id = _guids[id];
+                    sendedGuids.Add(mock.Id);
+                    tcpClient.Send(mock, CancellationToken.None);
+                    sw.Stop();
+                    Interlocked.Increment(ref sended);
+                    Interlocked.Add(ref totalSize, mock.Size);
+                    sendMs.Add(sw.ElapsedMilliseconds);
+                }
+
+                async Task ReadAsync(Guid guid)
+                {
+                    var sw = Stopwatch.StartNew();
+                    var package = await tcpClient.ReceiveAsync(guid);
+                
+                    if (package != null)
+                    {
+                        sw.Stop();
+                        Interlocked.Increment(ref received);
+                        Debug.WriteLine($"Readed {guid} {package.QueueCount.ToString()}");
+                    }
+
+                    receiveMs.Add(sw.ElapsedMilliseconds);
+                }
+
+                Interlocked.Add(ref sendQueue, tcpClient.SendQueue);
+                Interlocked.Add(ref receiveQueue, tcpClient.Waiters);
+            });
+            
+            TestContext.WriteLine($"Send Min Avg Max ms: {sendMs.Min().ToString()} {sendMs.Average().ToString(CultureInfo.CurrentCulture)} {sendMs.Max().ToString()}");
+            TestContext.WriteLine($"Receive Min Avg Max ms: {receiveMs.Min().ToString()} {receiveMs.Average().ToString(CultureInfo.CurrentCulture)} {receiveMs.Max().ToString()}");
+            TestContext.WriteLine($"Receive > 1 sec: {receiveMs.Count(l => l > 1000).ToString()}");
+            TestContext.WriteLine($"Receive > 2 sec: {receiveMs.Count(l => l > 2000).ToString()}");
+            TestContext.WriteLine($"Receive > 5 sec: {receiveMs.Count(l => l > 5000).ToString()}");
+            TestContext.WriteLine($"Receive > 10 sec: {receiveMs.Count(l => l > 10000).ToString()}");
+            TestContext.WriteLine($"Receive > 30 sec: {receiveMs.Count(l => l > 30000).ToString()}");
+            TestContext.WriteLine($"SendQueue: {sendQueue.ToString()}");
+            TestContext.WriteLine($"ReadCount: {receiveQueue.ToString()}");
+            TestContext.WriteLine($"Sended: {sended.ToString()}");
+            TestContext.WriteLine($"Received: {received.ToString()}");
+            TestContext.WriteLine($"TotalSize: {totalSize.ToString()}");
+            /*var requestsPerConsumer = requests / consumers;
+            var consumersList = Enumerable.Range(0, consumers).Select(i => new TcpClientIo<Mock, Mock>(IPAddress.Parse("192.168.31.95"), 10000, new TcpClientIoOptions
+            {
+                StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 131072),
+                StreamPipeWriterOptions = new StreamPipeWriterOptions(minimumBufferSize: 131072)
+            })).ToList();
+            var sendMs = new ConcurrentBag<long>();
+            var receiveMs = new ConcurrentBag<long>();
+            var sendQueue = 0;
+            var receiveQueue = 0;
+            var sended = 0;
+            var received = 0;
+
+            var tasks = Enumerable.Range(0, consumers).Select(consumer => Task.Run(async () =>
+            {
+                var tcpClient = consumersList[consumer];
+                var sendedGuids = new ConcurrentBag<Guid>();
+                var tasks1 = Enumerable.Range(0, requestsPerConsumer).Select(i => Task.Run(() => Send(i))).ToArray();
+                await Task.WhenAll(tasks1);
+                var guids = sendedGuids.ToArray();
+                var tasks2 = Enumerable.Range(0, sendedGuids.Count).Select(i => Task.Run(async () => await ReadAsync(guids[i]))).ToArray();
+                await Task.WhenAll(tasks2);
+
+                void Send(int id)
+                {
+                    var sw = Stopwatch.StartNew();
+                    var mock = _mocks[TestContext.CurrentContext.Random.Next(_mocks.Count)];
+                    mock.Id = _guids[id];
+                    sendedGuids.Add(mock.Id);
+                    tcpClient.Send(mock, CancellationToken.None);
+                    sw.Stop();
+                    Interlocked.Increment(ref sended);
+                    sendMs.Add(sw.ElapsedMilliseconds);
+                }
+
+                async Task ReadAsync(Guid guid)
+                {
+                    var sw = Stopwatch.StartNew();
+                    var package = await tcpClient.ReceiveAsync(guid);
+                
+                    if (package != null)
+                    {
+                        sw.Stop();
+                        Interlocked.Increment(ref received);
+                    }
+
+                    receiveMs.Add(sw.ElapsedMilliseconds);
+                }
+
+            })).ToArray();
+
+            await Task.WhenAll(tasks);
+
+            TestContext.WriteLine($"Send Min Avg Max ms: {sendMs.Min().ToString()} {sendMs.Average().ToString(CultureInfo.CurrentCulture)} {sendMs.Max().ToString()}");
+            TestContext.WriteLine($"Receive Min Avg Max ms: {receiveMs.Min().ToString()} {receiveMs.Average().ToString(CultureInfo.CurrentCulture)} {receiveMs.Max().ToString()}");
+            TestContext.WriteLine($"Receive > 1 sec: {receiveMs.Count(l => l > 1000).ToString()}");
+            TestContext.WriteLine($"Receive > 2 sec: {receiveMs.Count(l => l > 2000).ToString()}");
+            TestContext.WriteLine($"Receive > 5 sec: {receiveMs.Count(l => l > 5000).ToString()}");
+            TestContext.WriteLine($"Receive > 10 sec: {receiveMs.Count(l => l > 10000).ToString()}");
+            TestContext.WriteLine($"Receive > 30 sec: {receiveMs.Count(l => l > 30000).ToString()}");
+            TestContext.WriteLine($"SendQueue: {sendQueue.ToString()}");
+            TestContext.WriteLine($"ReadCount: {receiveQueue.ToString()}");
+            TestContext.WriteLine($"Sended: {sended.ToString()}");
+            TestContext.WriteLine($"Received: {received.ToString()}");*/
+        }
 
         [Test]
         public async Task SameIdTest()
@@ -105,8 +255,8 @@ namespace Drenalol
 
             _ = Task.Run(() => Parallel.For(0, requests, i =>
             {
-                var mock = Mocks[TestContext.CurrentContext.Random.Next(Mocks.Count)];
-                mock.SetId(true);
+                var mock = _mocks[TestContext.CurrentContext.Random.Next(_mocks.Count)];
+                mock.Id = Guid.Empty;
                 Assert.IsTrue(tcpClient.TrySend(mock));
             }));
 
@@ -127,7 +277,7 @@ namespace Drenalol
                 TestContext.WriteLine($"({count.ToString()}/{requests.ToString()}) +{queue.ToString()}, by {delay.ToString()} ms, SendQueue: {tcpClient.SendQueue.ToString()}, ReadCount: {tcpClient.Waiters.ToString()}");
             }
 
-            var havingCount = list.GroupBy(u => u).Where(p => p.Count() > 1).Select(ig => ig.Key.ToString()).Aggregate((prev, next) => $"{prev}, {next}");
+            var havingCount = list.GroupBy(u => u).Where(p => p.Count() > 1).Select(ig => ig.Key.ToString()).Aggregate((acc, next) => $"{acc}, {next}");
             TestContext.WriteLine($"Non-UNIQ Sizes: {havingCount}");
             await tcpClient.DisposeAsync();
         }
@@ -143,7 +293,7 @@ namespace Drenalol
                 ((System.Timers.Timer) sender).Stop();
                 tcpClient.DisposeAsync().GetAwaiter().GetResult();
             };
-            var mock = Mocks[666];
+            var mock = _mocks[666];
             while (true)
             {
                 try
@@ -165,7 +315,7 @@ namespace Drenalol
         public async Task CancelSendReceiveTest()
         {
             await using var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000);
-            var mock = Mocks[666];
+            var mock = _mocks[666];
             var attempts = 0;
             while (attempts < 3)
             {
@@ -232,7 +382,7 @@ namespace Drenalol
             var list = new List<Guid>();
             var writeTasks = Enumerable.Range(0, requests).Select(id => Task.Run(() =>
             {
-                var mock = Mocks[TestContext.CurrentContext.Random.Next(Mocks.Count)];
+                var mock = _mocks[TestContext.CurrentContext.Random.Next(_mocks.Count)];
                 list.Add(mock.Id);
                 tcpClient.Send(mock);
             })).ToArray();
@@ -250,7 +400,7 @@ namespace Drenalol
         }
 
         [Test]
-        public async Task AttributeParsingTest()
+        public void AttributeParsingTest()
         {
             var mock = new AttributeMock();
             var reflectionHelper = new ReflectionHelper<AttributeMock, AttributeMock>();

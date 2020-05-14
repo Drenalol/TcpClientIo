@@ -4,7 +4,7 @@ using Drenalol.Attributes;
 
 namespace Drenalol.Stuff
 {
-    public class Mock
+    public struct Mock
     {
         [TcpPackageData(0, 16, AttributeData = TcpPackageDataType.Key)]
         public Guid Id { get; set; }
@@ -21,8 +21,6 @@ namespace Drenalol.Stuff
 
         [TcpPackageData(270, 0, AttributeData = TcpPackageDataType.Body)]
         public byte[] Body { get; set; }
-
-        public void SetId(bool empty = false) => Id = empty ? Guid.Empty : Guid.NewGuid();
 
         public Mock Build()
         {
