@@ -2,7 +2,7 @@ using System;
 
 namespace Drenalol.Attributes
 {
-    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    [AttributeUsage(AttributeTargets.Property)]
     public class TcpPackageDataAttribute : Attribute
     {
         public int Index { get; }

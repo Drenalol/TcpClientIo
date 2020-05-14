@@ -20,5 +20,7 @@ namespace Drenalol.Attributes
         public object? Get(object? tcpPackage) => Property.GetValue(tcpPackage);
         
         public void Set(object? tcpPackage, object? @object) => Property.SetValue(tcpPackage, @object);
+        
+        internal bool CanReadWrite => Property.CanRead && Property.CanWrite;
     }
 }

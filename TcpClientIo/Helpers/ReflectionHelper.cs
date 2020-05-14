@@ -45,7 +45,7 @@ namespace Drenalol.Helpers
                     select new TcpPackageProperty(property, attribute))
                 .ToImmutableDictionary(key => key.Attribute.Index, property => property);
 
-            TcpPackageDataAttribute GetTcpPackageDataAttribute(ICustomAttributeProvider property)
+            static TcpPackageDataAttribute GetTcpPackageDataAttribute(ICustomAttributeProvider property)
             {
                 return property
                     .GetCustomAttributes(true)
@@ -55,29 +55,38 @@ namespace Drenalol.Helpers
 
             return tcpPackageProperties;
         }
-
+        
         private static void EnsureTypeHasRequiredAttributes(Type type, ImmutableDictionary<int, TcpPackageProperty> properties)
         {
-            var key = properties.Count(item => item.Value.Attribute.AttributeData == TcpPackageDataType.Key);
+            var key = properties.Where(item => item.Value.Attribute.AttributeData == TcpPackageDataType.Key).ToList();
 
-            if (key == 0)
+            if (key.Count == 0)
                 throw TcpPackageException.Throw(TcpPackageTypeException.AttributeKeyRequired, type.ToString());
-            if (key > 1)
+            if (key.Count > 1)
                 throw TcpPackageException.Throw(TcpPackageTypeException.AttributeDuplicate, type.ToString(), nameof(TcpPackageDataType.Key));
 
-            var body = properties.Count(item => item.Value.Attribute.AttributeData == TcpPackageDataType.Body);
+            if (!key.Single().Value.CanReadWrite)
+                throw TcpPackageException.Throw(TcpPackageTypeException.PropertyCanReadWrite, type.ToString(), nameof(TcpPackageDataType.Key));
 
-            if (body > 1)
+            var body = properties.Where(item => item.Value.Attribute.AttributeData == TcpPackageDataType.Body).ToList();
+
+            if (body.Count > 1)
                 throw TcpPackageException.Throw(TcpPackageTypeException.AttributeDuplicate, type.ToString(), nameof(TcpPackageDataType.Body));
+            
+            if (body.Count == 1 && !body.Single().Value.CanReadWrite)
+                throw TcpPackageException.Throw(TcpPackageTypeException.PropertyCanReadWrite, type.ToString(), nameof(TcpPackageDataType.Body));
 
-            var bodyLength = properties.Count(item => item.Value.Attribute.AttributeData == TcpPackageDataType.BodyLength);
+            var bodyLength = properties.Where(item => item.Value.Attribute.AttributeData == TcpPackageDataType.BodyLength).ToList();
 
-            if (bodyLength > 1)
+            if (bodyLength.Count > 1)
                 throw TcpPackageException.Throw(TcpPackageTypeException.AttributeDuplicate, type.ToString(), nameof(TcpPackageDataType.BodyLength));
-            if (body == 1 && bodyLength == 0)
+            if (body.Count == 1 && bodyLength.Count == 0)
                 throw TcpPackageException.Throw(TcpPackageTypeException.AttributeBodyLengthRequired, type.ToString());
-            if (bodyLength == 1 && body == 0)
+            if (bodyLength.Count == 1 && body.Count == 0)
                 throw TcpPackageException.Throw(TcpPackageTypeException.AttributeBodyRequired, type.ToString());
+            
+            if (bodyLength.Count == 1 && body.Count == 1 && !bodyLength.Single().Value.CanReadWrite)
+                throw TcpPackageException.Throw(TcpPackageTypeException.PropertyCanReadWrite, type.ToString(), nameof(TcpPackageDataType.BodyLength));
         }
 
         public ImmutableDictionary<int, TcpPackageProperty> GetRequestProperties() => _internalCache[_request];//.ToDictionary(pair => pair.Key, pair => pair.Value);

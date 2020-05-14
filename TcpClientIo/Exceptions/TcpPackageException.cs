@@ -16,6 +16,7 @@ namespace Drenalol.Exceptions
                 TcpPackageTypeException.SerializerSequenceViolated => new TcpPackageException($"Sequence violated in {nameof(TcpPackageDataAttribute.Index)}"),
                 TcpPackageTypeException.SerializerLengthOutOfRange => new TcpPackageException($"({someData[0]}, {someData[1]} bytes) is greater than attribute length {someData[2]} bytes"),
                 TcpPackageTypeException.PropertyArgumentIsNull => new TcpPackageException($"NULL value cannot be converted ({someData[0]})"),
+                TcpPackageTypeException.PropertyCanReadWrite => new TcpPackageException($"Set and Get keywords required for Serializtion. Type: {someData[0]}, {nameof(TcpPackageDataType)}: {someData[1]}"),
                 TcpPackageTypeException.ConverterNotFoundType => new TcpPackageException($"Not found converter for {someData[0]}"),
                 TcpPackageTypeException.ConverterUnknownError => new TcpPackageException($"Error while trying convert data {someData[0]}, error: {someData[1]}"),
                 TcpPackageTypeException.AttributeKeyRequired => new TcpPackageException($"{someData[0]} does not have required attribute {nameof(TcpPackageDataType.Key)}"),
