@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Threading;
@@ -12,7 +11,7 @@ using static Drenalol.Helpers.BitConverterHelper;
 
 namespace Drenalol.Base
 {
-    public class TcpPackageSerializer<TRequest, TResponse> where TResponse : new()
+    internal class TcpPackageSerializer<TRequest, TResponse> where TResponse : new()
     {
         private readonly ReflectionHelper<TRequest, TResponse> _reflectionHelper;
         
@@ -33,7 +32,6 @@ namespace Drenalol.Base
             {
                 var value = CustomBitConverterToBytes(property.Get(request), property.PropertyType, property.Attribute.Reverse);
                 var valueLength = value.Length;
-                Debug.WriteLine($"Serialize property {valueLength.ToString()} bytes, {property.Attribute.AttributeData.ToString()}:{property.Attribute.Index.ToString()}:{property.Attribute.Length.ToString()}");
 
                 if (property.Attribute.AttributeData != TcpPackageDataType.Body && valueLength > property.Attribute.Length)
                     throw TcpPackageException.Throw(TcpPackageTypeException.SerializerLengthOutOfRange, property.PropertyType.ToString(), valueLength.ToString(), property.Attribute.Length.ToString());
@@ -45,6 +43,7 @@ namespace Drenalol.Base
                 Array.Copy(rent, 0, serializedRequest, property.Attribute.Index, length);
                 key += length;
                 examined++;
+                Trace.WriteLine($"Serialize property {valueLength.ToString()} bytes, {property.Attribute.AttributeData.ToString()}:{property.Attribute.Index.ToString()}:{property.Attribute.Length.ToString()}");
             }
 
             if (examined != properties.Count)
@@ -78,7 +77,6 @@ namespace Drenalol.Base
                         break;
                 }
 
-                Debug.WriteLine($"Deserialize property {sliceLength.ToString()} bytes, {property.Attribute.AttributeData.ToString()}:{property.Attribute.Index.ToString()}:{property.Attribute.Length.ToString()}");
                 var bytesFromReader = await pipeReader.ReadLengthAsync(sliceLength, token);
                 object value = null;
 
@@ -103,6 +101,7 @@ namespace Drenalol.Base
                 property.Set(response, value);
                 key += sliceLength;
                 examined++;
+                Debug.WriteLine($"Deserialize property {sliceLength.ToString()} bytes, {property.Attribute.AttributeData.ToString()}:{property.Attribute.Index.ToString()}:{property.Attribute.Length.ToString()}");
             }
 
             if (examined != properties.Count)

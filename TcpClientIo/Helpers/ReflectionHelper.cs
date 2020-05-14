@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
@@ -8,7 +7,7 @@ using Drenalol.Exceptions;
 
 namespace Drenalol.Helpers
 {
-    public class ReflectionHelper<TRequest, TResponse>
+    internal class ReflectionHelper<TRequest, TResponse>
     {
         private readonly Type _request;
         private readonly Type _response;
