@@ -36,7 +36,7 @@ namespace Drenalol.Client
         {
             _baseCancellationTokenSource = new CancellationTokenSource();
             _baseCancellationToken = _baseCancellationTokenSource.Token;
-            _requests = new BufferBlock<byte[]>(new DataflowBlockOptions {CancellationToken = _baseCancellationToken});
+            _requests = new BufferBlock<byte[]>();
             _completeResponses = new ConcurrentDictionary<object, TaskCompletionSource<TcpPackageBatch<TResponse>>>();
             _serializer = new TcpPackageSerializer<TRequest, TResponse>();
             _semaphore = new SemaphoreSlim(2, 2);

@@ -13,10 +13,7 @@ namespace Drenalol.Client
     {
         private readonly BufferBlock<byte[]> _requests;
         private readonly ConcurrentDictionary<object, TaskCompletionSource<TcpPackageBatch<TResponse>>> _completeResponses;
-
         private readonly ActionBlock<(object, TResponse)> _responseBlock;
-
-        //private readonly object _lock = new object();
         private readonly AsyncLock _asyncLock = new AsyncLock();
 
         /// <summary>
@@ -97,8 +94,6 @@ namespace Drenalol.Client
         private TaskCompletionSource<TcpPackageBatch<TResponse>> InternalGetOrAddLazyTcs(object key) => _completeResponses.GetOrAdd(key, _ => InternalCreateLazyTcs().Value);
 
         private static Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>> InternalCreateLazyTcs() => new Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>>(() => new TaskCompletionSource<TcpPackageBatch<TResponse>>());
-
-        //public async Task<TcpPackageBatch<TResponse>> ReceiveAsync(object key, CancellationToken? token = default) => await InReceiveAsync(key, token);
 
         public async Task<TcpPackageBatch<TResponse>> ReceiveAsync(object key, CancellationToken? token = default)
         {
