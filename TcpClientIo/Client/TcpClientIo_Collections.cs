@@ -13,7 +13,7 @@ namespace Drenalol.Client
     {
         private readonly BufferBlock<byte[]> _requests;
         private readonly ConcurrentDictionary<object, TaskCompletionSource<TcpPackageBatch<TResponse>>> _completeResponses;
-        private readonly ActionBlock<(object, TResponse)> _responseBlock;
+        private readonly ActionBlock<(object, TResponse)> _responses;
         private readonly AsyncLock _asyncLock = new AsyncLock();
 
         /// <summary>

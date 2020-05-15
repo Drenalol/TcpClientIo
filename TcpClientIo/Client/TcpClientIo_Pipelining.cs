@@ -66,7 +66,7 @@ namespace Drenalol.Client
                         continue;
                     }
 
-                    await _responseBlock.SendAsync((responseId, response), _baseCancellationToken);
+                    await _responses.SendAsync((responseId, response), _baseCancellationToken);
                 }
             }
             catch (OperationCanceledException canceledException)

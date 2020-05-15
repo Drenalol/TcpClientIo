@@ -40,7 +40,7 @@ namespace Drenalol.Client
             _completeResponses = new ConcurrentDictionary<object, TaskCompletionSource<TcpPackageBatch<TResponse>>>();
             _serializer = new TcpPackageSerializer<TRequest, TResponse>();
             _semaphore = new SemaphoreSlim(2, 2);
-            _responseBlock = new ActionBlock<(object, TResponse)>(AddOrRemoveResponseAsync, new ExecutionDataflowBlockOptions {CancellationToken = _baseCancellationToken});
+            _responses = new ActionBlock<(object, TResponse)>(AddOrRemoveResponseAsync, new ExecutionDataflowBlockOptions {CancellationToken = _baseCancellationToken});
         }
 
         private void SetupTcpClient(TcpClientIoOptions tcpClientIoOptions)
