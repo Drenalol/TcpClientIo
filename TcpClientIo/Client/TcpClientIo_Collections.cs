@@ -5,33 +5,28 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Drenalol.Base;
+using Nito.AsyncEx;
 
 namespace Drenalol.Client
 {
     public sealed partial class TcpClientIo<TRequest, TResponse>
     {
-        private readonly BlockingCollection<byte[]> _requests;
-        private readonly ConcurrentDictionary<object, TaskCompletionSource<TcpPackageBatch<TResponse>>> _responses;
+        private readonly BufferBlock<byte[]> _requests;
+        private readonly ConcurrentDictionary<object, TaskCompletionSource<TcpPackageBatch<TResponse>>> _completeResponses;
+
         private readonly ActionBlock<(object, TResponse)> _responseBlock;
-        private readonly object _lock = new object();
+
+        //private readonly object _lock = new object();
+        private readonly AsyncLock _asyncLock = new AsyncLock();
 
         /// <summary>
         /// WARNING! This property lock internal <see cref="ConcurrentDictionary{TKey,TValue}"/>, be careful of frequently use.
         /// </summary>
-        public int Waiters
-        {
-            get
-            {
-                lock (_lock)
-                {
-                    return _responses.Count;
-                }
-            }
-        }
+        public int Waiters => _completeResponses.Count;
 
         public int SendQueue => _requests.Count;
 
-        private void AddOrRemoveResponse((object, TResponse) arg)
+        private async Task AddOrRemoveResponseAsync((object, TResponse) arg)
         {
             var (responseId, response) = arg;
             TaskCompletionSource<TcpPackageBatch<TResponse>> tcs;
@@ -41,9 +36,9 @@ namespace Drenalol.Client
             // You do not have to use locks in your code to add or remove items from the collection.
             // However, it is always possible for one thread to retrieve a value, and another thread
             // to immediately update the collection by giving the same key a new value.
-            lock (_lock)
+            using (await _asyncLock.LockAsync())
             {
-                if (_responses.TryRemove(responseId, out tcs))
+                if (_completeResponses.TryRemove(responseId, out tcs))
                 {
                     switch (tcs.Task.Status)
                     {
@@ -51,7 +46,7 @@ namespace Drenalol.Client
                             New(tcs);
                             break;
                         case TaskStatus.RanToCompletion:
-                            Exists();
+                            await ExistsAsync();
                             break;
                     }
                 }
@@ -68,9 +63,9 @@ namespace Drenalol.Client
                                 $"PackageId: {packageBatch.PackageId}, PackageResult.QueueCount: {packageBatch.QueueCount.ToString()}");
             }
 
-            void Exists()
+            async Task ExistsAsync()
             {
-                packageBatch = tcs.Task.Result;
+                packageBatch = await tcs.Task;
                 packageBatch.Enqueue(response);
                 tcs = InternalGetOrAddLazyTcs(responseId);
                 Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} " +
@@ -81,20 +76,16 @@ namespace Drenalol.Client
             tcs.SetResult(packageBatch);
         }
 
-        public bool TrySend(TRequest request, int timeout, CancellationToken? token = default) => InternalTrySend(request, timeout, token ?? _baseCancellationToken);
-        public bool TrySend(TRequest request) => InternalTrySend(request, 0, new CancellationToken());
-        public void Send(TRequest request, CancellationToken? token = default) => InternalTrySend(request, -1, token);
-
-        private bool InternalTrySend(TRequest request, int timeout, CancellationToken? token = default)
+        public async Task SendAsync(TRequest request, CancellationToken? token = default)
         {
             try
             {
                 var serializedRequest = _serializer.Serialize(request);
-                return !_requests.IsAddingCompleted && _requests.TryAdd(serializedRequest, timeout, token ?? _baseCancellationToken);
+                await _requests.SendAsync(serializedRequest, token ?? _baseCancellationToken);
             }
             catch (ObjectDisposedException)
             {
-                return false;
+                //
             }
             catch (Exception e)
             {
@@ -103,35 +94,31 @@ namespace Drenalol.Client
             }
         }
 
-        private TaskCompletionSource<TcpPackageBatch<TResponse>> InternalGetOrAddLazyTcs(object key)
-        {
-            lock (_lock)
-            {
-                return _responses.GetOrAdd(key, _ => InternalCreateLazyTcs().Value);                
-            }
-        }
-        
-        private static Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>> InternalCreateLazyTcs() => new Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>>(() => new TaskCompletionSource<TcpPackageBatch<TResponse>>());
-        
-        public async Task<TcpPackageBatch<TResponse>> ReceiveAsync(object key, CancellationToken? token = default) => await InternalReceiveAsync(key, token ?? _baseCancellationToken);
+        private TaskCompletionSource<TcpPackageBatch<TResponse>> InternalGetOrAddLazyTcs(object key) => _completeResponses.GetOrAdd(key, _ => InternalCreateLazyTcs().Value);
 
-        private Task<TcpPackageBatch<TResponse>> InternalReceiveAsync(object key, CancellationToken token)
+        private static Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>> InternalCreateLazyTcs() => new Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>>(() => new TaskCompletionSource<TcpPackageBatch<TResponse>>());
+
+        //public async Task<TcpPackageBatch<TResponse>> ReceiveAsync(object key, CancellationToken? token = default) => await InReceiveAsync(key, token);
+
+        public async Task<TcpPackageBatch<TResponse>> ReceiveAsync(object key, CancellationToken? token = default)
         {
+            var internalToken = token ?? _baseCancellationToken;
+
             TaskCompletionSource<TcpPackageBatch<TResponse>> tcs;
-            // Info about lock read below in TcpReadAsync method
-            lock (_lock)
+            // Info about lock read in TcpReadAsync method
+            using (await _asyncLock.LockAsync())
             {
-                if (!_responses.TryRemove(key, out tcs))
+                if (!_completeResponses.TryRemove(key, out tcs))
                     tcs = InternalGetOrAddLazyTcs(key);
             }
 
-            using (token.Register(() =>
+            await using (internalToken.Register(() =>
             {
                 var cancelled = tcs.TrySetCanceled();
                 Debug.WriteLine(cancelled ? $"Cancelled {key}" : $"Not cancelled {key}, TaskStatus: {tcs.Task.Status.ToString()}");
             }))
             {
-                return tcs.Task;
+                return await tcs.Task;
             }
         }
     }

@@ -62,18 +62,18 @@ namespace Drenalol
             var received = 0;
 
             var sendedGuids = new ConcurrentBag<Guid>();
-            var writeTask = Task.Run(() => Parallel.For(0, requests, parallelOptions, Send));
+            var writeTask = Task.Run(() => Parallel.For(0, requests, parallelOptions, i => Send(i).GetAwaiter().GetResult()));
             await Task.WhenAll(writeTask);
             var readTask = Task.Run(() => Parallel.ForEach(sendedGuids, parallelOptions, guid => ReadAsync(guid).GetAwaiter().GetResult()));
             await Task.WhenAll(readTask);
 
-            void Send(int id)
+            async Task Send(int id)
             {
                 var sw = Stopwatch.StartNew();
                 var mock = _mocks[TestContext.CurrentContext.Random.Next(_mocks.Count)];
                 mock.Id = _guids[id];
                 sendedGuids.Add(mock.Id);
-                tcpClient.Send(mock, CancellationToken.None);
+                await tcpClient.SendAsync(mock, CancellationToken.None);
                 sw.Stop();
                 Interlocked.Increment(ref sended);
                 sendMs.Add(sw.ElapsedMilliseconds);
@@ -102,18 +102,19 @@ namespace Drenalol
             TestContext.WriteLine($"Receive > 5 sec: {receiveMs.Count(l => l > 5000).ToString()}");
             TestContext.WriteLine($"Receive > 10 sec: {receiveMs.Count(l => l > 10000).ToString()}");
             TestContext.WriteLine($"Receive > 30 sec: {receiveMs.Count(l => l > 30000).ToString()}");
-            TestContext.WriteLine($"SendQueue: {tcpClient.SendQueue.ToString()}");
+            //TestContext.WriteLine($"SendQueue: {tcpClient.SendQueue.ToString()}");
             TestContext.WriteLine($"ReadCount: {readCount.ToString()}");
             TestContext.WriteLine($"Sended: {sended.ToString()}");
             TestContext.WriteLine($"Received: {received.ToString()}");
             await tcpClient.DisposeAsync();
         }
         
+        [TestCase(100, 4)]
         [TestCase(1000000, 4)]
         public void MultipleConsumersAsyncTest(int requests, int consumers)
         {
             var requestsPerConsumer = requests / consumers;
-            var consumersList = Enumerable.Range(0, consumers).Select(i => new TcpClientIo<Mock, Mock>(IPAddress.Parse("192.168.31.95"), 10000, new TcpClientIoOptions
+            var consumersList = Enumerable.Range(0, consumers).Select(i => new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000, new TcpClientIoOptions
             {
                 StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 131072),
                 StreamPipeWriterOptions = new StreamPipeWriterOptions(minimumBufferSize: 131072)
@@ -130,18 +131,18 @@ namespace Drenalol
             Parallel.ForEach(consumersList, parallelOptions, tcpClient =>
             {
                 var sendedGuids = new ConcurrentBag<Guid>();
-                var writeTask = Task.Run(() => Parallel.For(0, requestsPerConsumer, parallelOptions, Send));
+                var writeTask = Task.Run(() => Parallel.For(0, requestsPerConsumer, parallelOptions, i => Send(i).GetAwaiter().GetResult()));
                 Task.WaitAll(writeTask);
                 var readTask = Task.Run(() => Parallel.ForEach(sendedGuids, parallelOptions, guid => ReadAsync(guid).GetAwaiter().GetResult()));
                 Task.WaitAll(readTask);
 
-                void Send(int id)
+                async Task Send(int id)
                 {
                     var sw = Stopwatch.StartNew();
                     var mock = _mocks[TestContext.CurrentContext.Random.Next(_mocks.Count)];
                     mock.Id = _guids[id];
                     sendedGuids.Add(mock.Id);
-                    tcpClient.Send(mock, CancellationToken.None);
+                    await tcpClient.SendAsync(mock, CancellationToken.None);
                     sw.Stop();
                     Interlocked.Increment(ref sended);
                     Interlocked.Add(ref totalSize, mock.Size);
@@ -245,7 +246,7 @@ namespace Drenalol
             TestContext.WriteLine($"Received: {received.ToString()}");*/
         }
 
-        [Test]
+        /*[Test]
         public async Task SameIdTest()
         {
             const int requests = 500;
@@ -397,7 +398,7 @@ namespace Drenalol
             Assert.AreEqual(0, tcpClient.SendQueue);
             Assert.AreEqual(0, tcpClient.Waiters);
             await tcpClient.DisposeAsync();
-        }
+        }*/
 
         [Test]
         public void AttributeParsingTest()

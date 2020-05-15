@@ -36,11 +36,11 @@ namespace Drenalol.Client
         {
             _baseCancellationTokenSource = new CancellationTokenSource();
             _baseCancellationToken = _baseCancellationTokenSource.Token;
-            _requests = new BlockingCollection<byte[]>();
-            _responses = new ConcurrentDictionary<object, TaskCompletionSource<TcpPackageBatch<TResponse>>>();
+            _requests = new BufferBlock<byte[]>(new DataflowBlockOptions {CancellationToken = _baseCancellationToken});
+            _completeResponses = new ConcurrentDictionary<object, TaskCompletionSource<TcpPackageBatch<TResponse>>>();
             _serializer = new TcpPackageSerializer<TRequest, TResponse>();
             _semaphore = new SemaphoreSlim(2, 2);
-            _responseBlock = new ActionBlock<(object, TResponse)>(AddOrRemoveResponse, new ExecutionDataflowBlockOptions {CancellationToken = _baseCancellationToken});
+            _responseBlock = new ActionBlock<(object, TResponse)>(AddOrRemoveResponseAsync, new ExecutionDataflowBlockOptions {CancellationToken = _baseCancellationToken});
         }
 
         private void SetupTcpClient(TcpClientIoOptions tcpClientIoOptions)
@@ -72,7 +72,6 @@ namespace Drenalol.Client
                 await Task.Delay(100, CancellationToken.None);
             }
 
-            _requests?.Dispose();
             _tcpClient?.Dispose();
             _semaphore?.Dispose();
             Debug.WriteLine("Disposing end");
