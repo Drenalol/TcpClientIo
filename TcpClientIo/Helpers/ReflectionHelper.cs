@@ -42,7 +42,7 @@ namespace Drenalol.Helpers
                 (from property in type.GetProperties()
                     let attribute = GetTcpPackageDataAttribute(property)
                     where attribute != null
-                    select new TcpPackageProperty(property, attribute))
+                    select new TcpPackageProperty(property, attribute, type.IsValueType))
                 .ToImmutableDictionary(key => key.Attribute.Index, property => property);
 
             static TcpPackageDataAttribute GetTcpPackageDataAttribute(ICustomAttributeProvider property)

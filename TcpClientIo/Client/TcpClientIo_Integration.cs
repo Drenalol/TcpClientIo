@@ -1,31 +1,16 @@
 using System;
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Drenalol.Base;
-using Nito.AsyncEx;
 
 namespace Drenalol.Client
 {
     public sealed partial class TcpClientIo<TRequest, TResponse>
     {
-        private readonly BufferBlock<byte[]> _requests;
-        private readonly ConcurrentDictionary<object, TaskCompletionSource<TcpPackageBatch<TResponse>>> _completeResponses;
-        private readonly ActionBlock<(object, TResponse)> _responses;
-        private readonly AsyncLock _asyncLock = new AsyncLock();
-
-        /// <summary>
-        /// WARNING! This property lock internal <see cref="ConcurrentDictionary{TKey,TValue}"/>, be careful of frequently use.
-        /// </summary>
-        public int Waiters => _completeResponses.Count;
-
-        public int SendQueue => _requests.Count;
-
-        private async Task AddOrRemoveResponseAsync((object, TResponse) arg)
+        private async Task SetResponseAsync(object responseId, TResponse response)
         {
-            var (responseId, response) = arg;
             TaskCompletionSource<TcpPackageBatch<TResponse>> tcs;
             TcpPackageBatch<TResponse> packageBatch = null;
 
@@ -40,71 +25,71 @@ namespace Drenalol.Client
                     switch (tcs.Task.Status)
                     {
                         case TaskStatus.WaitingForActivation:
-                            New(tcs);
+                            AddOrUpdate(tcs);
                             break;
                         case TaskStatus.RanToCompletion:
-                            await ExistsAsync();
+                            await UpdateAsync();
                             break;
                     }
                 }
                 else
-                    New();
+                    AddOrUpdate();
+                
+                tcs.SetResult(packageBatch);
             }
 
-            void New(TaskCompletionSource<TcpPackageBatch<TResponse>> innerTcs = null)
+            void AddOrUpdate(TaskCompletionSource<TcpPackageBatch<TResponse>> innerTcs = null)
             {
                 packageBatch = new TcpPackageBatch<TResponse>(responseId, response);
                 tcs = innerTcs ?? InternalGetOrAddLazyTcs(responseId);
-                Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} " +
-                                $"<- PackageRead (tcs {(innerTcs == null ? "new" : "exists")}, TaskId: {tcs.Task.Id.ToString()}) " +
+                Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {_id.ToString()} {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} " +
+                                $"<- {nameof(SetResponseAsync)} (tcs {(innerTcs == null ? "new" : "exists")}, TaskId: {tcs.Task.Id.ToString()}) " +
                                 $"PackageId: {packageBatch.PackageId}, PackageResult.QueueCount: {packageBatch.QueueCount.ToString()}");
             }
 
-            async Task ExistsAsync()
+            async Task UpdateAsync()
             {
                 packageBatch = await tcs.Task;
                 packageBatch.Enqueue(response);
                 tcs = InternalGetOrAddLazyTcs(responseId);
-                Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} " +
-                                $"<- PackageRead (tcs exists, TaskId: {tcs.Task.Id.ToString()}) PackageId: {packageBatch.PackageId}, " +
+                Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {_id.ToString()} {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} " +
+                                $"<- {nameof(SetResponseAsync)} (tcs exists, TaskId: {tcs.Task.Id.ToString()}) PackageId: {packageBatch.PackageId}, " +
                                 $"PackageResult.QueueCount: {packageBatch.QueueCount.ToString()}");
             }
-
-            tcs.SetResult(packageBatch);
         }
 
+        private TaskCompletionSource<TcpPackageBatch<TResponse>> InternalGetOrAddLazyTcs(object key)
+        {
+            return _completeResponses.GetOrAdd(key, _ => InternalCreateLazyTcs().Value);
+            static Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>> InternalCreateLazyTcs() => new Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>>(() => new TaskCompletionSource<TcpPackageBatch<TResponse>>());
+        }
+        
         public async Task SendAsync(TRequest request, CancellationToken? token = default)
         {
             try
             {
                 var serializedRequest = _serializer.Serialize(request);
-                await _requests.SendAsync(serializedRequest, token ?? _baseCancellationToken);
-            }
-            catch (ObjectDisposedException)
-            {
-                //
+                var sended = await _bufferBlockRequests.SendAsync(serializedRequest, token ?? _baseCancellationToken);
+                Debug.WriteLineIf(!sended, $"{nameof(SendAsync)} failed");
             }
             catch (Exception e)
             {
-                Debug.WriteLine($"Got {e.GetType()}: {e.Message}");
+                Debug.WriteLine($"{nameof(SendAsync)} Got {e.GetType()}: {e.Message}");
                 throw;
             }
         }
-
-        private TaskCompletionSource<TcpPackageBatch<TResponse>> InternalGetOrAddLazyTcs(object key) => _completeResponses.GetOrAdd(key, _ => InternalCreateLazyTcs().Value);
-
-        private static Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>> InternalCreateLazyTcs() => new Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>>(() => new TaskCompletionSource<TcpPackageBatch<TResponse>>());
-
+        
         public async Task<TcpPackageBatch<TResponse>> ReceiveAsync(object key, CancellationToken? token = default)
         {
             var internalToken = token ?? _baseCancellationToken;
-
             TaskCompletionSource<TcpPackageBatch<TResponse>> tcs;
             // Info about lock read in TcpReadAsync method
             using (await _asyncLock.LockAsync())
             {
                 if (!_completeResponses.TryRemove(key, out tcs))
+                {
                     tcs = InternalGetOrAddLazyTcs(key);
+                }
             }
 
             await using (internalToken.Register(() =>

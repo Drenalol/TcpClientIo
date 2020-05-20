@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,7 +42,7 @@ namespace Drenalol.Base
                 Array.Copy(rent, 0, serializedRequest, property.Attribute.Index, length);
                 key += length;
                 examined++;
-                Trace.WriteLine($"Serialize property {valueLength.ToString()} bytes, {property.Attribute.AttributeData.ToString()}:{property.Attribute.Index.ToString()}:{property.Attribute.Length.ToString()}");
+                //Debug.WriteLine($"Serialize property {valueLength.ToString()} bytes, {property.Attribute.AttributeData.ToString()}:{property.Attribute.Index.ToString()}:{property.Attribute.Length.ToString()}");
             }
 
             if (examined != properties.Count)
@@ -52,7 +51,7 @@ namespace Drenalol.Base
             return serializedRequest;
         }
         
-        public async Task<(object, TResponse)> DeserializeAsync(PipeReader pipeReader, CancellationToken token)
+        public async Task<(object, int, TResponse)> DeserializeAsync(PipeReader pipeReader, CancellationToken token)
         {
             var response = new TResponse();
             var key = 0;
@@ -97,17 +96,21 @@ namespace Drenalol.Base
                         tcpPackageBodyLength = Convert.ToInt32(value);
                         break;
                 }
-
-                property.Set(response, value);
+                
+                if (property.IsValueType)
+                    response = (TResponse) property.SetInValueType(response, value);
+                else
+                    property.SetInClass(response, value);
+                
                 key += sliceLength;
                 examined++;
-                Debug.WriteLine($"Deserialize property {sliceLength.ToString()} bytes, {property.Attribute.AttributeData.ToString()}:{property.Attribute.Index.ToString()}:{property.Attribute.Length.ToString()}");
+                //Debug.WriteLine($"Deserialize property {sliceLength.ToString()} bytes, {property.Attribute.AttributeData.ToString()}:{property.Attribute.Index.ToString()}:{property.Attribute.Length.ToString()}");
             }
 
             if (examined != properties.Count)
                 throw TcpPackageException.Throw(TcpPackageTypeException.SerializerSequenceViolated);
 
-            return (tcpPackageId, response);
+            return (tcpPackageId, tcpPackageBodyLength, response);
         }
     }
 }

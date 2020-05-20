@@ -16,7 +16,7 @@ namespace Drenalol.Base
             Enqueue(initialItem);
         }
 
-        public void Enqueue(T package) => _internalQueue.Enqueue(package);
+        internal void Enqueue(T package) => _internalQueue.Enqueue(package);
         
         public bool TryDequeue(out T package) => _internalQueue.TryDequeue(out package);
     }
