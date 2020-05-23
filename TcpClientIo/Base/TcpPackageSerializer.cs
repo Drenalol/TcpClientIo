@@ -1,22 +1,46 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO.Pipelines;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Drenalol.Attributes;
 using Drenalol.Exceptions;
 using Drenalol.Extensions;
 using Drenalol.Helpers;
-using static Drenalol.Helpers.BitConverterHelper;
 
 namespace Drenalol.Base
 {
     internal class TcpPackageSerializer<TRequest, TResponse> where TResponse : new()
     {
         private readonly ReflectionHelper<TRequest, TResponse> _reflectionHelper;
+        private readonly BitConverterHelper _bitConverterHelper;
         
-        public TcpPackageSerializer()
+        public TcpPackageSerializer(ICollection<TcpPackageConverter> converters)
         {
             _reflectionHelper = new ReflectionHelper<TRequest, TResponse>();
+            var immutableConverters = ImmutableDictionary<Type, TcpPackageConverter>.Empty;
+            
+            if (converters.Count > 0)
+            {
+                var tempDict = new Dictionary<Type, TcpPackageConverter>();
+                
+                foreach (var converter in converters)
+                {
+                    var type = converter.GetType().BaseType;
+
+                    if (type == null)
+                        TcpClientIoException.Throw(TcpClientIoTypeException.ConverterError);
+
+                    var genericType = type.GenericTypeArguments.Single();
+                    tempDict.Add(genericType, converter);
+                }
+
+                immutableConverters = tempDict.ToImmutableDictionary();
+            }
+            
+            _bitConverterHelper = new BitConverterHelper(immutableConverters);
         }
         
         public byte[] Serialize(TRequest request)
@@ -29,7 +53,7 @@ namespace Drenalol.Base
 
             while (properties.TryGetValue(key, out var property))
             {
-                var value = CustomBitConverterToBytes(property.Get(request), property.PropertyType, property.Attribute.Reverse);
+                var value = _bitConverterHelper.ConvertToBytes(property.Get(request), property.PropertyType, property.Attribute.Reverse);
                 var valueLength = value.Length;
 
                 if (property.Attribute.AttributeData != TcpPackageDataType.Body && valueLength > property.Attribute.Length)
@@ -82,17 +106,17 @@ namespace Drenalol.Base
                 switch (property.Attribute.AttributeData)
                 {
                     case TcpPackageDataType.MetaData:
-                        value = CustomBitConverterFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
+                        value = _bitConverterHelper.ConvertFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
                         break;
                     case TcpPackageDataType.Body:
-                        value = property.Attribute.Reverse ? Reverse(bytesFromReader) : bytesFromReader;
+                        value = property.Attribute.Reverse ? _bitConverterHelper.Reverse(bytesFromReader) : bytesFromReader;
                         break;
                     case TcpPackageDataType.Key:
-                        value = CustomBitConverterFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
+                        value = _bitConverterHelper.ConvertFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
                         tcpPackageId = value;
                         break;
                     case TcpPackageDataType.BodyLength:
-                        value = CustomBitConverterFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
+                        value = _bitConverterHelper.ConvertFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
                         tcpPackageBodyLength = Convert.ToInt32(value);
                         break;
                 }

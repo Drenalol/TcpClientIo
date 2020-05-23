@@ -1,11 +1,11 @@
 using System;
+using Drenalol.Base;
 
 namespace Drenalol.Converters
 {
-    public class TcpPackageDateTimeConverter : ITcpPackageConverter
+    public class TcpPackageDateTimeConverter : TcpPackageConverter<DateTime>
     {
-        public byte[] Convert(object input) => BitConverter.GetBytes(((DateTime) input).ToBinary());
-
-        public object ConvertBack(byte[] input) => DateTime.FromBinary(BitConverter.ToInt64(input));
+        public override byte[] Convert(DateTime input) => BitConverter.GetBytes(input.ToBinary());
+        public override DateTime ConvertBack(byte[] input) => DateTime.FromBinary(BitConverter.ToInt64(input));
     }
 }

@@ -1,12 +1,17 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Drenalol.Attributes;
 using Drenalol.Base;
+using Drenalol.Converters;
 using Drenalol.Exceptions;
 using Drenalol.Helpers;
 using Drenalol.Stuff;
@@ -16,11 +21,11 @@ namespace Drenalol
 {
     public class TcpStuffTests
     {
-        class DoesNotHaveAny
+        private class DoesNotHaveAny
         {
         }
-        
-        class DoesNotHaveKeyAttribute
+
+        private class DoesNotHaveKeyAttribute
         {
             [TcpPackageData(1, 1, AttributeData = TcpPackageDataType.Body)]
             public int Body { get; set; }
@@ -28,15 +33,15 @@ namespace Drenalol
             public int BodyLength { get; set; }
         }
 
-        class DoesNotHaveBodyAttribute
+        private class DoesNotHaveBodyAttribute
         {
             [TcpPackageData(0, 1, AttributeData = TcpPackageDataType.Key)]
             public int Key { get; set; }
             [TcpPackageData(1, 2, AttributeData = TcpPackageDataType.BodyLength)]
             public int BodyLength { get; set; }
         }
-        
-        class DoesNotHaveBodyLengthAttribute
+
+        private class DoesNotHaveBodyLengthAttribute
         {
             [TcpPackageData(0, 1, AttributeData = TcpPackageDataType.Key)]
             public int Key { get; set; }
@@ -44,7 +49,7 @@ namespace Drenalol
             public int Body { get; set; }
         }
 
-        class KeyDoesNotHaveSetter
+        private class KeyDoesNotHaveSetter
         {
             [TcpPackageData(0, 1, AttributeData = TcpPackageDataType.Key)]
             public int Key { get; }
@@ -53,7 +58,7 @@ namespace Drenalol
             [TcpPackageData(3, 2, AttributeData = TcpPackageDataType.Body)]
             public int Body { get; set; }
         }
-        
+
         [Test]
         public void ReflectionErrorsTest()
         {
@@ -68,7 +73,11 @@ namespace Drenalol
         public async Task AttributeMockSerializeDeserializeTest()
         {
             var index = 0;
-            var serializer = new TcpPackageSerializer<AttributeMockSerialize, AttributeMockSerialize>();
+            var serializer = new TcpPackageSerializer<AttributeMockSerialize, AttributeMockSerialize>(new List<TcpPackageConverter>
+            {
+                new TcpPackageUtf8StringConverter(),
+                new TcpPackageDateTimeConverter()
+            });
             var tasks = Enumerable.Range(0, 1000000).Select(i => Task.Run(() =>
             {
                 var mock = new AttributeMockSerialize
@@ -89,56 +98,43 @@ namespace Drenalol
 
             await Task.WhenAll(tasks);
         }
-        
-        [Test]
-        public void LengthTest()
-        {
-            var mock = new Mock
-            {
-                Id = 123,
-                FirstName = "Iggy",
-                LastName = "Kopelman",
-                Email = "ikopelman0@independent.co.uk",
-                Gender = "Male",
-                IpAddress = "120.243.0.112",
-                Data = "5907081e0aa3851f7ecf497b783d528c" +
-                       "5907081e0aa3851f7ecf497b783d528c" +
-                       "5907081e0aa3851f7ecf497b783d528c" +
-                       "5907081e0aa3851f7ecf497b783d528c" +
-                       "5907081e0aa3851f7ecf497b783d528c" +
-                       "5907081e0aa3851f7ecf497b783d528c" +
-                       "5907081e0aa3851f7ecf497b783d528c" +
-                       "5907081e0aa3851f7ecf497b783d528c" +
-                       "5907081e0aa3851f7ecf497b783d528c" +
-                       "5907081e0aa3851f7ecf497b783d528c" +
-                       "5907081e0aa3851f7ecf497b783d528c" +
-                       "5907081e0aa3851f7ecf497b783d528c"
-            };
-            var mockS = JsonExt.Serialize(mock);
-            var mockD = JsonExt.Deserialize<Mock>(mockS);
-            var mockS2 = JsonExt.Serialize(mockD);
-            TestContext.WriteLine(mockS.Length);
-            TestContext.WriteLine(mockS2.Length);
-            Assert.AreEqual(mockS2.Length, mockS.Length);
-        }
 
         [Test]
         public void BaseConvertersTest()
         {
-            const string str = "Hello my friend";
-            TcpPackageDataConverters.TryConvert(typeof(string), str, out var stringResult);
-            TcpPackageDataConverters.TryConvertBack(typeof(string), stringResult, out var stringResultBack);
+            var dict = new Dictionary<Type, TcpPackageConverter>
+            {
+                {typeof(string), new TcpPackageUtf8StringConverter()},
+                {typeof(DateTime), new TcpPackageDateTimeConverter()},
+                {typeof(Guid), new TcpPackageGuidConverter()}
+            }.ToImmutableDictionary();
+            
+            var bitConverterHelper = new BitConverterHelper(dict);
+            
+            var str = "Hello my friend";
+            var stringResult = bitConverterHelper.ConvertToBytes(str, typeof(string));
+            var stringResultBack = bitConverterHelper.ConvertFromBytes(stringResult, typeof(string));
             Assert.AreEqual(str, stringResultBack);
 
+            var rts = "dneirf ym olleH";
+            var tluseRgnirts = bitConverterHelper.ConvertToBytes(rts, typeof(string), true);
+            var kcaBtluseRgnirts = bitConverterHelper.ConvertFromBytes(tluseRgnirts, typeof(string), true);
+            Assert.AreEqual(rts, kcaBtluseRgnirts);
+
             var datetime = DateTime.Now;
-            TcpPackageDataConverters.TryConvert(typeof(DateTime), datetime, out var dateTimeResult);
-            TcpPackageDataConverters.TryConvertBack(typeof(DateTime), dateTimeResult, out var dateTimeResultBack);
+            var dateTimeResult = bitConverterHelper.ConvertToBytes(datetime, typeof(DateTime));
+            var dateTimeResultBack = bitConverterHelper.ConvertFromBytes(dateTimeResult, typeof(DateTime));
             Assert.AreEqual(datetime, dateTimeResultBack);
 
-            var fake = 1337U;
-            TcpPackageDataConverters.TryConvert(typeof(uint), fake, out var fakeResult);
-            TcpPackageDataConverters.TryConvertBack(typeof(uint), fakeResult, out var fakeResultBack);
-            Assert.AreNotEqual(fake, fakeResultBack);
+            var guid = Guid.NewGuid();
+            var guidResult = bitConverterHelper.ConvertToBytes(guid, typeof(Guid));
+            var guidResultBack = bitConverterHelper.ConvertFromBytes(guidResult, typeof(Guid));
+            Assert.AreEqual(guid, guidResultBack);
+        }
+        
+        [Test]
+        public void Test()
+        {
         }
     }
 }

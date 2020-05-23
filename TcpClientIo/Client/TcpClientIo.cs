@@ -16,6 +16,7 @@ namespace Drenalol.Client
     public sealed partial class TcpClientIo<TRequest, TResponse> : IDuplexPipe, IAsyncDisposable where TResponse : new()
     {
         internal readonly Guid _id;
+        private readonly TcpClientIoOptions _options;
         private readonly CancellationTokenSource _baseCancellationTokenSource;
         private readonly CancellationToken _baseCancellationToken;
         private readonly TcpClient _tcpClient;
@@ -39,38 +40,38 @@ namespace Drenalol.Client
         public int Waiters => _completeResponses.Count;
         public int Requests => _bufferBlockRequests.Count;
 
-        public TcpClientIo(IPAddress address, int port, TcpClientIoOptions tcpClientIoOptions = null) : this()
+        public TcpClientIo(IPAddress address, int port, TcpClientIoOptions tcpClientIoOptions = null) : this(tcpClientIoOptions)
         {
             _tcpClient = new TcpClient();
             _tcpClient.Connect(address, port);
-            SetupTcpClient(tcpClientIoOptions);
+            SetupTcpClient();
             SetupTasks();
         }
 
-        private TcpClientIo()
+        private TcpClientIo(TcpClientIoOptions tcpClientIoOptions)
         {
             var pipe = new Pipe();
             _id = Guid.NewGuid();
+            _options = tcpClientIoOptions ?? TcpClientIoOptions.Default;
             _baseCancellationTokenSource = new CancellationTokenSource();
             _baseCancellationToken = _baseCancellationTokenSource.Token;
             _bufferBlockRequests = new BufferBlock<byte[]>();
             _completeResponses = new ConcurrentDictionary<object, TaskCompletionSource<TcpPackageBatch<TResponse>>>();
-            _serializer = new TcpPackageSerializer<TRequest, TResponse>();
+            _serializer = new TcpPackageSerializer<TRequest, TResponse>(_options.Converters);
             _semaphore = new SemaphoreSlim(2, 2);
             _deserializePipeReader = pipe.Reader;
             _deserializePipeWriter = pipe.Writer;
         }
 
-        private void SetupTcpClient(TcpClientIoOptions tcpClientIoOptions)
+        private void SetupTcpClient()
         {
             if (!_tcpClient.Connected)
                 throw new SocketException(10057);
 
-            var options = tcpClientIoOptions ?? TcpClientIoOptions.Default;
-            _tcpClient.SendTimeout = options.TcpClientSendTimeout;
-            _tcpClient.ReceiveTimeout = options.TcpClientReceiveTimeout;
-            _networkStreamPipeReader = PipeReader.Create(_tcpClient.GetStream(), options.StreamPipeReaderOptions);
-            _networkStreamPipeWriter = PipeWriter.Create(_tcpClient.GetStream(), options.StreamPipeWriterOptions);
+            _tcpClient.SendTimeout = _options.TcpClientSendTimeout;
+            _tcpClient.ReceiveTimeout = _options.TcpClientReceiveTimeout;
+            _networkStreamPipeReader = PipeReader.Create(_tcpClient.GetStream(), _options.StreamPipeReaderOptions);
+            _networkStreamPipeWriter = PipeWriter.Create(_tcpClient.GetStream(), _options.StreamPipeWriterOptions);
         }
 
         private void SetupTasks()
