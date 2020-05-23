@@ -1,15 +1,11 @@
 using System;
+using Drenalol.Base;
 
 namespace Drenalol.Converters
 {
-    public class TcpPackageGuidConverter : ITcpPackageConverter
+    public class TcpPackageGuidConverter : TcpPackageConverter<Guid>
     {
-        public byte[] Convert(object input) => (input is Guid guid ? guid : default).ToByteArray();
-
-        public object ConvertBack(byte[] input)
-        {
-            var guid = new Guid(input);
-            return guid;
-        }
+        public override byte[] Convert(Guid input) => input.ToByteArray();
+        public override Guid ConvertBack(byte[] input) => new Guid(input);
     }
 }

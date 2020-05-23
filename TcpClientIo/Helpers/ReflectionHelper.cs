@@ -42,7 +42,7 @@ namespace Drenalol.Helpers
                 (from property in type.GetProperties()
                     let attribute = GetTcpPackageDataAttribute(property)
                     where attribute != null
-                    select new TcpPackageProperty(property, attribute))
+                    select new TcpPackageProperty(property, attribute, type.IsValueType))
                 .ToImmutableDictionary(key => key.Attribute.Index, property => property);
 
             static TcpPackageDataAttribute GetTcpPackageDataAttribute(ICustomAttributeProvider property)
@@ -89,8 +89,8 @@ namespace Drenalol.Helpers
                 throw TcpPackageException.Throw(TcpPackageTypeException.PropertyCanReadWrite, type.ToString(), nameof(TcpPackageDataType.BodyLength));
         }
 
-        public ImmutableDictionary<int, TcpPackageProperty> GetRequestProperties() => _internalCache[_request];//.ToDictionary(pair => pair.Key, pair => pair.Value);
+        public ImmutableDictionary<int, TcpPackageProperty> GetRequestProperties() => _internalCache[_request];
         
-        public ImmutableDictionary<int, TcpPackageProperty> GetResponseProperties() => _internalCache[_response];//.ToDictionary(pair => pair.Key, pair => pair.Value);
+        public ImmutableDictionary<int, TcpPackageProperty> GetResponseProperties() => _internalCache[_response];
     }
 }
