@@ -12,7 +12,7 @@ using Nito.AsyncEx;
 
 namespace Drenalol.Client
 {
-    [DebuggerDisplay("Id: {_id,nq}, Waiters: {Waiters,nq}")]
+    [DebuggerDisplay("Id: {_id,nq}, Requests: {Requests,nq}, Waiters: {Waiters,nq}")]
     public partial class TcpClientIo<TRequest, TResponse> : IDuplexPipe, IAsyncDisposable where TResponse : new()
     {
         internal readonly Guid _id;
