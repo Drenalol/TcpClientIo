@@ -25,9 +25,9 @@ Your TCP Server accepts and send messages with application-level header
 #### Send & Receive
 ```c#
 // Creating TcpClientIo instance with default options and different models of request/response
-var tcpClient = new TcpClientIo<Request, Response>(IPAddress.Any, 10000, TcpClientIoOptions.Default));
+var tcpClient = new TcpClientIo<Request, Response>(IPAddress.Any, 10000, TcpClientIoOptions.Default);
 // or when model used for both request/response
-var tcpClient = new TcpClientIo<Request>(IPAddress.Any, 10000, TcpClientIoOptions.Default));
+var tcpClient = new TcpClientIo<Request>(IPAddress.Any, 10000, TcpClientIoOptions.Default);
 
 // Creating some request
 Request request = new Request
@@ -35,7 +35,7 @@ Request request = new Request
     Id = 123U, // [7B, 0, 0, 0]
     Size = 6, // [6, 0, 0, 0]
     Data = "Hello!" // [48, 65, 6C, 6C, 6F, 21]
-}
+};
 
 // Send request asynchronously
 await tcpClient.SendAsync(request, CancellationToken.None);
@@ -135,7 +135,7 @@ var options = new TcpClientIoOptions
     };
 }
 
-var tcpClient = new TcpClientIo<Request, Response>(IPAddress.Any, 10000, options));
+var tcpClient = new TcpClientIo<Request, Response>(IPAddress.Any, 10000, options);
 ```
 ## TODO
  - Add ILogger
