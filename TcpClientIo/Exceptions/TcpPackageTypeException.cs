@@ -4,6 +4,7 @@ namespace Drenalol.Exceptions
     {
         SerializerSequenceViolated,
         SerializerLengthOutOfRange,
+        SerializerBodyIsEmpty,
         PropertyArgumentIsNull,
         PropertyCanReadWrite,
         ConverterNotFoundType,

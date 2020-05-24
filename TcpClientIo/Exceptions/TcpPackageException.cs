@@ -23,6 +23,7 @@ namespace Drenalol.Exceptions
                 TcpPackageTypeException.AttributeBodyLengthRequired => new TcpPackageException($"In {someData[0]} {nameof(TcpPackageDataType.BodyLength)} could not work without {nameof(TcpPackageDataType.Body)}"),
                 TcpPackageTypeException.AttributeBodyRequired => new TcpPackageException($"In {someData[0]} {nameof(TcpPackageDataType.Body)} could not work without {nameof(TcpPackageDataType.BodyLength)}"),
                 TcpPackageTypeException.AttributeDuplicate => new TcpPackageException($"{someData[0]} could not work with multiple {someData[1]}"),
+                TcpPackageTypeException.SerializerBodyIsEmpty => new TcpPackageException($"{nameof(TcpPackageDataType.Body)} is Empty"),
                 _ => new TcpPackageException(string.Empty)
             };
         }

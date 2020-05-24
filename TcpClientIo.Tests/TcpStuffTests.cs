@@ -5,8 +5,6 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
-using System.Net;
-using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Drenalol.Attributes;
@@ -78,7 +76,7 @@ namespace Drenalol
                 new TcpPackageUtf8StringConverter(),
                 new TcpPackageDateTimeConverter()
             });
-            var tasks = Enumerable.Range(0, 1000000).Select(i => Task.Run(() =>
+            var tasks = Enumerable.Range(0, 1000).Select(i => Task.Run(() =>
             {
                 var mock = new AttributeMockSerialize
                 {
