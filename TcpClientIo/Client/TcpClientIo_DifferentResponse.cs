@@ -48,6 +48,13 @@ namespace Drenalol.Client
             SetupTasks();
         }
 
+        public TcpClientIo(TcpClient tcpClient, TcpClientIoOptions tcpClientIoOptions = null) : this(tcpClientIoOptions)
+        {
+            _tcpClient = tcpClient;
+            SetupTcpClient();
+            SetupTasks();
+        }
+
         private TcpClientIo(TcpClientIoOptions tcpClientIoOptions)
         {
             var pipe = new Pipe();
