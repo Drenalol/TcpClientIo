@@ -19,7 +19,7 @@ Example (byte-order and offsets not necessary)
 #### Send & Receive
 ```c#
 // Creating TcpClientIo instance with default options
-TcpClientIo<Request, Response> tcpClient = new TcpClientIo<Request, Response>(IPAddress.Any, 10000, TcpClientIoOptions.Default));
+var tcpClient = new TcpClientIo<Request, Response>(IPAddress.Any, 10000, TcpClientIoOptions.Default));
 
 // Creating some request
 Request request = new Request
