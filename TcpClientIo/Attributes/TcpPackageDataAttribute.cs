@@ -11,7 +11,7 @@ namespace Drenalol.Attributes
         public Type Type { get; set; }
         public TcpPackageDataType AttributeData { get; set; }
         
-        public TcpPackageDataAttribute(int index, int length)
+        public TcpPackageDataAttribute(int index, int length = 0)
         {
             Index = index;
             Length = length;

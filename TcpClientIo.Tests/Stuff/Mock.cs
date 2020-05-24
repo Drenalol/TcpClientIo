@@ -21,7 +21,7 @@ namespace Drenalol.Stuff
         [TcpPackageData(220, 50)] public string IpAddress { get; set; }
         public string Data { get; set; }
 
-        [TcpPackageData(270, 0, AttributeData = TcpPackageDataType.Body)]
+        [TcpPackageData(270, AttributeData = TcpPackageDataType.Body)]
         public byte[] Body { get; set; }
 
         public Mock Build()
