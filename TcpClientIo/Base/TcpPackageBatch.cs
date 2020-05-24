@@ -1,23 +1,25 @@
-using System.Collections.Concurrent;
+using System.Collections;
+using System.Collections.Generic;
 
 namespace Drenalol.Base
 {
-    public sealed class TcpPackageBatch<T>
+    public sealed class TcpPackageBatch<T> : IEnumerable<T>
     {
-        private readonly ConcurrentQueue<T> _internalQueue;
+        private readonly List<T> _internalList;
         public object PackageId { get; }
-        public int QueueCount => _internalQueue.Count;
-        public bool IsSingle => QueueCount == 1;
+        public int Count => _internalList.Count;
 
         public TcpPackageBatch(object packageId, T initialItem)
         {
             PackageId = packageId;
-            _internalQueue = new ConcurrentQueue<T>();
-            Enqueue(initialItem);
+            _internalList = new List<T>();
+            Add(initialItem);
         }
 
-        internal void Enqueue(T package) => _internalQueue.Enqueue(package);
+        internal void Add(T package) => _internalList.Add(package);
         
-        public bool TryDequeue(out T package) => _internalQueue.TryDequeue(out package);
+        public IEnumerator<T> GetEnumerator() => _internalList.GetEnumerator();
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }

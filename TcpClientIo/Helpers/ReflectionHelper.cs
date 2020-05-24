@@ -58,15 +58,15 @@ namespace Drenalol.Helpers
         
         private static void EnsureTypeHasRequiredAttributes(Type type, ImmutableDictionary<int, TcpPackageProperty> properties)
         {
-            var key = properties.Where(item => item.Value.Attribute.AttributeData == TcpPackageDataType.Key).ToList();
+            var key = properties.Where(item => item.Value.Attribute.AttributeData == TcpPackageDataType.Id).ToList();
 
             if (key.Count == 0)
                 throw TcpPackageException.Throw(TcpPackageTypeException.AttributeKeyRequired, type.ToString());
             if (key.Count > 1)
-                throw TcpPackageException.Throw(TcpPackageTypeException.AttributeDuplicate, type.ToString(), nameof(TcpPackageDataType.Key));
+                throw TcpPackageException.Throw(TcpPackageTypeException.AttributeDuplicate, type.ToString(), nameof(TcpPackageDataType.Id));
 
             if (!key.Single().Value.CanReadWrite)
-                throw TcpPackageException.Throw(TcpPackageTypeException.PropertyCanReadWrite, type.ToString(), nameof(TcpPackageDataType.Key));
+                throw TcpPackageException.Throw(TcpPackageTypeException.PropertyCanReadWrite, type.ToString(), nameof(TcpPackageDataType.Id));
 
             var body = properties.Where(item => item.Value.Attribute.AttributeData == TcpPackageDataType.Body).ToList();
 

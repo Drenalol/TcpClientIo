@@ -10,7 +10,9 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using Drenalol.Base;
 using Drenalol.Client;
+using Drenalol.Converters;
 using Drenalol.Stuff;
 using NUnit.Framework;
 
@@ -25,7 +27,25 @@ namespace Drenalol
         [OneTimeSetUp]
         public void Load()
         {
-            Mocks = JsonExt.Deserialize<List<Mock>>(File.ReadAllText("MOCK_DATA_1000")).Select(mock => mock.Build()).ToImmutableList();
+            Mocks = JsonExt.Deserialize<List<Mock>>(File.ReadAllText("MOCK_DATA_1000")).ToImmutableList();
+        }
+
+        [Test]
+        public async Task SingleSendReceiveTest()
+        {
+            var options = TcpClientIoOptions.Default;
+            
+            options.Converters = new List<TcpPackageConverter>
+            {
+                new TcpPackageUtf8StringConverter()
+            };
+            
+            var tcpClient = new TcpClientIo<Mock>(IPAddress.Any, 10000, options);
+            var request = Mock.Create(1337);
+            await tcpClient.SendAsync(request);
+            var batch = await tcpClient.ReceiveAsync(1337L);
+            var response = batch.First();
+            Assert.IsTrue(request.Equals(response));
         }
 
         [TestCase(1000000, 1, 5)]
@@ -40,15 +60,19 @@ namespace Drenalol
             var consumersList = Enumerable.Range(0, consumers).Select(i => new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000, new TcpClientIoOptions
             {
                 StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 131072),
-                StreamPipeWriterOptions = new StreamPipeWriterOptions(minimumBufferSize: 131072)
+                StreamPipeWriterOptions = new StreamPipeWriterOptions(minimumBufferSize: 131072),
+                Converters = new List<TcpPackageConverter>
+                {
+                    new TcpPackageUtf8StringConverter()
+                }
             })).ToList();
             var requestQueue = 0;
             var waitersQueue = 0;
-            var sendMs = new ConcurrentBag<long>();
-            var receiveMs = new ConcurrentBag<long>();
             var bytesWrite = 0L;
             var bytesRead = 0L;
-
+            var sended = 0;
+            var received = 0;
+            
             Task.WaitAll(consumersList.Select(io => Task.Run(() => DoWork(io), cts.Token)).ToArray());
 
             void DoWork(TcpClientIo<Mock, Mock> tcpClient)
@@ -63,21 +87,17 @@ namespace Drenalol
 
                     async Task SendAsync(long id)
                     {
-                        var sw = Stopwatch.StartNew();
                         var mock = Mock.Create(id);
                         await tcpClient.SendAsync(mock, cts.Token);
-                        sw.Stop();
-                        sendMs.Add(sw.ElapsedMilliseconds);
+                        Interlocked.Increment(ref sended);
                     }
 
                     async Task ReceiveAsync(long id)
                     {
-                        var sw = Stopwatch.StartNew();
                         var batch = await tcpClient.ReceiveAsync(id, cts.Token);
-                        batch.TryDequeue(out var mock);
-                        Debug.Assert(mock.Size == mock.Body.Length);
-                        sw.Stop();
-                        receiveMs.Add(sw.ElapsedMilliseconds);
+                        var mock = batch.First();
+                        Assert.IsTrue(mock.Size == mock.Data.Length);
+                        Interlocked.Increment(ref received);
                     }
                 }
                 catch (Exception e)
@@ -93,17 +113,10 @@ namespace Drenalol
                 }
             }
             
-            TestContext.WriteLine($"Send Min Avg Max ms: {sendMs.Min().ToString()} {sendMs.Average().ToString(CultureInfo.CurrentCulture)} {sendMs.Max().ToString()}");
-            TestContext.WriteLine($"Receive Min Avg Max ms: {receiveMs.Min().ToString()} {receiveMs.Average().ToString(CultureInfo.CurrentCulture)} {receiveMs.Max().ToString()}");
-            TestContext.WriteLine($"Receive > 1 sec: {receiveMs.Count(l => l > 1000).ToString()}");
-            TestContext.WriteLine($"Receive > 2 sec: {receiveMs.Count(l => l > 2000).ToString()}");
-            TestContext.WriteLine($"Receive > 5 sec: {receiveMs.Count(l => l > 5000).ToString()}");
-            TestContext.WriteLine($"Receive > 10 sec: {receiveMs.Count(l => l > 10000).ToString()}");
-            TestContext.WriteLine($"Receive > 30 sec: {receiveMs.Count(l => l > 30000).ToString()}");
             TestContext.WriteLine($"Requests: {requestQueue.ToString()}");
             TestContext.WriteLine($"Waiters: {waitersQueue.ToString()}");
-            TestContext.WriteLine($"Sended: {sendMs.Count.ToString()}");
-            TestContext.WriteLine($"Received: {receiveMs.Count.ToString()}");
+            TestContext.WriteLine($"Sended: {sended.ToString()}");
+            TestContext.WriteLine($"Received: {received.ToString()}");
             TestContext.WriteLine($"BytesWrite: {Math.Round(bytesWrite / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
             TestContext.WriteLine($"BytesRead: {Math.Round(bytesRead / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
         }
@@ -114,27 +127,43 @@ namespace Drenalol
             const int requests = 500;
             var list = new List<int>();
             var count = 0;
-            var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000);
+            var error = 0;
+            var options = TcpClientIoOptions.Default;
+            options.Converters = new List<TcpPackageConverter>
+            {
+                new TcpPackageUtf8StringConverter()
+            };
+            
+            var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000, options);
 
             _ = Task.Run(() => Parallel.For(0, requests, i =>
             {
                 var mock = Mock.Create(0);
-                tcpClient.SendAsync(mock).GetAwaiter().GetResult();
+                
+                try
+                {
+                    tcpClient.SendAsync(mock).GetAwaiter().GetResult();
+                }
+                catch
+                {
+                    Interlocked.Increment(ref error);
+                }
             }));
-
+            
             while (count < requests)
             {
                 var delay = TestContext.CurrentContext.Random.Next(1, 200);
                 await Task.Delay(delay);
+                
+                if (error > 0)
+                    throw new Exception("Parallel.For has errors");
+                
                 var packageResult = await tcpClient.ReceiveAsync((long) 0);
                 Assert.NotNull(packageResult);
-                var queue = packageResult.QueueCount;
+                var queue = packageResult.Count;
                 count += queue;
 
-                while (packageResult.TryDequeue(out var package))
-                {
-                    list.Add(package.Size);
-                }
+                list.AddRange(packageResult.Select(mock => mock.Size));
 
                 TestContext.WriteLine($"({count.ToString()}/{requests.ToString()}) +{queue.ToString()}, by {delay.ToString()} ms, SendQueue: {tcpClient.Requests.ToString()}, ReadCount: {tcpClient.Waiters.ToString()}");
             }
@@ -147,7 +176,12 @@ namespace Drenalol
         [Test]
         public async Task DisposeTest()
         {
-            var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000);
+            var options = TcpClientIoOptions.Default;
+            options.Converters = new List<TcpPackageConverter>
+            {
+                new TcpPackageUtf8StringConverter()
+            };
+            var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000, options);
             using var timer = new System.Timers.Timer {Interval = 3000};
             timer.Start();
             timer.Elapsed += (sender, args) =>
@@ -176,7 +210,12 @@ namespace Drenalol
         [Test]
         public async Task CancelSendReceiveTest()
         {
-            await using var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000);
+            var options = TcpClientIoOptions.Default;
+            options.Converters = new List<TcpPackageConverter>
+            {
+                new TcpPackageUtf8StringConverter()
+            };
+            await using var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000, options);
             var mock = Mocks[666];
             var attempts = 0;
             while (attempts < 3)
@@ -194,7 +233,7 @@ namespace Drenalol
                     catch (Exception e)
                     {
                         Console.WriteLine($"Got Exception: {e.GetType()}: {e}");
-                        Assert.That(e.GetType() == typeof(OperationCanceledException));
+                        Assert.That(e.GetType() == typeof(OperationCanceledException) || e.GetType() == typeof(TaskCanceledException));
                         attempts++;
                         break;
                     }

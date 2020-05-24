@@ -1,0 +1,26 @@
+﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<s:String x:Key="/Default/Environment/AssemblyExplorer/XmlDocument/@EntryValue">&lt;AssemblyExplorer&gt;
+  &lt;Assembly Path="/home/drenalol/.nuget/packages/nito.asyncex.oop/5.0.0/lib/netstandard2.0/Nito.AsyncEx.Oop.dll" /&gt;
+&lt;/AssemblyExplorer&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=c1833345_002D4825_002D4f95_002Da60c_002D1fc9ca0350d3/@EntryIndexedValue">&lt;SessionState ContinuousTestingIsOn="False" ContinuousTestingMode="0" FrameworkVersion="{x:Null}" IsLocked="False" Name="All tests from &amp;lt;TcpClientIo.Tests&amp;gt;" PlatformMonoPreference="{x:Null}" PlatformType="{x:Null}" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"&gt;
+  &lt;Not&gt;
+    &lt;Or&gt;
+      &lt;TestAncestor&gt;
+        &lt;TestId&gt;NUnit3x::07F8A424-1F99-4CF4-97FF-635EDADC9904::.NETCoreApp,Version=v3.1::Drenalol.TcpClientIoTests.MultipleConsumersAsyncTest(1000000,1,5)&lt;/TestId&gt;
+      &lt;/TestAncestor&gt;
+      &lt;TestAncestor&gt;
+        &lt;TestId&gt;NUnit3x::07F8A424-1F99-4CF4-97FF-635EDADC9904::.NETCoreApp,Version=v3.1::Drenalol.TcpClientIoTests.MultipleConsumersAsyncTest(1000000,2,5)&lt;/TestId&gt;
+      &lt;/TestAncestor&gt;
+      &lt;TestAncestor&gt;
+        &lt;TestId&gt;NUnit3x::07F8A424-1F99-4CF4-97FF-635EDADC9904::.NETCoreApp,Version=v3.1::Drenalol.TcpClientIoTests.MultipleConsumersAsyncTest(1000000,3,5)&lt;/TestId&gt;
+      &lt;/TestAncestor&gt;
+    &lt;/Or&gt;
+  &lt;/Not&gt;
+&lt;/SessionState&gt;</s:String>
+	
+	
+	
+	
+	
+	
+	</wpf:ResourceDictionary>

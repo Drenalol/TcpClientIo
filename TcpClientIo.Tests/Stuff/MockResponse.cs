@@ -6,7 +6,7 @@ namespace Drenalol.Stuff
 {
     public struct MockResponse
     {
-        [TcpPackageData(0, 16, AttributeData = TcpPackageDataType.Key)]
+        [TcpPackageData(0, 16, AttributeData = TcpPackageDataType.Id)]
         public Guid Id { get; set; }
 
         [TcpPackageData(16, 4, AttributeData = TcpPackageDataType.BodyLength)]

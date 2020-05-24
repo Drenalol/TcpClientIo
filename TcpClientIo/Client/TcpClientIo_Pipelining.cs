@@ -7,7 +7,7 @@ using System.Threading.Tasks.Dataflow;
 
 namespace Drenalol.Client
 {
-    public sealed partial class TcpClientIo<TRequest, TResponse>
+    public partial class TcpClientIo<TRequest, TResponse>
     {
         private async Task TcpWriteAsync()
         {
@@ -62,7 +62,7 @@ namespace Drenalol.Client
                     if (readResult.Buffer.IsSingleSegment)
                     {
                         var buffer = readResult.Buffer.First;
-                        await _deserializePipeWriter.WriteAsync(buffer.ToArray(), _baseCancellationToken);
+                        await _deserializePipeWriter.WriteAsync(buffer, _baseCancellationToken);
                         BytesRead += (ulong) buffer.Length;
                         Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {_id.ToString()} {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} <- {nameof(TcpReadAsync)} {buffer.Length.ToString()} bytes");
                     }
@@ -70,7 +70,7 @@ namespace Drenalol.Client
                     {
                         foreach (var buffer in readResult.Buffer)
                         {
-                            await _deserializePipeWriter.WriteAsync(buffer.ToArray(), _baseCancellationToken);
+                            await _deserializePipeWriter.WriteAsync(buffer, _baseCancellationToken);
                             BytesRead += (ulong) buffer.Length;
                             Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {_id.ToString()} {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} <- {nameof(TcpReadAsync)} {buffer.Length.ToString()} bytes");
                         }
