@@ -7,7 +7,7 @@ using Drenalol.Base;
 
 namespace Drenalol.Client
 {
-    public sealed partial class TcpClientIo<TRequest, TResponse>
+    public partial class TcpClientIo<TRequest, TResponse>
     {
         private async Task SetResponseAsync(object responseId, TResponse response)
         {

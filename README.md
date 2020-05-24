@@ -4,8 +4,6 @@ TcpClientIo is a wrapper of [TcpClient](https://github.com/dotnet/runtime/blob/c
 #### Prerequisites
 Your TCP Server accepts and send messages with application-level header
 
-Example (byte-order and offsets not necessary)
-
 ##### Original
 | Byte | 7B | 0 | 0 | 0 | 6 | 0 | 0 | 0 | 48 | 65 | 6C | 6C | 6F | 21 |
 |------|----|---|---|---|---|---|---|---|----|----|----|----|----|----|
@@ -33,6 +31,7 @@ Request request = new Request
 await tcpClient.SendAsync(request, CancellationToken.None);
 
 // Receive response with specific identifier asynchronously
+// !!! WARNING !!! Identifier is strongly-typed, if model set uint, you must pass it uint too
 TcpPackageBatch<Response> resultBatch = await tcpClient.ReceiveAsync(123, CancellationToken.None);
 
 // Batch support iteration

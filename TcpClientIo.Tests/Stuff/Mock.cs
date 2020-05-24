@@ -7,7 +7,7 @@ namespace Drenalol.Stuff
 {
     public struct Mock
     {
-        [TcpPackageData(0, 8, AttributeData = TcpPackageDataType.Key)]
+        [TcpPackageData(0, 8, AttributeData = TcpPackageDataType.Id)]
         [JsonIgnore]
         public long Id { get; set; }
 

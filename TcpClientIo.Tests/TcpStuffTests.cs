@@ -35,7 +35,7 @@ namespace Drenalol
 
         private class DoesNotHaveBodyAttribute
         {
-            [TcpPackageData(0, 1, AttributeData = TcpPackageDataType.Key)]
+            [TcpPackageData(0, 1, AttributeData = TcpPackageDataType.Id)]
             public int Key { get; set; }
             [TcpPackageData(1, 2, AttributeData = TcpPackageDataType.BodyLength)]
             public int BodyLength { get; set; }
@@ -43,7 +43,7 @@ namespace Drenalol
 
         private class DoesNotHaveBodyLengthAttribute
         {
-            [TcpPackageData(0, 1, AttributeData = TcpPackageDataType.Key)]
+            [TcpPackageData(0, 1, AttributeData = TcpPackageDataType.Id)]
             public int Key { get; set; }
             [TcpPackageData(1, 2, AttributeData = TcpPackageDataType.Body)]
             public int Body { get; set; }
@@ -51,7 +51,7 @@ namespace Drenalol
 
         private class KeyDoesNotHaveSetter
         {
-            [TcpPackageData(0, 1, AttributeData = TcpPackageDataType.Key)]
+            [TcpPackageData(0, 1, AttributeData = TcpPackageDataType.Id)]
             public int Key { get; }
             [TcpPackageData(1, 2, AttributeData = TcpPackageDataType.BodyLength)]
             public int BodyLength { get; set; }

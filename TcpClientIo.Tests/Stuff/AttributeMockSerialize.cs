@@ -6,7 +6,7 @@ namespace Drenalol.Stuff
 {
     public class AttributeMockSerialize
     {
-        [TcpPackageData(0, 4, AttributeData = TcpPackageDataType.Key)]
+        [TcpPackageData(0, 4, AttributeData = TcpPackageDataType.Id)]
         public uint Id { get; set; }
 
         [TcpPackageData(4, 4, AttributeData = TcpPackageDataType.BodyLength)]

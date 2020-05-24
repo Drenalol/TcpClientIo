@@ -90,7 +90,7 @@ namespace Drenalol.Base
 
                 switch (property.Attribute.AttributeData)
                 {
-                    case TcpPackageDataType.Key:
+                    case TcpPackageDataType.Id:
                     case TcpPackageDataType.BodyLength:
                     case TcpPackageDataType.MetaData:
                         sliceLength = property.Attribute.Length;
@@ -111,7 +111,7 @@ namespace Drenalol.Base
                     case TcpPackageDataType.Body:
                         value = property.Attribute.Reverse ? _bitConverterHelper.Reverse(bytesFromReader) : bytesFromReader;
                         break;
-                    case TcpPackageDataType.Key:
+                    case TcpPackageDataType.Id:
                         value = _bitConverterHelper.ConvertFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
                         tcpPackageId = value;
                         break;

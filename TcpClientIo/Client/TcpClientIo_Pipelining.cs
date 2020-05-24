@@ -7,7 +7,7 @@ using System.Threading.Tasks.Dataflow;
 
 namespace Drenalol.Client
 {
-    public sealed partial class TcpClientIo<TRequest, TResponse>
+    public partial class TcpClientIo<TRequest, TResponse>
     {
         private async Task TcpWriteAsync()
         {
