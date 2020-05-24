@@ -1,5 +1,5 @@
 ## What is it
-TcpClientIo is a wrapper of [TcpClient](https://github.com/dotnet/runtime/blob/c7a246c000747ec728ac862b7a503348b103df0e/src/libraries/System.Net.Sockets/src/System/Net/Sockets/TCPClient.cs) what help focus on **WHAT** you transfer over TCP not **HOW**
+TcpClientIo is a wrapper of [TcpClient](https://github.com/dotnet/runtime/blob/c7a246c000747ec728ac862b7a503348b103df0e/src/libraries/System.Net.Sockets/src/System/Net/Sockets/TCPClient.cs "Source Code dotnet/corefx/TCPClient.cs") what help focus on **WHAT** you transfer over TCP not **HOW**
 ## Documentation
 #### Prerequisites
 Your TCP Server accepts and send messages with application-level header
