@@ -59,12 +59,14 @@ namespace Drenalol.Base
                 if (property.Attribute.AttributeData != TcpPackageDataType.Body && valueLength > property.Attribute.Length)
                     throw TcpPackageException.Throw(TcpPackageTypeException.SerializerLengthOutOfRange, property.PropertyType.ToString(), valueLength.ToString(), property.Attribute.Length.ToString());
 
-                var length = property.Attribute.AttributeData == TcpPackageDataType.Body ? valueLength : property.Attribute.Length;
-                var rent = new byte[length];
-                Array.Copy(value, rent, valueLength);
-                Array.Resize(ref serializedRequest, property.Attribute.Index + length);
-                Array.Copy(rent, 0, serializedRequest, property.Attribute.Index, length);
-                key += length;
+                var attributeLength = property.Attribute.AttributeData == TcpPackageDataType.Body ? valueLength : property.Attribute.Length;
+
+                if (property.Attribute.AttributeData == TcpPackageDataType.MetaData && valueLength < attributeLength)
+                    Array.Resize(ref value, attributeLength);
+                
+                Array.Resize(ref serializedRequest, property.Attribute.Index + attributeLength);
+                Array.Copy(value, 0, serializedRequest, property.Attribute.Index, attributeLength);
+                key += attributeLength;
                 examined++;
                 //Debug.WriteLine($"Serialize property {valueLength.ToString()} bytes, {property.Attribute.AttributeData.ToString()}:{property.Attribute.Index.ToString()}:{property.Attribute.Length.ToString()}");
             }
