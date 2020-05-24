@@ -10,7 +10,9 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using Drenalol.Base;
 using Drenalol.Client;
+using Drenalol.Converters;
 using Drenalol.Stuff;
 using NUnit.Framework;
 
@@ -48,7 +50,7 @@ namespace Drenalol
             var receiveMs = new ConcurrentBag<long>();
             var bytesWrite = 0L;
             var bytesRead = 0L;
-
+            
             Task.WaitAll(consumersList.Select(io => Task.Run(() => DoWork(io), cts.Token)).ToArray());
 
             void DoWork(TcpClientIo<Mock, Mock> tcpClient)
@@ -74,7 +76,7 @@ namespace Drenalol
                     {
                         var sw = Stopwatch.StartNew();
                         var batch = await tcpClient.ReceiveAsync(id, cts.Token);
-                        batch.TryDequeue(out var mock);
+                        var mock = batch.First();
                         Debug.Assert(mock.Size == mock.Body.Length);
                         sw.Stop();
                         receiveMs.Add(sw.ElapsedMilliseconds);
@@ -114,27 +116,43 @@ namespace Drenalol
             const int requests = 500;
             var list = new List<int>();
             var count = 0;
-            var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000);
+            var error = 0;
+            var options = TcpClientIoOptions.Default;
+            options.Converters = new List<TcpPackageConverter>
+            {
+                new TcpPackageUtf8StringConverter()
+            };
+            
+            var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000, options);
 
             _ = Task.Run(() => Parallel.For(0, requests, i =>
             {
                 var mock = Mock.Create(0);
-                tcpClient.SendAsync(mock).GetAwaiter().GetResult();
+                
+                try
+                {
+                    tcpClient.SendAsync(mock).GetAwaiter().GetResult();
+                }
+                catch
+                {
+                    Interlocked.Increment(ref error);
+                }
             }));
-
+            
             while (count < requests)
             {
                 var delay = TestContext.CurrentContext.Random.Next(1, 200);
                 await Task.Delay(delay);
+                
+                if (error > 0)
+                    throw new Exception("Parallel.For has errors");
+                
                 var packageResult = await tcpClient.ReceiveAsync((long) 0);
                 Assert.NotNull(packageResult);
-                var queue = packageResult.QueueCount;
+                var queue = packageResult.Count;
                 count += queue;
 
-                while (packageResult.TryDequeue(out var package))
-                {
-                    list.Add(package.Size);
-                }
+                list.AddRange(packageResult.Select(mock => mock.Size));
 
                 TestContext.WriteLine($"({count.ToString()}/{requests.ToString()}) +{queue.ToString()}, by {delay.ToString()} ms, SendQueue: {tcpClient.Requests.ToString()}, ReadCount: {tcpClient.Waiters.ToString()}");
             }

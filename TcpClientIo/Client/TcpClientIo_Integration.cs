@@ -44,17 +44,17 @@ namespace Drenalol.Client
                 tcs = innerTcs ?? InternalGetOrAddLazyTcs(responseId);
                 Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {_id.ToString()} {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} " +
                                 $"<- {nameof(SetResponseAsync)} (tcs {(innerTcs == null ? "new" : "exists")}, TaskId: {tcs.Task.Id.ToString()}) " +
-                                $"PackageId: {packageBatch.PackageId}, PackageResult.QueueCount: {packageBatch.QueueCount.ToString()}");
+                                $"PackageId: {packageBatch.PackageId}, PackageResult.QueueCount: {packageBatch.Count.ToString()}");
             }
 
             async Task UpdateAsync()
             {
                 packageBatch = await tcs.Task;
-                packageBatch.Enqueue(response);
+                packageBatch.Add(response);
                 tcs = InternalGetOrAddLazyTcs(responseId);
                 Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {_id.ToString()} {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} " +
                                 $"<- {nameof(SetResponseAsync)} (tcs exists, TaskId: {tcs.Task.Id.ToString()}) PackageId: {packageBatch.PackageId}, " +
-                                $"PackageResult.QueueCount: {packageBatch.QueueCount.ToString()}");
+                                $"PackageResult.QueueCount: {packageBatch.Count.ToString()}");
             }
         }
 
@@ -83,7 +83,7 @@ namespace Drenalol.Client
         {
             var internalToken = token ?? _baseCancellationToken;
             TaskCompletionSource<TcpPackageBatch<TResponse>> tcs;
-            // Info about lock read in TcpReadAsync method
+            // Info about lock read in SetResponseAsync method
             using (await _asyncLock.LockAsync())
             {
                 if (!_completeResponses.TryRemove(key, out tcs))
