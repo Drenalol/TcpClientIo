@@ -17,12 +17,15 @@ namespace Drenalol.Exceptions
         /// <returns></returns>
         public static TcpClientIoException Throw(TcpClientIoTypeException typeException, params string[] someData)
         {
-            return typeException switch
+            switch (typeException)
             {
-                TcpClientIoTypeException.InternalError => new TcpClientIoException($"Internal error handled {someData[0]}"),
-                TcpClientIoTypeException.ConverterError => new TcpClientIoException($"Converter {someData[0]} does not have generic"),
-                _ => new TcpClientIoException(string.Empty)
-            };
+                case TcpClientIoTypeException.InternalError:
+                    return new TcpClientIoException($"Internal error handled {someData[0]}");
+                case TcpClientIoTypeException.ConverterError:
+                    return new TcpClientIoException($"Converter {someData[0]} does not have generic");
+                default:
+                    return new TcpClientIoException(string.Empty);
+            }
         }
     }
 }

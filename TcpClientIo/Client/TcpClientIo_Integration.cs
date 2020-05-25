@@ -61,7 +61,7 @@ namespace Drenalol.Client
         private TaskCompletionSource<TcpPackageBatch<TResponse>> InternalGetOrAddLazyTcs(object key)
         {
             return _completeResponses.GetOrAdd(key, _ => InternalCreateLazyTcs().Value);
-            static Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>> InternalCreateLazyTcs() => new Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>>(() => new TaskCompletionSource<TcpPackageBatch<TResponse>>());
+            Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>> InternalCreateLazyTcs() => new Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>>(() => new TaskCompletionSource<TcpPackageBatch<TResponse>>());
         }
         
         public async Task SendAsync(TRequest request, CancellationToken? token = default)
@@ -91,8 +91,11 @@ namespace Drenalol.Client
                     tcs = InternalGetOrAddLazyTcs(key);
                 }
             }
-
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
             await using (internalToken.Register(() =>
+#else
+            using (internalToken.Register(() =>
+#endif
             {
                 var cancelled = tcs.TrySetCanceled();
                 Debug.WriteLine(cancelled ? $"Cancelled {key}" : $"Not cancelled {key}, TaskStatus: {tcs.Task.Status.ToString()}");

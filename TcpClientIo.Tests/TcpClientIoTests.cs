@@ -1,8 +1,6 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.IO.Pipelines;
@@ -18,7 +16,6 @@ using NUnit.Framework;
 
 namespace Drenalol
 {
-    [Parallelizable]
     [TestFixture(TestOf = typeof(TcpClientIo<,>))]
     public class TcpClientIoTests
     {
@@ -48,10 +45,7 @@ namespace Drenalol
             Assert.IsTrue(request.Equals(response));
         }
 
-        [TestCase(1000000, 1, 5)]
-        [TestCase(1000000, 2, 5)]
-        [TestCase(1000000, 3,5)]
-        [TestCase(1000000, 4, 5)]
+        [TestCase(250000, 4, 5)]
         public void MultipleConsumersAsyncTest(int requests, int consumers, double timeout)
         {
             var requestsPerConsumer = requests / consumers;
@@ -170,7 +164,11 @@ namespace Drenalol
 
             var havingCount = list.GroupBy(u => u).Where(p => p.Count() > 1).Select(ig => ig.Key.ToString()).Aggregate((acc, next) => $"{acc}, {next}");
             TestContext.WriteLine($"Non-UNIQ Sizes: {havingCount}");
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
             await tcpClient.DisposeAsync();
+#else
+            tcpClient.Dispose();
+#endif
         }
 
         [Test]
@@ -182,12 +180,16 @@ namespace Drenalol
                 new TcpPackageUtf8StringConverter()
             };
             var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000, options);
-            using var timer = new System.Timers.Timer {Interval = 3000};
+            var timer = new System.Timers.Timer {Interval = 3000};
             timer.Start();
             timer.Elapsed += (sender, args) =>
             {
                 ((System.Timers.Timer) sender).Stop();
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
                 tcpClient.DisposeAsync().GetAwaiter().GetResult();
+#else
+                tcpClient.Dispose();
+#endif
             };
             var mock = Mocks[666];
             while (true)
@@ -205,6 +207,7 @@ namespace Drenalol
                     break;
                 }
             }
+            timer.Dispose();
         }
 
         [Test]
@@ -215,7 +218,11 @@ namespace Drenalol
             {
                 new TcpPackageUtf8StringConverter()
             };
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
             await using var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000, options);
+#else
+            var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000, options);
+#endif
             var mock = Mocks[666];
             var attempts = 0;
             while (attempts < 3)
@@ -239,6 +246,9 @@ namespace Drenalol
                     }
                 }
             }
+#if !NETSTANDARD2_1 && !NETCOREAPP3_1 && !NETCOREAPP3_0
+            tcpClient.Dispose();
+#endif
         }
     }
 }
