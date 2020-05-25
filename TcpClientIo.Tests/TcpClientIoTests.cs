@@ -31,18 +31,43 @@ namespace Drenalol
         public async Task SingleSendReceiveTest()
         {
             var options = TcpClientIoOptions.Default;
-            
+
             options.Converters = new List<TcpPackageConverter>
             {
                 new TcpPackageUtf8StringConverter()
             };
-            
+
             var tcpClient = new TcpClientIo<Mock>(IPAddress.Any, 10000, options);
             var request = Mock.Create(1337);
             await tcpClient.SendAsync(request);
             var batch = await tcpClient.ReceiveAsync(1337L);
             var response = batch.First();
             Assert.IsTrue(request.Equals(response));
+        }
+
+        [Test]
+        public async Task SingleByteAndByteArrayTest()
+        {
+            var options = TcpClientIoOptions.Default;
+
+            options.Converters = new List<TcpPackageConverter>
+            {
+                new TcpPackageUtf8StringConverter()
+            };
+
+            await using var tcpClient = new TcpClientIo<MockTest2>(IPAddress.Any, 10000, options);
+
+            var mock = new MockTest2
+            {
+                Id = 1,
+                Length = 100,
+                Body = "TestHello",
+                TestByte = 123,
+                TestByteArray = new byte[] {123, 124}
+            };
+
+            await tcpClient.SendAsync(mock);
+            await tcpClient.ReceiveAsync(1);
         }
 
         [TestCase(250000, 4, 5)]
@@ -66,7 +91,7 @@ namespace Drenalol
             var bytesRead = 0L;
             var sended = 0;
             var received = 0;
-            
+
             Task.WaitAll(consumersList.Select(io => Task.Run(() => DoWork(io), cts.Token)).ToArray());
 
             void DoWork(TcpClientIo<Mock, Mock> tcpClient)
@@ -76,7 +101,7 @@ namespace Drenalol
                     var list = new List<Task>();
                     list.AddRange(Enumerable.Range(0, requestsPerConsumer).Select(i => (long) i).Select(SendAsync));
                     list.AddRange(Enumerable.Range(0, requestsPerConsumer).Select(i => (long) i).Select(ReceiveAsync));
-                    
+
                     Task.WaitAll(list.ToArray());
 
                     async Task SendAsync(long id)
@@ -106,7 +131,7 @@ namespace Drenalol
                     Interlocked.Add(ref waitersQueue, tcpClient.Waiters);
                 }
             }
-            
+
             TestContext.WriteLine($"Requests: {requestQueue.ToString()}");
             TestContext.WriteLine($"Waiters: {waitersQueue.ToString()}");
             TestContext.WriteLine($"Sended: {sended.ToString()}");
@@ -127,13 +152,13 @@ namespace Drenalol
             {
                 new TcpPackageUtf8StringConverter()
             };
-            
+
             var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000, options);
 
             _ = Task.Run(() => Parallel.For(0, requests, i =>
             {
                 var mock = Mock.Create(0);
-                
+
                 try
                 {
                     tcpClient.SendAsync(mock).GetAwaiter().GetResult();
@@ -143,15 +168,15 @@ namespace Drenalol
                     Interlocked.Increment(ref error);
                 }
             }));
-            
+
             while (count < requests)
             {
                 var delay = TestContext.CurrentContext.Random.Next(1, 200);
                 await Task.Delay(delay);
-                
+
                 if (error > 0)
                     throw new Exception("Parallel.For has errors");
-                
+
                 var packageResult = await tcpClient.ReceiveAsync((long) 0);
                 Assert.NotNull(packageResult);
                 var queue = packageResult.Count;
@@ -207,6 +232,7 @@ namespace Drenalol
                     break;
                 }
             }
+
             timer.Dispose();
         }
 
