@@ -8,18 +8,16 @@ Wrapper of [TcpClient](https://github.com/dotnet/runtime/blob/c7a246c000747ec728
 - Cancellation support
 
 [![NuGet Pre Release](https://img.shields.io/nuget/vpre/TcpClientIo.svg?style=for-the-badge&logo=appveyor)](https://www.nuget.org/packages/TcpClientIo/)
-[![netstandard 2.0](https://img.shields.io/badge/netstandard-2.0-red.svg?style=for-the-badge&logo=appveyor)](https://docs.microsoft.com/en-us/dotnet/standard/net-standard)
+[![netstandard 2.0](https://img.shields.io/badge/netstandard-2.0-green.svg?style=for-the-badge&logo=appveyor)](https://docs.microsoft.com/en-us/dotnet/standard/net-standard)
 [![netstandard 2.1](https://img.shields.io/badge/netstandard-2.1-green.svg?style=for-the-badge&logo=appveyor)](https://docs.microsoft.com/en-us/dotnet/standard/net-standard) 
 ## Documentation
 #### Prerequisites
 Your TCP Server accepts and send messages with application-level header
 
 ##### Example byte array
-| byte[] |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |
-|--------|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|
-|        | 7B | 00 | 00 | 00 | 06 | 00 | 00 | 00 | 00 | D0 | 08 | A7 | 79 | 28 | B7 | 08 | A3 | 0B | 59 |
-|        | 13 | 49 | 27 | 37 | 46 | B6 | D0 | 75 | A2 | EF | 07 | FA | 1F | 48 | 65 | 6C | 6C | 6F | 21 | 
-##### Serializer work
+| byte[] | 7B | 00 | 00 | 00 | 06 | 00 | 00 | 00 | 00 | D0 | 08 | A7 | 79 | 28 | B7 | 08 | A3 | 0B | 59 | 13 | 49 | 27 | 37 | 46 | B6 | D0 | 75 | A2 | EF | 07 | FA | 1F | 48 | 65 | 6C | 6C | 6F | 21 |
+|--------|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|
+##### Serialization process
 | Property name | Offset | Length | Bytes                                                            | Value                                          | Reverse | Change Type | Custom converter |
 |---------------|--------|--------|------------------------------------------------------------------|------------------------------------------------|---------|-------------|------------------|
 | Id            | 0      | 4      | [7B, 00, 00, 00]                                                 | 123                                            | false   | false       | false            |
@@ -66,6 +64,9 @@ var response = resultBatch.First();
 Assert.AreEqual(request.Id, response.Id);
 Assert.AreEqual(request.Size, response.Size);
 Assert.AreEqual(request.Data, response.Data);
+
+//Cleanup
+await tcpClient.DisposeAsync();
 ```
 #### Attribute schema
 Request with first 32 bytes header, and body
@@ -152,7 +153,7 @@ var tcpClient = new TcpClientIo<Request, Response>(IPAddress.Any, 10000, options
 ## TODO
  - [ ] Add ILogger
  - [ ] Code documentation
- - [ ] netstandard2.0?
+ - [X] netstandard2.0
 ## Dependencies
 * [AsyncEx](https://github.com/StephenCleary/AsyncEx)
 * [System.IO.Pipelines](https://github.com/dotnet/runtime/tree/master/src/libraries/System.IO.Pipelines)
