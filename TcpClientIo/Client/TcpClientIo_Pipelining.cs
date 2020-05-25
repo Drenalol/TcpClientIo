@@ -142,11 +142,11 @@ namespace Drenalol.Client
         private void StopReader(Exception exception)
         {
             Debug.WriteLine("Stopping reader");
-            foreach (var (_, tcs) in _completeResponses.Where(tcs => tcs.Value.Task.Status == TaskStatus.WaitingForActivation))
+            foreach (var completedResponse in _completeResponses.Where(tcs => tcs.Value.Task.Status == TaskStatus.WaitingForActivation))
             {
                 var innerException = exception ?? new OperationCanceledException();
                 Debug.WriteLine($"Set force {innerException.GetType()} in TaskCompletionSource in TaskStatus.WaitingForActivation");
-                tcs.TrySetException(innerException);
+                completedResponse.Value.TrySetException(innerException);
             }
 
             _networkStreamPipeReader.CancelPendingRead();

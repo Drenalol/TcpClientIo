@@ -13,7 +13,11 @@ using Nito.AsyncEx;
 namespace Drenalol.Client
 {
     [DebuggerDisplay("Id: {_id,nq}, Requests: {Requests,nq}, Waiters: {Waiters,nq}")]
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
     public partial class TcpClientIo<TRequest, TResponse> : IDuplexPipe, IAsyncDisposable where TResponse : new()
+#else
+    public partial class TcpClientIo<TRequest, TResponse> : IDuplexPipe, IDisposable where TResponse : new()
+#endif
     {
         internal readonly Guid _id;
         private readonly TcpClientIoOptions _options;
@@ -87,8 +91,11 @@ namespace Drenalol.Client
             Task.Factory.StartNew(TcpReadAsync, TaskCreationOptions.LongRunning);
             Task.Factory.StartNew(DeserializeResponseAsync, TaskCreationOptions.LongRunning);
         }
-
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
         public async ValueTask DisposeAsync()
+#else
+        public void Dispose()
+#endif
         {
             Debug.WriteLine("Disposing");
 
@@ -98,7 +105,11 @@ namespace Drenalol.Client
             var i = 0;
             while (i++ < 60 && _semaphore.CurrentCount < 2)
             {
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
                 await Task.Delay(100, CancellationToken.None);
+#else
+                Thread.Sleep(100);
+#endif
             }
 
             _tcpClient?.Dispose();

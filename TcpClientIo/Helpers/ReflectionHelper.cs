@@ -45,7 +45,7 @@ namespace Drenalol.Helpers
                     select new TcpPackageProperty(property, attribute, type.IsValueType))
                 .ToImmutableDictionary(key => key.Attribute.Index, property => property);
 
-            static TcpPackageDataAttribute GetTcpPackageDataAttribute(ICustomAttributeProvider property)
+            TcpPackageDataAttribute GetTcpPackageDataAttribute(ICustomAttributeProvider property)
             {
                 return property
                     .GetCustomAttributes(true)

@@ -11,21 +11,33 @@ namespace Drenalol.Exceptions
 
         public static TcpPackageException Throw(TcpPackageTypeException typeException, params string[] someData)
         {
-            return typeException switch
+            switch (typeException)
             {
-                TcpPackageTypeException.SerializerSequenceViolated => new TcpPackageException($"Sequence violated in {nameof(TcpPackageDataAttribute.Index)}"),
-                TcpPackageTypeException.SerializerLengthOutOfRange => new TcpPackageException($"({someData[0]}, {someData[1]} bytes) is greater than attribute length {someData[2]} bytes"),
-                TcpPackageTypeException.PropertyArgumentIsNull => new TcpPackageException($"NULL value cannot be converted ({someData[0]})"),
-                TcpPackageTypeException.PropertyCanReadWrite => new TcpPackageException($"Set and Get keywords required for Serializtion. Type: {someData[0]}, {nameof(TcpPackageDataType)}: {someData[1]}"),
-                TcpPackageTypeException.ConverterNotFoundType => new TcpPackageException($"Not found converter for {someData[0]}"),
-                TcpPackageTypeException.ConverterUnknownError => new TcpPackageException($"Error while trying convert data {someData[0]}, error: {someData[1]}"),
-                TcpPackageTypeException.AttributeKeyRequired => new TcpPackageException($"{someData[0]} does not have required attribute {nameof(TcpPackageDataType.Id)}"),
-                TcpPackageTypeException.AttributeBodyLengthRequired => new TcpPackageException($"In {someData[0]} {nameof(TcpPackageDataType.BodyLength)} could not work without {nameof(TcpPackageDataType.Body)}"),
-                TcpPackageTypeException.AttributeBodyRequired => new TcpPackageException($"In {someData[0]} {nameof(TcpPackageDataType.Body)} could not work without {nameof(TcpPackageDataType.BodyLength)}"),
-                TcpPackageTypeException.AttributeDuplicate => new TcpPackageException($"{someData[0]} could not work with multiple {someData[1]}"),
-                TcpPackageTypeException.SerializerBodyIsEmpty => new TcpPackageException($"{nameof(TcpPackageDataType.Body)} is Empty"),
-                _ => new TcpPackageException(string.Empty)
-            };
+                case TcpPackageTypeException.SerializerSequenceViolated:
+                    return new TcpPackageException($"Sequence violated in {nameof(TcpPackageDataAttribute.Index)}");
+                case TcpPackageTypeException.SerializerLengthOutOfRange:
+                    return new TcpPackageException($"({someData[0]}, {someData[1]} bytes) is greater than attribute length {someData[2]} bytes");
+                case TcpPackageTypeException.PropertyArgumentIsNull:
+                    return new TcpPackageException($"NULL value cannot be converted ({someData[0]})");
+                case TcpPackageTypeException.PropertyCanReadWrite:
+                    return new TcpPackageException($"Set and Get keywords required for Serializtion. Type: {someData[0]}, {nameof(TcpPackageDataType)}: {someData[1]}");
+                case TcpPackageTypeException.ConverterNotFoundType:
+                    return new TcpPackageException($"Not found converter for {someData[0]}");
+                case TcpPackageTypeException.ConverterUnknownError:
+                    return new TcpPackageException($"Error while trying convert data {someData[0]}, error: {someData[1]}");
+                case TcpPackageTypeException.AttributeKeyRequired:
+                    return new TcpPackageException($"{someData[0]} does not have required attribute {nameof(TcpPackageDataType.Id)}");
+                case TcpPackageTypeException.AttributeBodyLengthRequired:
+                    return new TcpPackageException($"In {someData[0]} {nameof(TcpPackageDataType.BodyLength)} could not work without {nameof(TcpPackageDataType.Body)}");
+                case TcpPackageTypeException.AttributeBodyRequired:
+                    return new TcpPackageException($"In {someData[0]} {nameof(TcpPackageDataType.Body)} could not work without {nameof(TcpPackageDataType.BodyLength)}");
+                case TcpPackageTypeException.AttributeDuplicate:
+                    return new TcpPackageException($"{someData[0]} could not work with multiple {someData[1]}");
+                case TcpPackageTypeException.SerializerBodyIsEmpty:
+                    return new TcpPackageException($"{nameof(TcpPackageDataType.Body)} is Empty");
+                default:
+                    return new TcpPackageException(string.Empty);
+            }
         }
     }
 }

@@ -1,12 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using Drenalol.Attributes;
 using Newtonsoft.Json;
 using NUnit.Framework;
 
 namespace Drenalol.Stuff
 {
-    public struct Mock : IEqualityComparer<Mock>
+    public struct Mock : IEquatable<Mock>
     {
         [TcpPackageData(0, 8, AttributeData = TcpPackageDataType.Id)]
         [JsonIgnore]
@@ -67,11 +66,12 @@ namespace Drenalol.Stuff
             Data == other.Data;
 
         public override bool Equals(object obj) => obj is Mock other && Equals(other);
-
-        public override int GetHashCode() => HashCode.Combine(Id, FirstName, LastName, Email, Gender, IpAddress, Data);
-
-        public bool Equals(Mock x, Mock y) => x.Equals(y);
-
-        public int GetHashCode(Mock obj) => HashCode.Combine(obj.Id, obj.FirstName, obj.LastName, obj.Email, obj.Gender, obj.IpAddress, obj.Data);
+        
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Id, FirstName, LastName, Email, Gender, IpAddress, Data);
+        }
+#endif
     }
 }
