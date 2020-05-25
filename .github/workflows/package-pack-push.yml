@@ -21,4 +21,4 @@ jobs:
         NUGET_AUTH_TOKEN: ${{secrets.NUGET_AUTH_TOKEN}}
       run: dotnet nuget push -s https://www.nuget.org/api/v2/package -k $NUGET_AUTH_TOKEN ./packages/*.nupkg --skip-duplicate
     - name: Publish GitHub
-      run: dotnet nuget push -s "github" ./packages/*.nupkg --skip-duplicate
+      run: dotnet nuget push -s https://nuget.pkg.github.com/drenalol/index.json ./packages/*.nupkg --skip-duplicate
