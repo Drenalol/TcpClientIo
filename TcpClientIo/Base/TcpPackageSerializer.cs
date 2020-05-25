@@ -53,10 +53,19 @@ namespace Drenalol.Base
             var properties = _reflectionHelper.GetRequestProperties();
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
             var (_, bodyValue) = properties.SingleOrDefault(p => p.Value.Attribute.AttributeData == TcpPackageDataType.Body);
+#else
+            var bodyProperty = properties.SingleOrDefault(p => p.Value.Attribute.AttributeData == TcpPackageDataType.Body);
+            var bodyValue = bodyProperty.Value;
+#endif
             
             if (bodyValue != null)
             {
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
                 var (_, bodyLengthValue) = properties.SingleOrDefault(p => p.Value.Attribute.AttributeData == TcpPackageDataType.BodyLength);
+#else
+                var bodyLengthProperty = properties.SingleOrDefault(p => p.Value.Attribute.AttributeData == TcpPackageDataType.BodyLength);
+                var bodyLengthValue = bodyLengthProperty.Value;
+#endif
 
                 if (bodyValue.PropertyType == typeof(byte[]))
                 {
@@ -74,30 +83,6 @@ namespace Drenalol.Base
                 else
                     bodyLengthValue.SetInClass(request, Convert.ChangeType(serializedBody.Length, bodyLengthValue.PropertyType));
             }
-#else
-            var bodyProperty = properties.SingleOrDefault(p => p.Value.Attribute.AttributeData == TcpPackageDataType.Body);
-
-            if (bodyProperty.Value != null)
-            {
-                var bodyLengthProperty = properties.SingleOrDefault(p => p.Value.Attribute.AttributeData == TcpPackageDataType.BodyLength);
-
-                if (bodyProperty.Value.PropertyType == typeof(byte[]))
-                {
-                    var bytes = (byte[]) bodyProperty.Value.Get(request);
-                    serializedBody = bodyProperty.Value.Attribute.Reverse ? _bitConverterHelper.Reverse(bytes) : bytes;
-                }
-                else
-                    serializedBody = _bitConverterHelper.ConvertToBytes(bodyProperty.Value.Get(request), bodyProperty.Value.PropertyType, bodyProperty.Value.Attribute.Reverse);
-
-                if (serializedBody == null)
-                    throw TcpPackageException.Throw(TcpPackageTypeException.SerializerBodyIsEmpty);
-
-                if (bodyLengthProperty.Value.IsValueType)
-                    request = (TRequest) bodyLengthProperty.Value.SetInValueType(request, serializedBody.Length);
-                else
-                    bodyLengthProperty.Value.SetInClass(request, Convert.ChangeType(serializedBody.Length, bodyLengthProperty.Value.PropertyType));
-            }
-#endif
 
             while (properties.TryGetValue(key, out var property))
             {

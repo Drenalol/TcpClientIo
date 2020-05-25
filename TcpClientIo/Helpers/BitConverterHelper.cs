@@ -19,7 +19,7 @@ namespace Drenalol.Helpers
             _customConverters = converters;
             var toBytes = new Dictionary<Type, MethodInfo>();
             var fromBytes = new Dictionary<Type, MethodInfo>();
-            
+
             Add(typeof(bool));
             Add(typeof(char));
             Add(typeof(double));
@@ -53,6 +53,8 @@ namespace Drenalol.Helpers
             {
                 case null:
                     throw TcpPackageException.Throw(TcpPackageTypeException.PropertyArgumentIsNull, propertyType.ToString());
+                case byte @byte:
+                    return new[] {@byte};
                 case byte[] byteArray:
                     return reverse ? Reverse(byteArray) : byteArray;
                 default:
@@ -64,6 +66,8 @@ namespace Drenalol.Helpers
                         try
                         {
                             result = (byte[]) methodInfo.Invoke(null, new[] {propertyValue});
+
+                            return reverse ? Reverse(result) : result;
                         }
                         catch (Exception exception)
                         {
@@ -72,8 +76,6 @@ namespace Drenalol.Helpers
                     }
                     else
                         throw TcpPackageException.Throw(TcpPackageTypeException.ConverterNotFoundType, propertyType.ToString());
-
-                    return reverse ? Reverse(result) : result;
             }
         }
 
@@ -81,6 +83,12 @@ namespace Drenalol.Helpers
         {
             if (propertyValue == null)
                 throw TcpPackageException.Throw(TcpPackageTypeException.PropertyArgumentIsNull, propertyType.ToString());
+
+            if (propertyType == typeof(byte[]))
+                return reverse ? Reverse(propertyValue) : propertyValue;
+
+            if (propertyType == typeof(byte))
+                return propertyValue.Length > 1 ? throw TcpPackageException.Throw(TcpPackageTypeException.ConverterUnknownError, propertyType.ToString(), "byte array > 1") : propertyValue[0];
 
             if (_customConverters.TryConvertBack(propertyType, reverse ? Reverse(propertyValue) : propertyValue, out var result))
                 return result;
