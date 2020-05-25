@@ -3,6 +3,19 @@
     <PropertyGroup>
         <TargetFramework>netstandard2.1</TargetFramework>
         <RootNamespace>Drenalol</RootNamespace>
+        <PackageId>TcpClientIo</PackageId>
+        <Version>1.0.1</Version>
+        <PackageTags>TcpClient;TcpListener;Tcp;Serialization;Pipelines;Dataflow;Async;Threadsafe</PackageTags>
+        <Description>
+            Wrapper of TcpClient what help focus on WHAT you transfer over TCP not HOW
+
+            - Thread-safe
+            - Serialization with attribute schema
+            - Big/Little endian
+            - Async
+            - Cancellation support
+        </Description>
+        <RepositoryUrl>https://github.com/Drenalol/TcpClientIo</RepositoryUrl>
     </PropertyGroup>
 
     <ItemGroup>
