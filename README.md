@@ -7,6 +7,7 @@ Wrapper of [TcpClient](https://github.com/dotnet/runtime/blob/c7a246c000747ec728
 - Async
 - Cancellation support
 
+[![NuGet Pre Release](https://img.shields.io/nuget/vpre/TcpClientIo.svg?style=for-the-badge&logo=appveyor)](https://www.nuget.org/packages/TcpClientIo/)
 [![netstandard 2.0](https://img.shields.io/badge/netstandard-2.0-red.svg?style=for-the-badge&logo=appveyor)](https://docs.microsoft.com/en-us/dotnet/standard/net-standard)
 [![netstandard 2.1](https://img.shields.io/badge/netstandard-2.1-green.svg?style=for-the-badge&logo=appveyor)](https://docs.microsoft.com/en-us/dotnet/standard/net-standard) 
 ## Documentation
