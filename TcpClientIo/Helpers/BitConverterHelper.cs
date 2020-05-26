@@ -90,14 +90,16 @@ namespace Drenalol.Helpers
             if (propertyType == typeof(byte))
                 return propertyValue.Length > 1 ? throw TcpPackageException.Throw(TcpPackageTypeException.ConverterUnknownError, propertyType.ToString(), "byte array > 1") : propertyValue[0];
 
-            if (_customConverters.TryConvertBack(propertyType, reverse ? Reverse(propertyValue) : propertyValue, out var result))
+            var bytes = reverse ? Reverse(propertyValue) : propertyValue;
+            
+            if (_customConverters.TryConvertBack(propertyType, bytes, out var result))
                 return result;
 
             if (_builtInConvertersFromBytes.TryGetValue(propertyType, out var methodInfo))
             {
                 try
                 {
-                    result = methodInfo.Invoke(null, new object[] {reverse ? Reverse(propertyValue) : propertyValue, 0});
+                    result = methodInfo.Invoke(null, new object[] {bytes, 0});
                 }
                 catch (Exception exception)
                 {

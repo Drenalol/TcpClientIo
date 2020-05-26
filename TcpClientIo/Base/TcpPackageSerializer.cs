@@ -79,9 +79,9 @@ namespace Drenalol.Base
                     throw TcpPackageException.Throw(TcpPackageTypeException.SerializerBodyIsEmpty);
 
                 if (bodyLengthValue.IsValueType)
-                    request = (TRequest) bodyLengthValue.SetInValueType(request, serializedBody.Length);
+                    request = (TRequest) bodyLengthValue.SetInValueType(request, bodyLengthValue.PropertyType == typeof(int) ? serializedBody.Length : Convert.ChangeType(serializedBody.Length, bodyLengthValue.PropertyType));
                 else
-                    bodyLengthValue.SetInClass(request, Convert.ChangeType(serializedBody.Length, bodyLengthValue.PropertyType));
+                    bodyLengthValue.SetInClass(request, bodyLengthValue.PropertyType == typeof(int) ? serializedBody.Length : Convert.ChangeType(serializedBody.Length, bodyLengthValue.PropertyType));
             }
 
             while (properties.TryGetValue(key, out var property))
