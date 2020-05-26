@@ -63,7 +63,9 @@ namespace Drenalol.Client
             return _completeResponses.GetOrAdd(key, _ => InternalCreateLazyTcs().Value);
             Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>> InternalCreateLazyTcs() => new Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>>(() => new TaskCompletionSource<TcpPackageBatch<TResponse>>());
         }
-        
+
+        public override Task SendAsync(object request, CancellationToken token = default) => SendAsync((TRequest) request, token);
+
         public async Task SendAsync(TRequest request, CancellationToken? token = default)
         {
             try
@@ -78,17 +80,19 @@ namespace Drenalol.Client
                 throw;
             }
         }
-        
-        public async Task<TcpPackageBatch<TResponse>> ReceiveAsync(object key, CancellationToken? token = default)
+
+        public override async Task<object> ReceiveAsync(object responseId, CancellationToken token = default, bool isObject = true) => await ReceiveAsync(responseId, token);
+
+        public async Task<TcpPackageBatch<TResponse>> ReceiveAsync(object responseId, CancellationToken? token = default)
         {
             var internalToken = token ?? _baseCancellationToken;
             TaskCompletionSource<TcpPackageBatch<TResponse>> tcs;
             // Info about lock read in SetResponseAsync method
             using (await _asyncLock.LockAsync())
             {
-                if (!_completeResponses.TryRemove(key, out tcs))
+                if (!_completeResponses.TryRemove(responseId, out tcs))
                 {
-                    tcs = InternalGetOrAddLazyTcs(key);
+                    tcs = InternalGetOrAddLazyTcs(responseId);
                 }
             }
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
@@ -98,7 +102,7 @@ namespace Drenalol.Client
 #endif
             {
                 var cancelled = tcs.TrySetCanceled();
-                Debug.WriteLine(cancelled ? $"Cancelled {key}" : $"Not cancelled {key}, TaskStatus: {tcs.Task.Status.ToString()}");
+                Debug.WriteLine(cancelled ? $"Cancelled {responseId}" : $"Not cancelled {responseId}, TaskStatus: {tcs.Task.Status.ToString()}");
             }))
             {
                 return await tcs.Task;

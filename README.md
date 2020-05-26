@@ -57,7 +57,7 @@ foreach (var response in resultBatch)
 {
     // code
 }
-// OR LINQ queries
+// and LINQ queries
 var response = resultBatch.First();
 
 // Check result
@@ -115,7 +115,7 @@ typeof(uint)
 typeof(ulong)
 ```
 #### Custom converters
-For specific types you need create custom converter and pass it to TcpClientIoOptions
+For specific types you must create custom converter and pass it to TcpClientIoOptions
 
 Converters below already included in package, but not added in list of converters when creating TcpClientIo
 ```c#
