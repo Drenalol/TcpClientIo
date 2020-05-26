@@ -55,7 +55,7 @@ namespace Drenalol
                 new TcpPackageUtf8StringConverter()
             };
 
-            await using var tcpClient = new TcpClientIo<MockTest2>(IPAddress.Any, 10000, options);
+            var tcpClient = new TcpClientIo<MockTest2>(IPAddress.Any, 10000, options);
 
             var mock = new MockTest2
             {
@@ -68,6 +68,12 @@ namespace Drenalol
 
             await tcpClient.SendAsync(mock);
             await tcpClient.ReceiveAsync(1);
+            
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
+            await tcpClient.DisposeAsync();
+#else
+            tcpClient.Dispose();
+#endif
         }
 
         [TestCase(250000, 4, 5)]

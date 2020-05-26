@@ -14,9 +14,9 @@ namespace Drenalol.Client
 {
     [DebuggerDisplay("Id: {_id,nq}, Requests: {Requests,nq}, Waiters: {Waiters,nq}")]
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-    public partial class TcpClientIo<TRequest, TResponse> : IDuplexPipe, IAsyncDisposable where TResponse : new()
+    public partial class TcpClientIo<TRequest, TResponse> : TcpClientIoBase, IDuplexPipe, IAsyncDisposable where TResponse : new()
 #else
-    public partial class TcpClientIo<TRequest, TResponse> : IDuplexPipe, IDisposable where TResponse : new()
+    public partial class TcpClientIo<TRequest, TResponse> : TcpClientIoBase, IDuplexPipe, IDisposable where TResponse : new()
 #endif
     {
         internal readonly Guid _id;

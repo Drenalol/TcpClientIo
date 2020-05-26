@@ -5,10 +5,12 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Drenalol.Attributes;
 using Drenalol.Base;
+using Drenalol.Client;
 using Drenalol.Converters;
 using Drenalol.Exceptions;
 using Drenalol.Helpers;
@@ -131,8 +133,30 @@ namespace Drenalol
         }
         
         [Test]
-        public void Test()
+        public void OopTest()
         {
+            TcpClientIoBase tcpClientIoBase = new TcpClientIo<Mock>(IPAddress.Any, 10000);
+            var oneMock = (TcpClientIo<Mock>) tcpClientIoBase;
+            Assert.IsTrue(tcpClientIoBase.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIoBase.SendAsync)) == 2);
+            Assert.IsTrue(tcpClientIoBase.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIoBase.ReceiveAsync)) == 2);
+            Assert.IsTrue(oneMock.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo<object>.SendAsync)) == 2);
+            Assert.IsTrue(oneMock.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo<object>.ReceiveAsync)) == 2);
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
+            Assert.NotNull(oneMock.GetType().GetMethod(nameof(TcpClientIo<object>.DisposeAsync)));
+#else
+            Assert.NotNull(oneMock.GetType().GetMethod(nameof(TcpClientIo<object>.Dispose)));
+#endif
+            TcpClientIoBase tcpClientIoBase2 = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000);
+            var twoMock = (TcpClientIo<Mock, Mock>) tcpClientIoBase2;
+            Assert.IsTrue(tcpClientIoBase2.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIoBase.SendAsync)) == 2);
+            Assert.IsTrue(tcpClientIoBase2.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIoBase.ReceiveAsync)) == 2);
+            Assert.IsTrue(twoMock.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo<object>.SendAsync)) == 2);
+            Assert.IsTrue(twoMock.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo<object>.ReceiveAsync)) == 2);
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
+            Assert.NotNull(twoMock.GetType().GetMethod(nameof(TcpClientIo<object>.DisposeAsync)));
+#else
+            Assert.NotNull(twoMock.GetType().GetMethod(nameof(TcpClientIo<object>.Dispose)));
+#endif
         }
     }
 }
