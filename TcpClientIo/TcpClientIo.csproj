@@ -3,8 +3,10 @@
     <PropertyGroup>
         <TargetFrameworks>netstandard2.1;netstandard2.0;</TargetFrameworks>
         <RootNamespace>Drenalol</RootNamespace>
+        <Authors>Bogdan Yanysh</Authors>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageId>TcpClientIo</PackageId>
-        <Version>1.0.6</Version>
+        <Version>1.0.7</Version>
         <PackageTags>TcpClient;TcpListener;Tcp;Serialization;Pipelines;Dataflow;Async;Threadsafe</PackageTags>
         <Description>
             Wrapper of TcpClient what help focus on WHAT you transfer over TCP not HOW
@@ -15,7 +17,8 @@
             - Async
             - Cancellation support
         </Description>
-        <RepositoryUrl>https://github.com/Drenalol/TcpClientIo.git</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/Drenalol/TcpClientIo</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/Drenalol/TcpClientIo</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
     </PropertyGroup>
 

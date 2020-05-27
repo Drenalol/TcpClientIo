@@ -12,19 +12,19 @@ using Drenalol.Helpers;
 
 namespace Drenalol.Base
 {
-    internal class TcpPackageSerializer<TRequest, TResponse> where TResponse : new()
+    internal class TcpSerializer<TRequest, TResponse> where TResponse : new()
     {
         private readonly ReflectionHelper<TRequest, TResponse> _reflectionHelper;
         private readonly BitConverterHelper _bitConverterHelper;
 
-        public TcpPackageSerializer(ICollection<TcpPackageConverter> converters)
+        public TcpSerializer(ICollection<TcpConverter> converters)
         {
             _reflectionHelper = new ReflectionHelper<TRequest, TResponse>();
-            var immutableConverters = ImmutableDictionary<Type, TcpPackageConverter>.Empty;
+            var immutableConverters = ImmutableDictionary<Type, TcpConverter>.Empty;
 
             if (converters.Count > 0)
             {
-                var tempDict = new Dictionary<Type, TcpPackageConverter>();
+                var tempDict = new Dictionary<Type, TcpConverter>();
 
                 foreach (var converter in converters)
                 {
@@ -52,18 +52,18 @@ namespace Drenalol.Base
 
             var properties = _reflectionHelper.GetRequestProperties();
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-            var (_, bodyValue) = properties.SingleOrDefault(p => p.Value.Attribute.AttributeData == TcpPackageDataType.Body);
+            var (_, bodyValue) = properties.SingleOrDefault(p => p.Value.Attribute.TcpDataType == TcpDataType.Body);
 #else
-            var bodyProperty = properties.SingleOrDefault(p => p.Value.Attribute.AttributeData == TcpPackageDataType.Body);
+            var bodyProperty = properties.SingleOrDefault(p => p.Value.Attribute.TcpDataType == TcpDataType.Body);
             var bodyValue = bodyProperty.Value;
 #endif
             
             if (bodyValue != null)
             {
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-                var (_, bodyLengthValue) = properties.SingleOrDefault(p => p.Value.Attribute.AttributeData == TcpPackageDataType.BodyLength);
+                var (_, bodyLengthValue) = properties.SingleOrDefault(p => p.Value.Attribute.TcpDataType == TcpDataType.BodyLength);
 #else
-                var bodyLengthProperty = properties.SingleOrDefault(p => p.Value.Attribute.AttributeData == TcpPackageDataType.BodyLength);
+                var bodyLengthProperty = properties.SingleOrDefault(p => p.Value.Attribute.TcpDataType == TcpDataType.BodyLength);
                 var bodyLengthValue = bodyLengthProperty.Value;
 #endif
 
@@ -76,7 +76,7 @@ namespace Drenalol.Base
                     serializedBody = _bitConverterHelper.ConvertToBytes(bodyValue.Get(request), bodyValue.PropertyType, bodyValue.Attribute.Reverse);
 
                 if (serializedBody == null)
-                    throw TcpPackageException.Throw(TcpPackageTypeException.SerializerBodyIsEmpty);
+                    throw TcpException.Throw(TcpTypeException.SerializerBodyIsEmpty);
 
                 if (bodyLengthValue.IsValueType)
                     request = (TRequest) bodyLengthValue.SetInValueType(request, bodyLengthValue.PropertyType == typeof(int) ? serializedBody.Length : Convert.ChangeType(serializedBody.Length, bodyLengthValue.PropertyType));
@@ -86,17 +86,17 @@ namespace Drenalol.Base
 
             while (properties.TryGetValue(key, out var property))
             {
-                var value = property.Attribute.AttributeData == TcpPackageDataType.Body
+                var value = property.Attribute.TcpDataType == TcpDataType.Body
                     ? serializedBody
                     : _bitConverterHelper.ConvertToBytes(property.Get(request), property.PropertyType, property.Attribute.Reverse);
                 var valueLength = value.Length;
 
-                if (property.Attribute.AttributeData != TcpPackageDataType.Body && valueLength > property.Attribute.Length)
-                    throw TcpPackageException.Throw(TcpPackageTypeException.SerializerLengthOutOfRange, property.PropertyType.ToString(), valueLength.ToString(), property.Attribute.Length.ToString());
+                if (property.Attribute.TcpDataType != TcpDataType.Body && valueLength > property.Attribute.Length)
+                    throw TcpException.Throw(TcpTypeException.SerializerLengthOutOfRange, property.PropertyType.ToString(), valueLength.ToString(), property.Attribute.Length.ToString());
 
-                var attributeLength = property.Attribute.AttributeData == TcpPackageDataType.Body ? valueLength : property.Attribute.Length;
+                var attributeLength = property.Attribute.TcpDataType == TcpDataType.Body ? valueLength : property.Attribute.Length;
 
-                if (property.Attribute.AttributeData == TcpPackageDataType.MetaData && valueLength < attributeLength)
+                if (property.Attribute.TcpDataType == TcpDataType.MetaData && valueLength < attributeLength)
                     Array.Resize(ref value, attributeLength);
 
                 Array.Resize(ref serializedRequest, property.Attribute.Index + attributeLength);
@@ -107,7 +107,7 @@ namespace Drenalol.Base
             }
 
             if (examined != properties.Count)
-                throw TcpPackageException.Throw(TcpPackageTypeException.SerializerSequenceViolated);
+                throw TcpException.Throw(TcpTypeException.SerializerSequenceViolated);
 
             return serializedRequest;
         }
@@ -117,46 +117,46 @@ namespace Drenalol.Base
             var response = new TResponse();
             var key = 0;
             var examined = 0;
-            object tcpPackageId = null;
-            var tcpPackageBodyLength = 0;
+            object id = null;
+            var tcpBodyLength = 0;
             var properties = _reflectionHelper.GetResponseProperties();
 
             while (properties.TryGetValue(key, out var property))
             {
                 var sliceLength = 0;
 
-                switch (property.Attribute.AttributeData)
+                switch (property.Attribute.TcpDataType)
                 {
-                    case TcpPackageDataType.Id:
-                    case TcpPackageDataType.BodyLength:
-                    case TcpPackageDataType.MetaData:
+                    case TcpDataType.Id:
+                    case TcpDataType.BodyLength:
+                    case TcpDataType.MetaData:
                         sliceLength = property.Attribute.Length;
                         break;
-                    case TcpPackageDataType.Body:
-                        sliceLength = tcpPackageBodyLength;
+                    case TcpDataType.Body:
+                        sliceLength = tcpBodyLength;
                         break;
                 }
 
                 var bytesFromReader = await pipeReader.ReadLengthAsync(sliceLength, token);
                 object value = null;
 
-                switch (property.Attribute.AttributeData)
+                switch (property.Attribute.TcpDataType)
                 {
-                    case TcpPackageDataType.MetaData:
+                    case TcpDataType.MetaData:
                         value = _bitConverterHelper.ConvertFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
                         break;
-                    case TcpPackageDataType.Body:
+                    case TcpDataType.Body:
                         value = property.PropertyType == typeof(byte[])
                             ? property.Attribute.Reverse ? _bitConverterHelper.Reverse(bytesFromReader) : bytesFromReader
                             : _bitConverterHelper.ConvertFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
                         break;
-                    case TcpPackageDataType.Id:
+                    case TcpDataType.Id:
                         value = _bitConverterHelper.ConvertFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
-                        tcpPackageId = value;
+                        id = value;
                         break;
-                    case TcpPackageDataType.BodyLength:
+                    case TcpDataType.BodyLength:
                         value = _bitConverterHelper.ConvertFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
-                        tcpPackageBodyLength = Convert.ToInt32(value);
+                        tcpBodyLength = Convert.ToInt32(value);
                         break;
                 }
 
@@ -171,9 +171,9 @@ namespace Drenalol.Base
             }
 
             if (examined != properties.Count)
-                throw TcpPackageException.Throw(TcpPackageTypeException.SerializerSequenceViolated);
+                throw TcpException.Throw(TcpTypeException.SerializerSequenceViolated);
 
-            return (tcpPackageId, tcpPackageBodyLength, response);
+            return (id, tcpBodyLength, response);
         }
     }
 }

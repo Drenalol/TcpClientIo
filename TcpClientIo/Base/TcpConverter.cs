@@ -2,13 +2,13 @@ using System;
 
 namespace Drenalol.Base
 {
-    public abstract class TcpPackageConverter
+    public abstract class TcpConverter
     {
         public abstract byte[] ConvertTo(object input);
         public abstract object ConvertBackTo(byte[] input);
     }
     
-    public abstract class TcpPackageConverter<T> : TcpPackageConverter
+    public abstract class TcpConverter<T> : TcpConverter
     {
         public sealed override byte[] ConvertTo(object input)
         {

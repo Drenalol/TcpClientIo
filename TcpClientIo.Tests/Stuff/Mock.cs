@@ -7,29 +7,29 @@ namespace Drenalol.Stuff
 {
     public struct Mock : IEquatable<Mock>
     {
-        [TcpPackageData(0, 8, AttributeData = TcpPackageDataType.Id)]
+        [TcpData(0, 8, TcpDataType = TcpDataType.Id)]
         [JsonIgnore]
         public long Id { get; set; }
 
-        [TcpPackageData(8, 4, AttributeData = TcpPackageDataType.BodyLength)]
+        [TcpData(8, 4, TcpDataType = TcpDataType.BodyLength)]
         public int Size { get; set; }
 
-        [TcpPackageData(12, 58)]
+        [TcpData(12, 58)]
         public string FirstName { get; set; }
 
-        [TcpPackageData(70, 50)]
+        [TcpData(70, 50)]
         public string LastName { get; set; }
 
-        [TcpPackageData(120, 50)]
+        [TcpData(120, 50)]
         public string Email { get; set; }
 
-        [TcpPackageData(170, 50)]
+        [TcpData(170, 50)]
         public string Gender { get; set; }
 
-        [TcpPackageData(220, 50)]
+        [TcpData(220, 50)]
         public string IpAddress { get; set; }
 
-        [TcpPackageData(270, AttributeData = TcpPackageDataType.Body)]
+        [TcpData(270, TcpDataType = TcpDataType.Body)]
         public string Data { get; set; }
 
         public override string ToString() => JsonExt.Serialize(this);

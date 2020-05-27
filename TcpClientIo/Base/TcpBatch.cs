@@ -3,20 +3,19 @@ using System.Collections.Generic;
 
 namespace Drenalol.Base
 {
-    public sealed class TcpPackageBatch<T> : IEnumerable<T>
+    public sealed class TcpBatch<T> : ITcpBatch<T>
     {
-        private readonly List<T> _internalList;
-        public object PackageId { get; }
+        private readonly IList<T> _internalList;
+        public object Id { get; }
         public int Count => _internalList.Count;
 
-        public TcpPackageBatch(object packageId, T initialItem)
+        public TcpBatch(object id)
         {
-            PackageId = packageId;
+            Id = id;
             _internalList = new List<T>();
-            Add(initialItem);
         }
 
-        internal void Add(T package) => _internalList.Add(package);
+        internal void Add(T input) => _internalList.Add(input);
         
         public IEnumerator<T> GetEnumerator() => _internalList.GetEnumerator();
 

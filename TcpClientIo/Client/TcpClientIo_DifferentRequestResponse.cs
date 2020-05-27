@@ -25,9 +25,9 @@ namespace Drenalol.Client
         private readonly CancellationToken _baseCancellationToken;
         private readonly TcpClient _tcpClient;
         private readonly BufferBlock<byte[]> _bufferBlockRequests;
-        private readonly ConcurrentDictionary<object, TaskCompletionSource<TcpPackageBatch<TResponse>>> _completeResponses;
+        private readonly ConcurrentDictionary<object, TaskCompletionSource<ITcpBatch<TResponse>>> _completeResponses;
         private readonly AsyncLock _asyncLock = new AsyncLock();
-        private readonly TcpPackageSerializer<TRequest, TResponse> _serializer;
+        private readonly TcpSerializer<TRequest, TResponse> _serializer;
         private readonly SemaphoreSlim _semaphore;
         private readonly PipeReader _deserializePipeReader;
         private readonly PipeWriter _deserializePipeWriter;
@@ -67,8 +67,8 @@ namespace Drenalol.Client
             _baseCancellationTokenSource = new CancellationTokenSource();
             _baseCancellationToken = _baseCancellationTokenSource.Token;
             _bufferBlockRequests = new BufferBlock<byte[]>();
-            _completeResponses = new ConcurrentDictionary<object, TaskCompletionSource<TcpPackageBatch<TResponse>>>();
-            _serializer = new TcpPackageSerializer<TRequest, TResponse>(_options.Converters);
+            _completeResponses = new ConcurrentDictionary<object, TaskCompletionSource<ITcpBatch<TResponse>>>();
+            _serializer = new TcpSerializer<TRequest, TResponse>(_options.Converters);
             _semaphore = new SemaphoreSlim(2, 2);
             _deserializePipeReader = pipe.Reader;
             _deserializePipeWriter = pipe.Writer;
