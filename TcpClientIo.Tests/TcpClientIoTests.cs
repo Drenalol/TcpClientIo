@@ -60,14 +60,13 @@ namespace Drenalol
             var mock = new MockTest2
             {
                 Id = 1,
-                Length = 100,
                 Body = "TestHello",
                 TestByte = 123,
                 TestByteArray = new byte[] {123, 124}
             };
 
             await tcpClient.SendAsync(mock);
-            await tcpClient.ReceiveAsync(1);
+            var batch = await tcpClient.ReceiveAsync(1);
             
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
             await tcpClient.DisposeAsync();
