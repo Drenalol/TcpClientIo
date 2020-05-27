@@ -4,9 +4,9 @@ using Drenalol.Base;
 
 namespace Drenalol.Extensions
 {
-    internal static class TcpPackageConverterExt
+    internal static class TcpConverterExt
     {
-        public static bool TryConvert(this ImmutableDictionary<Type, TcpPackageConverter> converters, Type type, object o, out byte[] result)
+        public static bool TryConvert(this ImmutableDictionary<Type, TcpConverter> converters, Type type, object o, out byte[] result)
         {
             if (converters.TryGetValue(type, out var converter))
             {
@@ -18,7 +18,7 @@ namespace Drenalol.Extensions
             return false;
         }
 
-        public static bool TryConvertBack(this ImmutableDictionary<Type, TcpPackageConverter> converters, Type type, byte[] bytes, out object result)
+        public static bool TryConvertBack(this ImmutableDictionary<Type, TcpConverter> converters, Type type, byte[] bytes, out object result)
         {
             if (converters.TryGetValue(type, out var converter))
             {

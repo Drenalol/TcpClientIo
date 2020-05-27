@@ -32,9 +32,9 @@ namespace Drenalol
         {
             var options = TcpClientIoOptions.Default;
 
-            options.Converters = new List<TcpPackageConverter>
+            options.Converters = new List<TcpConverter>
             {
-                new TcpPackageUtf8StringConverter()
+                new TcpUtf8StringConverter()
             };
 
             var tcpClient = new TcpClientIo<Mock>(IPAddress.Any, 10000, options);
@@ -50,9 +50,9 @@ namespace Drenalol
         {
             var options = TcpClientIoOptions.Default;
 
-            options.Converters = new List<TcpPackageConverter>
+            options.Converters = new List<TcpConverter>
             {
-                new TcpPackageUtf8StringConverter()
+                new TcpUtf8StringConverter()
             };
 
             var tcpClient = new TcpClientIo<MockTest2>(IPAddress.Any, 10000, options);
@@ -86,9 +86,9 @@ namespace Drenalol
             {
                 StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 131072),
                 StreamPipeWriterOptions = new StreamPipeWriterOptions(minimumBufferSize: 131072),
-                Converters = new List<TcpPackageConverter>
+                Converters = new List<TcpConverter>
                 {
-                    new TcpPackageUtf8StringConverter()
+                    new TcpUtf8StringConverter()
                 }
             })).ToList();
             var requestQueue = 0;
@@ -154,9 +154,9 @@ namespace Drenalol
             var count = 0;
             var error = 0;
             var options = TcpClientIoOptions.Default;
-            options.Converters = new List<TcpPackageConverter>
+            options.Converters = new List<TcpConverter>
             {
-                new TcpPackageUtf8StringConverter()
+                new TcpUtf8StringConverter()
             };
 
             var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000, options);
@@ -206,9 +206,9 @@ namespace Drenalol
         public async Task DisposeTest()
         {
             var options = TcpClientIoOptions.Default;
-            options.Converters = new List<TcpPackageConverter>
+            options.Converters = new List<TcpConverter>
             {
-                new TcpPackageUtf8StringConverter()
+                new TcpUtf8StringConverter()
             };
             var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000, options);
             var timer = new System.Timers.Timer {Interval = 3000};
@@ -246,9 +246,9 @@ namespace Drenalol
         public async Task CancelSendReceiveTest()
         {
             var options = TcpClientIoOptions.Default;
-            options.Converters = new List<TcpPackageConverter>
+            options.Converters = new List<TcpConverter>
             {
-                new TcpPackageUtf8StringConverter()
+                new TcpUtf8StringConverter()
             };
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
             await using var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000, options);

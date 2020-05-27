@@ -27,56 +27,56 @@ namespace Drenalol
 
         private class DoesNotHaveKeyAttribute
         {
-            [TcpPackageData(1, 1, AttributeData = TcpPackageDataType.Body)]
+            [TcpData(1, 1, TcpDataType = TcpDataType.Body)]
             public int Body { get; set; }
-            [TcpPackageData(2, 1, AttributeData = TcpPackageDataType.BodyLength)]
+            [TcpData(2, 1, TcpDataType = TcpDataType.BodyLength)]
             public int BodyLength { get; set; }
         }
 
         private class DoesNotHaveBodyAttribute
         {
-            [TcpPackageData(0, 1, AttributeData = TcpPackageDataType.Id)]
+            [TcpData(0, 1, TcpDataType = TcpDataType.Id)]
             public int Key { get; set; }
-            [TcpPackageData(1, 2, AttributeData = TcpPackageDataType.BodyLength)]
+            [TcpData(1, 2, TcpDataType = TcpDataType.BodyLength)]
             public int BodyLength { get; set; }
         }
 
         private class DoesNotHaveBodyLengthAttribute
         {
-            [TcpPackageData(0, 1, AttributeData = TcpPackageDataType.Id)]
+            [TcpData(0, 1, TcpDataType = TcpDataType.Id)]
             public int Key { get; set; }
-            [TcpPackageData(1, 2, AttributeData = TcpPackageDataType.Body)]
+            [TcpData(1, 2, TcpDataType = TcpDataType.Body)]
             public int Body { get; set; }
         }
 
         private class KeyDoesNotHaveSetter
         {
-            [TcpPackageData(0, 1, AttributeData = TcpPackageDataType.Id)]
+            [TcpData(0, 1, TcpDataType = TcpDataType.Id)]
             public int Key { get; }
-            [TcpPackageData(1, 2, AttributeData = TcpPackageDataType.BodyLength)]
+            [TcpData(1, 2, TcpDataType = TcpDataType.BodyLength)]
             public int BodyLength { get; set; }
-            [TcpPackageData(3, 2, AttributeData = TcpPackageDataType.Body)]
+            [TcpData(3, 2, TcpDataType = TcpDataType.Body)]
             public int Body { get; set; }
         }
 
         [Test]
         public void ReflectionErrorsTest()
         {
-            Assert.Catch(typeof(TcpPackageException), () => new ReflectionHelper<DoesNotHaveAny, DoesNotHaveAny>());
-            Assert.Catch(typeof(TcpPackageException), () => new ReflectionHelper<DoesNotHaveKeyAttribute, DoesNotHaveKeyAttribute>());
-            Assert.Catch(typeof(TcpPackageException), () => new ReflectionHelper<DoesNotHaveBodyAttribute, DoesNotHaveBodyAttribute>());
-            Assert.Catch(typeof(TcpPackageException), () => new ReflectionHelper<DoesNotHaveBodyLengthAttribute, DoesNotHaveBodyLengthAttribute>());
-            Assert.Catch(typeof(TcpPackageException), () => new ReflectionHelper<KeyDoesNotHaveSetter, KeyDoesNotHaveSetter>());
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveAny, DoesNotHaveAny>());
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveKeyAttribute, DoesNotHaveKeyAttribute>());
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveBodyAttribute, DoesNotHaveBodyAttribute>());
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveBodyLengthAttribute, DoesNotHaveBodyLengthAttribute>());
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<KeyDoesNotHaveSetter, KeyDoesNotHaveSetter>());
         }
         
         [Test]
         public async Task AttributeMockSerializeDeserializeTest()
         {
             var index = 0;
-            var serializer = new TcpPackageSerializer<AttributeMockSerialize, AttributeMockSerialize>(new List<TcpPackageConverter>
+            var serializer = new TcpSerializer<AttributeMockSerialize, AttributeMockSerialize>(new List<TcpConverter>
             {
-                new TcpPackageUtf8StringConverter(),
-                new TcpPackageDateTimeConverter()
+                new TcpUtf8StringConverter(),
+                new TcpDateTimeConverter()
             });
             var tasks = Enumerable.Range(0, 1000).Select(i => Task.Run(() =>
             {
@@ -102,11 +102,11 @@ namespace Drenalol
         [Test]
         public void BaseConvertersTest()
         {
-            var dict = new Dictionary<Type, TcpPackageConverter>
+            var dict = new Dictionary<Type, TcpConverter>
             {
-                {typeof(string), new TcpPackageUtf8StringConverter()},
-                {typeof(DateTime), new TcpPackageDateTimeConverter()},
-                {typeof(Guid), new TcpPackageGuidConverter()}
+                {typeof(string), new TcpUtf8StringConverter()},
+                {typeof(DateTime), new TcpDateTimeConverter()},
+                {typeof(Guid), new TcpGuidConverter()}
             }.ToImmutableDictionary();
             
             var bitConverterHelper = new BitConverterHelper(dict);

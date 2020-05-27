@@ -11,8 +11,8 @@ namespace Drenalol.Client
     {
         private async Task SetResponseAsync(object responseId, TResponse response)
         {
-            TaskCompletionSource<TcpPackageBatch<TResponse>> tcs;
-            TcpPackageBatch<TResponse> packageBatch = null;
+            TaskCompletionSource<ITcpBatch<TResponse>> tcs;
+            ITcpBatch<TResponse> batch = null;
 
             // From MSDN: ConcurrentDictionary<TKey,TValue> is designed for multithreaded scenarios.
             // You do not have to use locks in your code to add or remove items from the collection.
@@ -35,33 +35,33 @@ namespace Drenalol.Client
                 else
                     AddOrUpdate();
                 
-                tcs.SetResult(packageBatch);
+                tcs.SetResult(batch);
             }
 
-            void AddOrUpdate(TaskCompletionSource<TcpPackageBatch<TResponse>> innerTcs = null)
+            void AddOrUpdate(TaskCompletionSource<ITcpBatch<TResponse>> innerTcs = null)
             {
-                packageBatch = new TcpPackageBatch<TResponse>(responseId, response);
+                batch = new TcpBatch<TResponse>(responseId) {response};
                 tcs = innerTcs ?? InternalGetOrAddLazyTcs(responseId);
                 Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {_id.ToString()} {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} " +
                                 $"<- {nameof(SetResponseAsync)} (tcs {(innerTcs == null ? "new" : "exists")}, TaskId: {tcs.Task.Id.ToString()}) " +
-                                $"PackageId: {packageBatch.PackageId}, PackageResult.QueueCount: {packageBatch.Count.ToString()}");
+                                $"Id: {batch.Id}, Batch.Count: {batch.Count.ToString()}");
             }
 
             async Task UpdateAsync()
             {
-                packageBatch = await tcs.Task;
-                packageBatch.Add(response);
+                batch = await tcs.Task;
+                ((TcpBatch<TResponse>) batch).Add(response);
                 tcs = InternalGetOrAddLazyTcs(responseId);
                 Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {_id.ToString()} {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} " +
-                                $"<- {nameof(SetResponseAsync)} (tcs exists, TaskId: {tcs.Task.Id.ToString()}) PackageId: {packageBatch.PackageId}, " +
-                                $"PackageResult.QueueCount: {packageBatch.Count.ToString()}");
+                                $"<- {nameof(SetResponseAsync)} (tcs exists, TaskId: {tcs.Task.Id.ToString()}) Id: {batch.Id}, " +
+                                $"Batch.Count: {batch.Count.ToString()}");
             }
         }
 
-        private TaskCompletionSource<TcpPackageBatch<TResponse>> InternalGetOrAddLazyTcs(object key)
+        private TaskCompletionSource<ITcpBatch<TResponse>> InternalGetOrAddLazyTcs(object key)
         {
             return _completeResponses.GetOrAdd(key, _ => InternalCreateLazyTcs().Value);
-            Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>> InternalCreateLazyTcs() => new Lazy<TaskCompletionSource<TcpPackageBatch<TResponse>>>(() => new TaskCompletionSource<TcpPackageBatch<TResponse>>());
+            Lazy<TaskCompletionSource<ITcpBatch<TResponse>>> InternalCreateLazyTcs() => new Lazy<TaskCompletionSource<ITcpBatch<TResponse>>>(() => new TaskCompletionSource<ITcpBatch<TResponse>>());
         }
 
         public override Task SendAsync(object request, CancellationToken token = default) => SendAsync((TRequest) request, token);
@@ -83,10 +83,10 @@ namespace Drenalol.Client
 
         public override async Task<object> ReceiveAsync(object responseId, CancellationToken token = default, bool isObject = true) => await ReceiveAsync(responseId, token);
 
-        public async Task<TcpPackageBatch<TResponse>> ReceiveAsync(object responseId, CancellationToken? token = default)
+        public async Task<ITcpBatch<TResponse>> ReceiveAsync(object responseId, CancellationToken? token = default)
         {
             var internalToken = token ?? _baseCancellationToken;
-            TaskCompletionSource<TcpPackageBatch<TResponse>> tcs;
+            TaskCompletionSource<ITcpBatch<TResponse>> tcs;
             // Info about lock read in SetResponseAsync method
             using (await _asyncLock.LockAsync())
             {

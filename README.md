@@ -48,9 +48,9 @@ Request request = new Request
 // Send request asynchronously
 await tcpClient.SendAsync(request, CancellationToken.None);
 
-// Receive response in overtype TcpPackageBatch<Response> by identifier asynchronously
+// Receive response in overtype ITcpBatch<Response> by identifier asynchronously
 // !!! WARNING !!! Identifier is strongly-typed, if model set uint, you must pass it uint too
-TcpPackageBatch<Response> resultBatch = await tcpClient.ReceiveAsync(123U, CancellationToken.None);
+ITcpBatch<Response> resultBatch = await tcpClient.ReceiveAsync(123U, CancellationToken.None);
 
 // Batch support iteration
 foreach (var response in resultBatch)
@@ -73,30 +73,30 @@ Request with first 32 bytes header, and body
 ```c#
 public class Request
 {
-    // Attribute TcpPackageData parameters:
+    // Attribute TcpData parameters:
     //
     // Index (required)
-    // Length (required if AttributeData != Body)
-    // AttributeData = default MetaData (Id, Body, BodyLength, MetaData)
+    // Length (required if TcpDataType != Body)
+    // TcpDataType = default MetaData (Id, Body, BodyLength, MetaData)
     // Reverse - force reverse byte array
     // Type - force set Type of property for Serializer
 
     // Required
-    [TcpPackageData(0, 4, AttributeData = TcpPackageDataType.Id)]
+    [TcpData(0, 4, TcpDataType = TcpDataType.Id)]
     public uint Id { get; set; }
 
-    // Required if TcpPackageDataType.Body set
-    [TcpPackageData(4, 4, AttributeData = TcpPackageDataType.BodyLength)]
+    // Required if TcpDataType.Body set
+    [TcpData(4, 4, TcpDataType = TcpDataType.BodyLength)]
     public uint Size { get; set; }
 
-    [TcpPackageData(8, 8)]
+    [TcpData(8, 8)]
     public DateTime DateTime { get; set; }
 
-    [TcpPackageData(16, 16)]
+    [TcpData(16, 16)]
     public Guid Guid { get; set; }
 
-    // Required if TcpPackageDataType.BodyLength set
-    [TcpPackageData(32, AttributeData = TcpPackageDataType.Body)]
+    // Required if TcpDataType.BodyLength set
+    [TcpData(32, TcpDataType = TcpDataType.Body)]
     public string Data { get; set; }
 }
 ```
@@ -119,19 +119,19 @@ For specific types you must create custom converter and pass it to TcpClientIoOp
 
 Converters below already included in package, but not added in list of converters when creating TcpClientIo
 ```c#
-public class TcpPackageDateTimeConverter : TcpPackageConverter<DateTime>
+public class TcpDateTimeConverter : TcpConverter<DateTime>
 {
     public override byte[] Convert(DateTime input) => BitConverter.GetBytes(input.ToBinary());
     public override DateTime ConvertBack(byte[] input) => DateTime.FromBinary(BitConverter.ToInt64(input));
 }
 
-public class TcpPackageGuidConverter : TcpPackageConverter<Guid>
+public class TcpGuidConverter : TcpConverter<Guid>
 {
     public override byte[] Convert(Guid input) => input.ToByteArray();
     public override Guid ConvertBack(byte[] input) => new Guid(input);
 }
 
-public class TcpPackageUtf8StringConverter : TcpPackageConverter<string>
+public class TcpUtf8StringConverter : TcpConverter<string>
 {
     public override byte[] Convert(string input) => Encoding.UTF8.GetBytes(input);
     public override string ConvertBack(byte[] input) => Encoding.UTF8.GetString(input);
@@ -140,11 +140,11 @@ public class TcpPackageUtf8StringConverter : TcpPackageConverter<string>
 ```c#
 var options = new TcpClientIoOptions
 {
-    Converters = new List<TcpPackageConverter>
+    Converters = new List<TcpConverter>
     {
-        new TcpPackageDateTimeConverter(),
-        new TcpPackageGuidConverter(),
-        new TcpPackageUtf8StringConverter()
+        new TcpDateTimeConverter(),
+        new TcpGuidConverter(),
+        new TcpUtf8StringConverter()
     };
 }
 

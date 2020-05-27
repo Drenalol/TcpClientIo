@@ -10,7 +10,7 @@ namespace Drenalol.Client
         public StreamPipeWriterOptions StreamPipeWriterOptions { get; set; }
         public int TcpClientSendTimeout { get; set; }
         public int TcpClientReceiveTimeout { get; set; }
-        public IList<TcpPackageConverter> Converters { get; set; } = new List<TcpPackageConverter>();
+        public IList<TcpConverter> Converters { get; set; } = new List<TcpConverter>();
         
         public static TcpClientIoOptions Default => new TcpClientIoOptions
         {

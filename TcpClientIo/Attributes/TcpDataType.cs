@@ -1,6 +1,6 @@
 namespace Drenalol.Attributes
 {
-    public enum TcpPackageDataType
+    public enum TcpDataType
     {
         MetaData,
         Id,

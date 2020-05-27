@@ -4,19 +4,19 @@ namespace Drenalol.Stuff
 {
     public struct MockTest2
     {
-        [TcpPackageData(0, 4, AttributeData = TcpPackageDataType.Id)]
+        [TcpData(0, 4, TcpDataType = TcpDataType.Id)]
         public int Id { get; set; }
         
-        [TcpPackageData(4, 4, AttributeData = TcpPackageDataType.BodyLength)]
+        [TcpData(4, 4, TcpDataType = TcpDataType.BodyLength)]
         public int Length { get; set; }
         
-        [TcpPackageData(8, 1)]
+        [TcpData(8, 1)]
         public byte TestByte { get; set; }
         
-        [TcpPackageData(9, 2)]
+        [TcpData(9, 2)]
         public byte[] TestByteArray { get; set; }
         
-        [TcpPackageData(11, AttributeData = TcpPackageDataType.Body)]
+        [TcpData(11, TcpDataType = TcpDataType.Body)]
         public string Body { get; set; }
     }
 }

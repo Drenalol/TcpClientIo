@@ -103,8 +103,8 @@ namespace Drenalol.Client
                 while (true)
                 {
                     _baseCancellationToken.ThrowIfCancellationRequested();
-                    var (responseId, responseSize, response) = await _serializer.DeserializeAsync(_deserializePipeReader, _baseCancellationToken);
-                    Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {_id.ToString()} {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} <- {nameof(DeserializeResponseAsync)} {responseSize.ToString()} bytes");
+                    var (responseId, responseLength, response) = await _serializer.DeserializeAsync(_deserializePipeReader, _baseCancellationToken);
+                    Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {_id.ToString()} {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} <- {nameof(DeserializeResponseAsync)} {responseLength.ToString()} bytes");
                     await SetResponseAsync(responseId, response);
                 }
             }

@@ -12,9 +12,9 @@ namespace Drenalol.Helpers
     {
         private readonly ImmutableDictionary<Type, MethodInfo> _builtInConvertersToBytes;
         private readonly ImmutableDictionary<Type, MethodInfo> _builtInConvertersFromBytes;
-        private readonly ImmutableDictionary<Type, TcpPackageConverter> _customConverters;
+        private readonly ImmutableDictionary<Type, TcpConverter> _customConverters;
 
-        public BitConverterHelper(ImmutableDictionary<Type, TcpPackageConverter> converters)
+        public BitConverterHelper(ImmutableDictionary<Type, TcpConverter> converters)
         {
             _customConverters = converters;
             var toBytes = new Dictionary<Type, MethodInfo>();
@@ -52,7 +52,7 @@ namespace Drenalol.Helpers
             switch (propertyValue)
             {
                 case null:
-                    throw TcpPackageException.Throw(TcpPackageTypeException.PropertyArgumentIsNull, propertyType.ToString());
+                    throw TcpException.Throw(TcpTypeException.PropertyArgumentIsNull, propertyType.ToString());
                 case byte @byte:
                     return new[] {@byte};
                 case byte[] byteArray:
@@ -71,24 +71,24 @@ namespace Drenalol.Helpers
                         }
                         catch (Exception exception)
                         {
-                            throw TcpPackageException.Throw(TcpPackageTypeException.ConverterUnknownError, propertyType.ToString(), exception.Message);
+                            throw TcpException.Throw(TcpTypeException.ConverterUnknownError, propertyType.ToString(), exception.Message);
                         }
                     }
                     else
-                        throw TcpPackageException.Throw(TcpPackageTypeException.ConverterNotFoundType, propertyType.ToString());
+                        throw TcpException.Throw(TcpTypeException.ConverterNotFoundType, propertyType.ToString());
             }
         }
 
         public object ConvertFromBytes(byte[] propertyValue, Type propertyType, bool reverse = false)
         {
             if (propertyValue == null)
-                throw TcpPackageException.Throw(TcpPackageTypeException.PropertyArgumentIsNull, propertyType.ToString());
+                throw TcpException.Throw(TcpTypeException.PropertyArgumentIsNull, propertyType.ToString());
 
             if (propertyType == typeof(byte[]))
                 return reverse ? Reverse(propertyValue) : propertyValue;
 
             if (propertyType == typeof(byte))
-                return propertyValue.Length > 1 ? throw TcpPackageException.Throw(TcpPackageTypeException.ConverterUnknownError, propertyType.ToString(), "byte array > 1") : propertyValue[0];
+                return propertyValue.Length > 1 ? throw TcpException.Throw(TcpTypeException.ConverterUnknownError, propertyType.ToString(), "byte array > 1") : propertyValue[0];
 
             var bytes = reverse ? Reverse(propertyValue) : propertyValue;
             
@@ -103,11 +103,11 @@ namespace Drenalol.Helpers
                 }
                 catch (Exception exception)
                 {
-                    throw TcpPackageException.Throw(TcpPackageTypeException.ConverterUnknownError, propertyType.ToString(), exception.Message);
+                    throw TcpException.Throw(TcpTypeException.ConverterUnknownError, propertyType.ToString(), exception.Message);
                 }
             }
             else
-                throw TcpPackageException.Throw(TcpPackageTypeException.ConverterNotFoundType, propertyType.ToString());
+                throw TcpException.Throw(TcpTypeException.ConverterNotFoundType, propertyType.ToString());
 
             return result;
         }
