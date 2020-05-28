@@ -5,21 +5,25 @@ using System.IO.Pipelines;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Drenalol.Abstractions;
 using Drenalol.Attributes;
 using Drenalol.Exceptions;
 using Drenalol.Extensions;
 using Drenalol.Helpers;
+using Microsoft.Extensions.Logging;
 
 namespace Drenalol.Base
 {
     internal class TcpSerializer<TRequest, TResponse> where TResponse : new()
     {
+        private readonly ILogger _logger;
         private readonly ReflectionHelper<TRequest, TResponse> _reflectionHelper;
         private readonly BitConverterHelper _bitConverterHelper;
 
-        public TcpSerializer(ICollection<TcpConverter> converters)
+        public TcpSerializer(ICollection<TcpConverter> converters, ILogger logger)
         {
-            _reflectionHelper = new ReflectionHelper<TRequest, TResponse>();
+            _logger = logger;
+            _reflectionHelper = new ReflectionHelper<TRequest, TResponse>(_logger);
             var immutableConverters = ImmutableDictionary<Type, TcpConverter>.Empty;
 
             if (converters.Count > 0)
@@ -31,7 +35,7 @@ namespace Drenalol.Base
                     var type = converter.GetType().BaseType;
 
                     if (type == null)
-                        throw TcpClientIoException.Throw(TcpClientIoTypeException.ConverterError);
+                        throw TcpClientIoException.Throw(TcpClientIoTypeException.ConverterError, _logger);
 
                     var genericType = type.GenericTypeArguments.Single();
                     tempDict.Add(genericType, converter);
@@ -40,7 +44,7 @@ namespace Drenalol.Base
                 immutableConverters = tempDict.ToImmutableDictionary();
             }
 
-            _bitConverterHelper = new BitConverterHelper(immutableConverters);
+            _bitConverterHelper = new BitConverterHelper(immutableConverters, _logger);
         }
 
         public byte[] Serialize(TRequest request)
@@ -76,7 +80,7 @@ namespace Drenalol.Base
                     serializedBody = _bitConverterHelper.ConvertToBytes(bodyValue.Get(request), bodyValue.PropertyType, bodyValue.Attribute.Reverse);
 
                 if (serializedBody == null)
-                    throw TcpException.Throw(TcpTypeException.SerializerBodyIsEmpty);
+                    throw TcpException.Throw(TcpTypeException.SerializerBodyIsEmpty, _logger);
 
                 if (bodyLengthValue.IsValueType)
                     request = (TRequest) bodyLengthValue.SetInValueType(request, bodyLengthValue.PropertyType == typeof(int) ? serializedBody.Length : Convert.ChangeType(serializedBody.Length, bodyLengthValue.PropertyType));
@@ -92,7 +96,7 @@ namespace Drenalol.Base
                 var valueLength = value.Length;
 
                 if (property.Attribute.TcpDataType != TcpDataType.Body && valueLength > property.Attribute.Length)
-                    throw TcpException.Throw(TcpTypeException.SerializerLengthOutOfRange, property.PropertyType.ToString(), valueLength.ToString(), property.Attribute.Length.ToString());
+                    throw TcpException.Throw(TcpTypeException.SerializerLengthOutOfRange, _logger, property.PropertyType.ToString(), valueLength.ToString(), property.Attribute.Length.ToString());
 
                 var attributeLength = property.Attribute.TcpDataType == TcpDataType.Body ? valueLength : property.Attribute.Length;
 
@@ -103,11 +107,11 @@ namespace Drenalol.Base
                 Array.Copy(value, 0, serializedRequest, property.Attribute.Index, attributeLength);
                 key += attributeLength;
                 examined++;
-                //Debug.WriteLine($"Serialize property {valueLength.ToString()} bytes, {property.Attribute.AttributeData.ToString()}:{property.Attribute.Index.ToString()}:{property.Attribute.Length.ToString()}");
+                _logger?.LogTrace($"Serialize property {property.Attribute.TcpDataType.ToString()} Index: {property.Attribute.Index.ToString()} {valueLength.ToString()}/{property.Attribute.Length.ToString()} bytes");
             }
 
             if (examined != properties.Count)
-                throw TcpException.Throw(TcpTypeException.SerializerSequenceViolated);
+                throw TcpException.Throw(TcpTypeException.SerializerSequenceViolated, _logger);
 
             return serializedRequest;
         }
@@ -167,11 +171,11 @@ namespace Drenalol.Base
 
                 key += sliceLength;
                 examined++;
-                //Debug.WriteLine($"Deserialize property {sliceLength.ToString()} bytes, {property.Attribute.AttributeData.ToString()}:{property.Attribute.Index.ToString()}:{property.Attribute.Length.ToString()}");
+                _logger?.LogTrace($"Deserialize property {property.Attribute.TcpDataType.ToString()} Index: {property.Attribute.Index.ToString()} {sliceLength.ToString()}/{property.Attribute.Length.ToString()} bytes");
             }
 
             if (examined != properties.Count)
-                throw TcpException.Throw(TcpTypeException.SerializerSequenceViolated);
+                throw TcpException.Throw(TcpTypeException.SerializerSequenceViolated, _logger);
 
             return (id, tcpBodyLength, response);
         }

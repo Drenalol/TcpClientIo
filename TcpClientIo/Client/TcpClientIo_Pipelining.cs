@@ -1,9 +1,8 @@
 using System;
-using System.Diagnostics;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using Microsoft.Extensions.Logging;
 
 namespace Drenalol.Client
 {
@@ -25,7 +24,7 @@ namespace Drenalol.Client
                     var bytesArray = await _bufferBlockRequests.ReceiveAsync(_baseCancellationToken);
                     await _networkStreamPipeWriter.WriteAsync(bytesArray, _baseCancellationToken);
                     BytesWrite += (ulong) bytesArray.Length;
-                    Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {_id.ToString()} {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} -> {nameof(TcpWriteAsync)} {bytesArray.Length.ToString()} bytes");
+                    _logger?.LogDebug($"Tcp writed {bytesArray.Length.ToString()} bytes");
                 }
             }
             catch (OperationCanceledException canceledException)
@@ -34,7 +33,7 @@ namespace Drenalol.Client
             }
             catch (Exception exception)
             {
-                Debug.WriteLine($"{nameof(TcpWriteAsync)} Got {exception.GetType()}, {exception.Message}");
+                _logger?.LogCritical($"{nameof(TcpWriteAsync)} Got {exception.GetType()}, {exception.Message}");
                 _internalException = exception;
                 throw;
             }
@@ -59,21 +58,11 @@ namespace Drenalol.Client
                     if (readResult.Buffer.IsEmpty)
                         continue;
 
-                    if (readResult.Buffer.IsSingleSegment)
+                    foreach (var buffer in readResult.Buffer)
                     {
-                        var buffer = readResult.Buffer.First;
                         await _deserializePipeWriter.WriteAsync(buffer, _baseCancellationToken);
                         BytesRead += (ulong) buffer.Length;
-                        Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {_id.ToString()} {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} <- {nameof(TcpReadAsync)} {buffer.Length.ToString()} bytes");
-                    }
-                    else
-                    {
-                        foreach (var buffer in readResult.Buffer)
-                        {
-                            await _deserializePipeWriter.WriteAsync(buffer, _baseCancellationToken);
-                            BytesRead += (ulong) buffer.Length;
-                            Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {_id.ToString()} {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} <- {nameof(TcpReadAsync)} {buffer.Length.ToString()} bytes");
-                        }
+                        _logger?.LogDebug($"Tcp readed {buffer.Length.ToString()} bytes");
                     }
                     
                     _networkStreamPipeReader.AdvanceTo(readResult.Buffer.End);
@@ -85,7 +74,7 @@ namespace Drenalol.Client
             }
             catch (Exception exception)
             {
-                Debug.WriteLine($"{nameof(TcpReadAsync)} Got {exception.GetType()}, {exception}");
+                _logger?.LogCritical($"{nameof(TcpReadAsync)} Got {exception.GetType()}, {exception}");
                 _internalException = exception;
                 throw;
             }
@@ -104,7 +93,7 @@ namespace Drenalol.Client
                 {
                     _baseCancellationToken.ThrowIfCancellationRequested();
                     var (responseId, responseLength, response) = await _serializer.DeserializeAsync(_deserializePipeReader, _baseCancellationToken);
-                    Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {_id.ToString()} {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} <- {nameof(DeserializeResponseAsync)} {responseLength.ToString()} bytes");
+                    _logger?.LogDebug($"Deserialized response: Id {responseId} Length {responseLength.ToString()} bytes");
                     await SetResponseAsync(responseId, response);
                 }
             }
@@ -114,7 +103,7 @@ namespace Drenalol.Client
             }
             catch (Exception exception)
             {
-                Debug.WriteLine($"{nameof(DeserializeResponseAsync)} Got {exception.GetType()}, {exception}");
+                _logger?.LogCritical($"{nameof(DeserializeResponseAsync)} Got {exception.GetType()}, {exception}");
                 _internalException = exception;
                 throw;
             }
@@ -126,7 +115,7 @@ namespace Drenalol.Client
 
         private void StopDeserializeWriterReader(Exception exception)
         {
-            Debug.WriteLine("Stopping deserialize reader/writer");
+            _logger?.LogDebug("Completion Deserializer PipeWriter and PipeReader started");
             _deserializePipeWriter.CancelPendingFlush();
             _deserializePipeReader.CancelPendingRead();
 
@@ -136,16 +125,16 @@ namespace Drenalol.Client
                 _deserializePipeReader.Complete(exception);
             }
 
-            Debug.WriteLine("Stopping deserialize reader/writer end");
+            _logger?.LogDebug("Completion Deserializer PipeWriter and PipeReader ended");
         }
 
         private void StopReader(Exception exception)
         {
-            Debug.WriteLine("Stopping reader");
+            _logger?.LogDebug("Completion NetworkStream PipeReader started");
             foreach (var completedResponse in _completeResponses.Where(tcs => tcs.Value.Task.Status == TaskStatus.WaitingForActivation))
             {
                 var innerException = exception ?? new OperationCanceledException();
-                Debug.WriteLine($"Set force {innerException.GetType()} in TaskCompletionSource in TaskStatus.WaitingForActivation");
+                _logger?.LogDebug($"Set force {innerException.GetType()} in TaskCompletionSource in TaskStatus.WaitingForActivation");
                 completedResponse.Value.TrySetException(innerException);
             }
 
@@ -154,18 +143,18 @@ namespace Drenalol.Client
             if (_tcpClient.Client.Connected)
                 _networkStreamPipeReader.Complete(exception);
 
-            Debug.WriteLine("Stopping reader end");
+            _logger?.LogDebug("Completion NetworkStream PipeReader ended");
         }
 
         private void StopWriter(Exception exception)
         {
-            Debug.WriteLine("Stopping writer");
+            _logger?.LogDebug("Completion NetworkStream PipeWriter started");
             _networkStreamPipeWriter.CancelPendingFlush();
 
             if (_tcpClient.Client.Connected)
                 _networkStreamPipeWriter.Complete(exception);
 
-            Debug.WriteLine("Stopping writer end");
+            _logger?.LogDebug("Completion NetworkStream PipeWriter ended");
         }
     }
 }

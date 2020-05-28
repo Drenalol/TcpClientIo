@@ -6,12 +6,16 @@ using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using Drenalol.Abstractions;
 using Drenalol.Base;
 using Drenalol.Client;
 using Drenalol.Converters;
 using Drenalol.Stuff;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 
 namespace Drenalol
@@ -37,12 +41,21 @@ namespace Drenalol
                 new TcpUtf8StringConverter()
             };
 
-            var tcpClient = new TcpClientIo<Mock>(IPAddress.Any, 10000, options);
-            var request = Mock.Create(1337);
-            await tcpClient.SendAsync(request);
-            var batch = await tcpClient.ReceiveAsync(1337L);
-            var response = batch.First();
-            Assert.IsTrue(request.Equals(response));
+            var loggerFactory = LoggerFactory.Create(lb =>
+            {
+                lb.AddFilter("Drenalol.Client.TcpClientIo", LogLevel.Trace);
+                lb.AddDebug();
+                lb.AddConsole();
+            });
+
+            using (var tcpClient = new TcpClientIo<Mock>(new TcpClient("localhost", 10000), options, loggerFactory.CreateLogger<TcpClientIo<Mock>>()))
+            {
+                var request = Mock.Create(1337);
+                await tcpClient.SendAsync(request);
+                var batch = await tcpClient.ReceiveAsync(1337L);
+                var response = batch.First();
+                Assert.IsTrue(request.Equals(response));
+            }
         }
 
         [Test]

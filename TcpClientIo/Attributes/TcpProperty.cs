@@ -6,7 +6,7 @@ using System.Reflection;
 
 namespace Drenalol.Attributes
 {
-    public class TcpProperty
+    internal class TcpProperty
     {
         public readonly bool IsValueType;
         private PropertyInfo Property { get; }

@@ -1,9 +1,9 @@
 using System;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Drenalol.Base;
+using Microsoft.Extensions.Logging;
 
 namespace Drenalol.Client
 {
@@ -14,7 +14,7 @@ namespace Drenalol.Client
             TaskCompletionSource<ITcpBatch<TResponse>> tcs;
             ITcpBatch<TResponse> batch = null;
 
-            // From MSDN: ConcurrentDictionary<TKey,TValue> is designed for multithreaded scenarios.
+            // From MSDN: ConcurrentDictionary<TKey,TValue> is designed for multi-threaded scenarios.
             // You do not have to use locks in your code to add or remove items from the collection.
             // However, it is always possible for one thread to retrieve a value, and another thread
             // to immediately update the collection by giving the same key a new value.
@@ -42,9 +42,7 @@ namespace Drenalol.Client
             {
                 batch = new TcpBatch<TResponse>(responseId) {response};
                 tcs = innerTcs ?? InternalGetOrAddLazyTcs(responseId);
-                Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {_id.ToString()} {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} " +
-                                $"<- {nameof(SetResponseAsync)} (tcs {(innerTcs == null ? "new" : "exists")}, TaskId: {tcs.Task.Id.ToString()}) " +
-                                $"Id: {batch.Id}, Batch.Count: {batch.Count.ToString()}");
+                _logger?.LogInformation($"Available new response: Id {responseId}, create new batch (Count: 1)");
             }
 
             async Task UpdateAsync()
@@ -52,9 +50,7 @@ namespace Drenalol.Client
                 batch = await tcs.Task;
                 ((TcpBatch<TResponse>) batch).Add(response);
                 tcs = InternalGetOrAddLazyTcs(responseId);
-                Debug.WriteLine($"[{Thread.CurrentThread.ManagedThreadId.ToString()}] {_id.ToString()} {DateTime.Now:dd.MM.yyyy HH:mm:ss.fff} " +
-                                $"<- {nameof(SetResponseAsync)} (tcs exists, TaskId: {tcs.Task.Id.ToString()}) Id: {batch.Id}, " +
-                                $"Batch.Count: {batch.Count.ToString()}");
+                _logger?.LogInformation($"Available new response: Id {responseId}, update exists batch (Count: {batch.Count.ToString()})");
             }
         }
 
@@ -66,26 +62,40 @@ namespace Drenalol.Client
 
         public override Task SendAsync(object request, CancellationToken token = default) => SendAsync((TRequest) request, token);
 
-        public async Task SendAsync(TRequest request, CancellationToken? token = default)
+        /// <summary>
+        /// Serialize and sends data asynchronously to a connected <see cref="TcpClientIo{TRequest,TResponse}"/> object.
+        /// </summary>
+        /// <param name="request"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        public async Task<bool> SendAsync(TRequest request, CancellationToken token = default)
         {
             try
             {
                 var serializedRequest = _serializer.Serialize(request);
-                var sended = await _bufferBlockRequests.SendAsync(serializedRequest, token ?? _baseCancellationToken);
-                Debug.WriteLineIf(!sended, $"{nameof(SendAsync)} failed");
+                return await _bufferBlockRequests.SendAsync(serializedRequest, token == default ? _baseCancellationToken : token);
             }
             catch (Exception e)
             {
-                Debug.WriteLine($"{nameof(SendAsync)} Got {e.GetType()}: {e.Message}");
+                _logger?.LogError($"{nameof(SendAsync)} Got {e.GetType()}: {e.Message}");
                 throw;
             }
         }
 
+        // ReSharper disable once MethodOverloadWithOptionalParameter
         public override async Task<object> ReceiveAsync(object responseId, CancellationToken token = default, bool isObject = true) => await ReceiveAsync(responseId, token);
 
-        public async Task<ITcpBatch<TResponse>> ReceiveAsync(object responseId, CancellationToken? token = default)
+        /// <summary>
+        /// Begins an asynchronous request to receive response associated with the specified responseId from a connected <see cref="TcpClientIo{TRequest,TResponse}"/> object.
+        /// <para> </para>
+        /// WARNING! Identifier is strongly-typed, if Id of <see cref="TRequest"/> have type uint, you must pass it value in uint too, otherwise the call will be forever or cancelled by <see cref="CancellationToken"/>.
+        /// </summary>
+        /// <param name="responseId"></param>
+        /// <param name="token"></param>
+        /// <returns><see cref="ITcpBatch{T}"/></returns>
+        public async Task<ITcpBatch<TResponse>> ReceiveAsync(object responseId, CancellationToken token = default)
         {
-            var internalToken = token ?? _baseCancellationToken;
+            var internalToken = token == default ? _baseCancellationToken : token;
             TaskCompletionSource<ITcpBatch<TResponse>> tcs;
             // Info about lock read in SetResponseAsync method
             using (await _asyncLock.LockAsync())
@@ -102,7 +112,7 @@ namespace Drenalol.Client
 #endif
             {
                 var cancelled = tcs.TrySetCanceled();
-                Debug.WriteLine(cancelled ? $"Cancelled {responseId}" : $"Not cancelled {responseId}, TaskStatus: {tcs.Task.Status.ToString()}");
+                _logger?.LogInformation(cancelled ? $"Response has been cancelled successfulfy: Id {responseId}" : $"Response cancellation was failed: Id {responseId}, TaskStatus: {tcs.Task.Status.ToString()}");
             }))
             {
                 return await tcs.Task;

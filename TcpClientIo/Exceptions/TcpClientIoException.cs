@@ -1,4 +1,6 @@
 using System;
+using Drenalol.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace Drenalol.Exceptions
 {
@@ -7,24 +9,17 @@ namespace Drenalol.Exceptions
         private TcpClientIoException(string message) : base(message)
         {
         }
-
-        /// <summary>
-        /// Throw specific exception
-        /// </summary>
-        /// <param name="typeException"></param>
-        /// <param name="someData"></param>
-        /// <exception cref="TcpClientIoException"></exception>
-        /// <returns></returns>
-        public static TcpClientIoException Throw(TcpClientIoTypeException typeException, params string[] someData)
+        
+        internal static TcpClientIoException Throw(TcpClientIoTypeException typeException, ILogger logger, params string[] someData)
         {
             switch (typeException)
             {
                 case TcpClientIoTypeException.InternalError:
-                    return new TcpClientIoException($"Internal error handled {someData[0]}");
+                    return new TcpClientIoException($"Internal error handled {someData[0]}").CaptureError(logger);
                 case TcpClientIoTypeException.ConverterError:
-                    return new TcpClientIoException($"Converter {someData[0]} does not have generic");
+                    return new TcpClientIoException($"Converter {someData[0]} does not have generic").CaptureError(logger);
                 default:
-                    return new TcpClientIoException(string.Empty);
+                    return new TcpClientIoException(string.Empty).CaptureError(logger);
             }
         }
     }

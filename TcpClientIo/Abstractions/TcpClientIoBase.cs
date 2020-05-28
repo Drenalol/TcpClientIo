@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Drenalol.Client
+namespace Drenalol.Abstractions
 {
     public abstract class TcpClientIoBase
     {

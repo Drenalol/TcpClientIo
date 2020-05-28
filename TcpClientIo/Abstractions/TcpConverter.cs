@@ -1,6 +1,6 @@
 using System;
 
-namespace Drenalol.Base
+namespace Drenalol.Abstractions
 {
     public abstract class TcpConverter
     {

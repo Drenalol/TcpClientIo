@@ -6,8 +6,10 @@ using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using Drenalol.Abstractions;
 using Drenalol.Attributes;
 using Drenalol.Base;
 using Drenalol.Client;
@@ -15,6 +17,7 @@ using Drenalol.Converters;
 using Drenalol.Exceptions;
 using Drenalol.Helpers;
 using Drenalol.Stuff;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 
 namespace Drenalol
@@ -62,11 +65,11 @@ namespace Drenalol
         [Test]
         public void ReflectionErrorsTest()
         {
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveAny, DoesNotHaveAny>());
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveKeyAttribute, DoesNotHaveKeyAttribute>());
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveBodyAttribute, DoesNotHaveBodyAttribute>());
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveBodyLengthAttribute, DoesNotHaveBodyLengthAttribute>());
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<KeyDoesNotHaveSetter, KeyDoesNotHaveSetter>());
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveAny, DoesNotHaveAny>(NullLogger.Instance));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveKeyAttribute, DoesNotHaveKeyAttribute>(NullLogger.Instance));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveBodyAttribute, DoesNotHaveBodyAttribute>(NullLogger.Instance));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveBodyLengthAttribute, DoesNotHaveBodyLengthAttribute>(NullLogger.Instance));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<KeyDoesNotHaveSetter, KeyDoesNotHaveSetter>(NullLogger.Instance));
         }
         
         [Test]
@@ -77,7 +80,7 @@ namespace Drenalol
             {
                 new TcpUtf8StringConverter(),
                 new TcpDateTimeConverter()
-            });
+            }, NullLogger.Instance);
             var tasks = Enumerable.Range(0, 1000).Select(i => Task.Run(() =>
             {
                 var mock = new AttributeMockSerialize
@@ -109,7 +112,7 @@ namespace Drenalol
                 {typeof(Guid), new TcpGuidConverter()}
             }.ToImmutableDictionary();
             
-            var bitConverterHelper = new BitConverterHelper(dict);
+            var bitConverterHelper = new BitConverterHelper(dict, NullLogger.Instance);
             
             var str = "Hello my friend";
             var stringResult = bitConverterHelper.ConvertToBytes(str, typeof(string));
