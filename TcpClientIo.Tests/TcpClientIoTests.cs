@@ -10,11 +10,9 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Drenalol.Abstractions;
-using Drenalol.Base;
 using Drenalol.Client;
 using Drenalol.Converters;
 using Drenalol.Stuff;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 
@@ -48,14 +46,17 @@ namespace Drenalol
                 lb.AddConsole();
             });
 
-            using (var tcpClient = new TcpClientIo<Mock>(new TcpClient("localhost", 10000), options, loggerFactory.CreateLogger<TcpClientIo<Mock>>()))
-            {
-                var request = Mock.Create(1337);
-                await tcpClient.SendAsync(request);
-                var batch = await tcpClient.ReceiveAsync(1337L);
-                var response = batch.First();
-                Assert.IsTrue(request.Equals(response));
-            }
+            var tcpClient = new TcpClientIo<Mock>(new TcpClient("localhost", 10000), options, loggerFactory.CreateLogger<TcpClientIo<Mock>>());
+            var request = Mock.Create(1337);
+            await tcpClient.SendAsync(request);
+            var batch = await tcpClient.ReceiveAsync(1337L);
+            var response = batch.First();
+            Assert.IsTrue(request.Equals(response));
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
+            await tcpClient.DisposeAsync();
+#else
+            tcpClient.Dispose();
+#endif
         }
 
         [Test]
@@ -80,7 +81,7 @@ namespace Drenalol
 
             await tcpClient.SendAsync(mock);
             var batch = await tcpClient.ReceiveAsync(1);
-            
+
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
             await tcpClient.DisposeAsync();
 #else
