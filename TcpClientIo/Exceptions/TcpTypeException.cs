@@ -1,6 +1,6 @@
 namespace Drenalol.Exceptions
 {
-    public enum TcpTypeException
+    internal enum TcpTypeException
     {
         SerializerSequenceViolated,
         SerializerLengthOutOfRange,

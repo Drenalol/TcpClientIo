@@ -7,19 +7,26 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using Drenalol.Abstractions;
 using Drenalol.Base;
+using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
 
 namespace Drenalol.Client
 {
-    [DebuggerDisplay("Id: {_id,nq}, Requests: {Requests,nq}, Waiters: {Waiters,nq}")]
+    /// <summary>
+    /// Wrapper of TcpClient what help focus on WHAT you transfer over TCP, not HOW
+    /// </summary>
+    /// <typeparam name="TRequest"></typeparam>
+    /// <typeparam name="TResponse"></typeparam>
+    [DebuggerDisplay("Id: {Id,nq}, Requests: {Requests,nq}, Waiters: {Waiters,nq}")]
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
     public partial class TcpClientIo<TRequest, TResponse> : TcpClientIoBase, IDuplexPipe, IAsyncDisposable where TResponse : new()
 #else
     public partial class TcpClientIo<TRequest, TResponse> : TcpClientIoBase, IDuplexPipe, IDisposable where TResponse : new()
 #endif
     {
-        internal readonly Guid _id;
+        internal readonly Guid Id;
         private readonly TcpClientIoOptions _options;
         private readonly CancellationTokenSource _baseCancellationTokenSource;
         private readonly CancellationToken _baseCancellationToken;
@@ -31,20 +38,43 @@ namespace Drenalol.Client
         private readonly SemaphoreSlim _semaphore;
         private readonly PipeReader _deserializePipeReader;
         private readonly PipeWriter _deserializePipeWriter;
+        private readonly ILogger<TcpClientIo<TRequest, TResponse>> _logger;
         private Exception _internalException;
         private PipeReader _networkStreamPipeReader;
         private PipeWriter _networkStreamPipeWriter;
         PipeReader IDuplexPipe.Input => _networkStreamPipeReader;
         PipeWriter IDuplexPipe.Output => _networkStreamPipeWriter;
-        public ulong BytesWrite { get; private set; }
-        public ulong BytesRead { get; private set; }
+        
         /// <summary>
-        /// WARNING! This property lock internal <see cref="ConcurrentDictionary{TKey,TValue}"/>, be careful of frequently use.
+        /// Gets the number of total bytes written to the <see cref="NetworkStream"/>.
+        /// </summary>
+        public ulong BytesWrite { get; private set; }
+        
+        /// <summary>
+        /// Gets the number of total bytes read from the <see cref="NetworkStream"/>.
+        /// </summary>
+        public ulong BytesRead { get; private set; }
+
+        /// <summary>
+        /// Gets the number of responses to receive or the number of responses ready to receive.
+        /// <para> </para>
+        /// WARNING! This property lock whole internal <see cref="ConcurrentDictionary{TKey,TValue}"/>, be careful of frequently use.
         /// </summary>
         public int Waiters => _completeResponses.Count;
+
+        /// <summary>
+        /// Gets the number of <see cref="TRequest"/> ready to send.
+        /// </summary>
         public int Requests => _bufferBlockRequests.Count;
 
-        public TcpClientIo(IPAddress address, int port, TcpClientIoOptions tcpClientIoOptions = null) : this(tcpClientIoOptions)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TcpClientIo{TRequest,TResponse}"/> class and connects to the specified port on the specified host.
+        /// </summary>
+        /// <param name="address"></param>
+        /// <param name="port"></param>
+        /// <param name="tcpClientIoOptions"></param>
+        /// <param name="logger"></param>
+        public TcpClientIo(IPAddress address, int port, TcpClientIoOptions tcpClientIoOptions = null, ILogger<TcpClientIo<TRequest, TResponse>> logger = null) : this(tcpClientIoOptions, logger)
         {
             _tcpClient = new TcpClient();
             _tcpClient.Connect(address, port);
@@ -52,23 +82,30 @@ namespace Drenalol.Client
             SetupTasks();
         }
 
-        public TcpClientIo(TcpClient tcpClient, TcpClientIoOptions tcpClientIoOptions = null) : this(tcpClientIoOptions)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TcpClientIo{TRequest,TResponse}"/> class and uses connection taken from <see cref="TcpClient"/>
+        /// </summary>
+        /// <param name="tcpClient"></param>
+        /// <param name="tcpClientIoOptions"></param>
+        /// <param name="logger"></param>
+        public TcpClientIo(TcpClient tcpClient, TcpClientIoOptions tcpClientIoOptions = null, ILogger<TcpClientIo<TRequest, TResponse>> logger = null) : this(tcpClientIoOptions, logger)
         {
             _tcpClient = tcpClient;
             SetupTcpClient();
             SetupTasks();
         }
 
-        private TcpClientIo(TcpClientIoOptions tcpClientIoOptions)
+        private TcpClientIo(TcpClientIoOptions tcpClientIoOptions, ILogger<TcpClientIo<TRequest, TResponse>> logger)
         {
             var pipe = new Pipe();
-            _id = Guid.NewGuid();
+            Id = Guid.NewGuid();
+            _logger = logger;
             _options = tcpClientIoOptions ?? TcpClientIoOptions.Default;
             _baseCancellationTokenSource = new CancellationTokenSource();
             _baseCancellationToken = _baseCancellationTokenSource.Token;
             _bufferBlockRequests = new BufferBlock<byte[]>();
             _completeResponses = new ConcurrentDictionary<object, TaskCompletionSource<ITcpBatch<TResponse>>>();
-            _serializer = new TcpSerializer<TRequest, TResponse>(_options.Converters);
+            _serializer = new TcpSerializer<TRequest, TResponse>(_options.Converters, logger);
             _semaphore = new SemaphoreSlim(2, 2);
             _deserializePipeReader = pipe.Reader;
             _deserializePipeWriter = pipe.Writer;
@@ -79,6 +116,7 @@ namespace Drenalol.Client
             if (!_tcpClient.Connected)
                 throw new SocketException(10057);
 
+            _logger?.LogInformation($"Connected to {(IPEndPoint) _tcpClient.Client.RemoteEndPoint}");
             _tcpClient.SendTimeout = _options.TcpClientSendTimeout;
             _tcpClient.ReceiveTimeout = _options.TcpClientReceiveTimeout;
             _networkStreamPipeReader = PipeReader.Create(_tcpClient.GetStream(), _options.StreamPipeReaderOptions);
@@ -97,7 +135,7 @@ namespace Drenalol.Client
         public void Dispose()
 #endif
         {
-            Debug.WriteLine("Disposing");
+            _logger?.LogInformation("Dispose started");
 
             if (_baseCancellationTokenSource != null && !_baseCancellationTokenSource.IsCancellationRequested)
                 _baseCancellationTokenSource.Cancel();
@@ -114,7 +152,7 @@ namespace Drenalol.Client
 
             _tcpClient?.Dispose();
             _semaphore?.Dispose();
-            Debug.WriteLine("Disposing end");
+            _logger?.LogInformation("Dispose ended");
         }
     }
 }

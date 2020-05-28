@@ -1,20 +1,36 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using Microsoft.Extensions.Logging;
 
 namespace Drenalol.Client
 {
-    [DebuggerDisplay("Id: {_id,nq}, Requests: {Requests,nq}, Waiters: {Waiters,nq}")]
+    /// <summary>
+    /// <inheritdoc cref="TcpClientIo{TRequest,TResponse}"/>
+    /// </summary>
+    /// <typeparam name="TRequestResponse"></typeparam>
+    [DebuggerDisplay("Id: {Id,nq}, Requests: {Requests,nq}, Waiters: {Waiters,nq}")]
     public class TcpClientIo<TRequestResponse> : TcpClientIo<TRequestResponse, TRequestResponse> where TRequestResponse : new()
     {
-        public TcpClientIo(IPAddress address, int port, TcpClientIoOptions tcpClientIoOptions = null) : base(address, port, tcpClientIoOptions)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TcpClientIo{TRequestResponse}"/> class and connects to the specified port on the specified host.
+        /// </summary>
+        /// <param name="address"></param>
+        /// <param name="port"></param>
+        /// <param name="tcpClientIoOptions"></param>
+        /// <param name="logger"></param>
+        public TcpClientIo(IPAddress address, int port, TcpClientIoOptions tcpClientIoOptions = null, ILogger<TcpClientIo<TRequestResponse>> logger = null) : base(address, port, tcpClientIoOptions, logger)
         {
-            
         }
 
-        public TcpClientIo(TcpClient tcpClient, TcpClientIoOptions tcpClientIoOptions = null) : base(tcpClient, tcpClientIoOptions)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TcpClientIo{TRequestResponse}"/> class.
+        /// </summary>
+        /// <param name="tcpClient"></param>
+        /// <param name="tcpClientIoOptions"></param>
+        /// <param name="logger"></param>
+        public TcpClientIo(TcpClient tcpClient, TcpClientIoOptions tcpClientIoOptions = null, ILogger<TcpClientIo<TRequestResponse>> logger = null) : base(tcpClient, tcpClientIoOptions, logger)
         {
-            
         }
     }
 }

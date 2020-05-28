@@ -35,14 +35,18 @@ var tcpClient = new TcpClientIo<Request>(IPAddress.Any, 10000, TcpClientIoOption
 // Creating some request
 Request request = new Request
 {
-    Id = 123U, // [7B, 00, 00, 00]
-    BodyLength = 6, // [06, 00, 00, 00]
+    Id = 123U, // Serialized to [7B, 00, 00, 00], but if we set force reverse = true, it will serialized to [00, 00, 00, 7B] (My arch is Little-Endian)
+
+    BodyLength = 6, // Serialized to [06, 00, 00, 00]
+
     // Custom converter DateTime to binary
-    DateTime = DateTime.Parse("1991-02-07 10:00:00"), // [00, D0, 08, A7, 79, 28, B7, 08]
+    DateTime = DateTime.Parse("1991-02-07 10:00:00"), // Serialized to [00, D0, 08, A7, 79, 28, B7, 08]
+
     // Custom converter Guid to binary
-    Guid = Guid.Parse("13590ba3-2749-4637-b6d0-75a2ef07fa1f"), // [A3, 0B, 59, 13, 49, 27, 37, 46, B6, D0, 75, A2, EF, 07, FA, 1F]
+    Guid = Guid.Parse("13590ba3-2749-4637-b6d0-75a2ef07fa1f"), // Serialized to [A3, 0B, 59, 13, 49, 27, 37, 46, B6, D0, 75, A2, EF, 07, FA, 1F]
+
     // Custom converter string to binary
-    Data = "Hello!" // [48, 65, 6C, 6C, 6F, 21]
+    Data = "Hello!" // Serialized to [48, 65, 6C, 6C, 6F, 21]
 };
 
 // Send request asynchronously
@@ -75,11 +79,11 @@ public class Request
 {
     // Attribute TcpData parameters:
     //
-    // Index (required)
-    // Length (required if TcpDataType != Body)
-    // TcpDataType = default MetaData (Id, Body, BodyLength, MetaData)
-    // Reverse - force reverse byte array
-    // Type - force set Type of property for Serializer
+    // Index - Property position in Byte Array.
+    // Length - Property length in Byte Array. If TcpDataType set to TcpDataType.Body, is ignored.
+    // TcpDataType - Sets the serialization rule for this property.
+    // Reverse - Reverses the sequence of the elements in the serialized Byte Array. Used for cases where the receiving side uses a different endianness.
+    // Type - Sets the property type for the serializer.
 
     // Required
     [TcpData(0, 4, TcpDataType = TcpDataType.Id)]
@@ -151,8 +155,8 @@ var options = new TcpClientIoOptions
 var tcpClient = new TcpClientIo<Request, Response>(IPAddress.Any, 10000, options);
 ```
 ## TODO
- - [ ] Add ILogger
- - [ ] Code documentation
+ - [X] Add ILogger
+ - [X] Code documentation
  - [X] netstandard2.0
 ## Dependencies
 * [AsyncEx](https://github.com/StephenCleary/AsyncEx)

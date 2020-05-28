@@ -1,6 +1,6 @@
 namespace Drenalol.Exceptions
 {
-    public enum TcpClientIoTypeException
+    internal enum TcpClientIoTypeException
     {
         ConverterError,
         InternalError

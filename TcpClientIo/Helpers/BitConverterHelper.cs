@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Reflection;
+using Drenalol.Abstractions;
 using Drenalol.Base;
 using Drenalol.Exceptions;
 using Drenalol.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace Drenalol.Helpers
 {
@@ -13,10 +15,12 @@ namespace Drenalol.Helpers
         private readonly ImmutableDictionary<Type, MethodInfo> _builtInConvertersToBytes;
         private readonly ImmutableDictionary<Type, MethodInfo> _builtInConvertersFromBytes;
         private readonly ImmutableDictionary<Type, TcpConverter> _customConverters;
+        private readonly ILogger _logger;
 
-        public BitConverterHelper(ImmutableDictionary<Type, TcpConverter> converters)
+        public BitConverterHelper(ImmutableDictionary<Type, TcpConverter> converters, ILogger logger)
         {
             _customConverters = converters;
+            _logger = logger;
             var toBytes = new Dictionary<Type, MethodInfo>();
             var fromBytes = new Dictionary<Type, MethodInfo>();
 
@@ -52,7 +56,7 @@ namespace Drenalol.Helpers
             switch (propertyValue)
             {
                 case null:
-                    throw TcpException.Throw(TcpTypeException.PropertyArgumentIsNull, propertyType.ToString());
+                    throw TcpException.Throw(TcpTypeException.PropertyArgumentIsNull, _logger, propertyType.ToString());
                 case byte @byte:
                     return new[] {@byte};
                 case byte[] byteArray:
@@ -71,24 +75,24 @@ namespace Drenalol.Helpers
                         }
                         catch (Exception exception)
                         {
-                            throw TcpException.Throw(TcpTypeException.ConverterUnknownError, propertyType.ToString(), exception.Message);
+                            throw TcpException.Throw(TcpTypeException.ConverterUnknownError, _logger, propertyType.ToString(), exception.Message);
                         }
                     }
                     else
-                        throw TcpException.Throw(TcpTypeException.ConverterNotFoundType, propertyType.ToString());
+                        throw TcpException.Throw(TcpTypeException.ConverterNotFoundType, _logger, propertyType.ToString());
             }
         }
 
         public object ConvertFromBytes(byte[] propertyValue, Type propertyType, bool reverse = false)
         {
             if (propertyValue == null)
-                throw TcpException.Throw(TcpTypeException.PropertyArgumentIsNull, propertyType.ToString());
+                throw TcpException.Throw(TcpTypeException.PropertyArgumentIsNull, _logger, propertyType.ToString());
 
             if (propertyType == typeof(byte[]))
                 return reverse ? Reverse(propertyValue) : propertyValue;
 
             if (propertyType == typeof(byte))
-                return propertyValue.Length > 1 ? throw TcpException.Throw(TcpTypeException.ConverterUnknownError, propertyType.ToString(), "byte array > 1") : propertyValue[0];
+                return propertyValue.Length > 1 ? throw TcpException.Throw(TcpTypeException.ConverterUnknownError, _logger, propertyType.ToString(), "byte array > 1") : propertyValue[0];
 
             var bytes = reverse ? Reverse(propertyValue) : propertyValue;
             
@@ -103,11 +107,11 @@ namespace Drenalol.Helpers
                 }
                 catch (Exception exception)
                 {
-                    throw TcpException.Throw(TcpTypeException.ConverterUnknownError, propertyType.ToString(), exception.Message);
+                    throw TcpException.Throw(TcpTypeException.ConverterUnknownError, _logger, propertyType.ToString(), exception.Message);
                 }
             }
             else
-                throw TcpException.Throw(TcpTypeException.ConverterNotFoundType, propertyType.ToString());
+                throw TcpException.Throw(TcpTypeException.ConverterNotFoundType, _logger, propertyType.ToString());
 
             return result;
         }
