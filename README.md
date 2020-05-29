@@ -18,7 +18,7 @@ Your TCP Server accepts and send messages with application-level header
 | byte[] | 7B | 00 | 00 | 00 | 06 | 00 | 00 | 00 | 00 | D0 | 08 | A7 | 79 | 28 | B7 | 08 | A3 | 0B | 59 | 13 | 49 | 27 | 37 | 46 | B6 | D0 | 75 | A2 | EF | 07 | FA | 1F | 48 | 65 | 6C | 6C | 6F | 21 |
 |--------|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|
 ##### Serialization process
-| Property name | Offset | Length | Bytes                                                            | Value                                          | Reverse | Change Type | Custom converter |
+| Property name | Index | Length | Bytes                                                            | Value                                          | Reverse | Change Type | Custom converter |
 |---------------|--------|--------|------------------------------------------------------------------|------------------------------------------------|---------|-------------|------------------|
 | Id            | 0      | 4      | [7B, 00, 00, 00]                                                 | 123                                            | false   | false       | false            |
 | BodyLength    | 4      | 4      | [06, 00, 00, 00]                                                 | 6                                              | false   | false       | false            |
