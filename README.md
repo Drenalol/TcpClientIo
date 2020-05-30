@@ -36,16 +36,17 @@ var tcpClient = new TcpClientIo<Request>(IPAddress.Any, 10000, TcpClientIoOption
 Request request = new Request
 {
     Id = 123U, // Serialized to [7B, 00, 00, 00], but if we set force reverse = true, it will serialized to [00, 00, 00, 7B] (My arch is Little-Endian)
-
+    
+    // The serializer will take the length of the TcpTypeBody and overwrite the value.
     BodyLength = 6, // Serialized to [06, 00, 00, 00]
 
-    // Custom converter DateTime to binary
+    // Will be used custom converter DateTime
     DateTime = DateTime.Parse("1991-02-07 10:00:00"), // Serialized to [00, D0, 08, A7, 79, 28, B7, 08]
 
-    // Custom converter Guid to binary
+    // Will be used custom converter Guid
     Guid = Guid.Parse("13590ba3-2749-4637-b6d0-75a2ef07fa1f"), // Serialized to [A3, 0B, 59, 13, 49, 27, 37, 46, B6, D0, 75, A2, EF, 07, FA, 1F]
 
-    // Custom converter string to binary
+    // Will be used custom converter string
     Data = "Hello!" // Serialized to [48, 65, 6C, 6C, 6F, 21]
 };
 
@@ -66,7 +67,7 @@ var response = resultBatch.First();
 
 // Check result
 Assert.AreEqual(request.Id, response.Id);
-Assert.AreEqual(request.Size, response.Size);
+Assert.AreEqual(request.BodyLength, response.BodyLength);
 Assert.AreEqual(request.Data, response.Data);
 
 //Cleanup
@@ -80,7 +81,7 @@ public class Request
     // Attribute TcpData parameters:
     //
     // Index - Property position in Byte Array.
-    // Length - Property length in Byte Array. If TcpDataType set to TcpDataType.Body, is ignored.
+    // Length - Property length in Byte Array. If TcpDataType set to TcpDataType.Body, is ignored. Overwritten by the serializer.
     // TcpDataType - Sets the serialization rule for this property.
     // Reverse - Reverses the sequence of the elements in the serialized Byte Array. Used for cases where the receiving side uses a different endianness.
     // Type - Sets the property type for the serializer.
@@ -159,6 +160,7 @@ var tcpClient = new TcpClientIo<Request, Response>(IPAddress.Any, 10000, options
  - [X] Code documentation
  - [X] netstandard2.0
 ## Dependencies
+* [Microsoft.Extensions.Logging.Abstractions](https://github.com/dotnet/extensions#package-list)
 * [AsyncEx](https://github.com/StephenCleary/AsyncEx)
 * [System.IO.Pipelines](https://github.com/dotnet/runtime/tree/master/src/libraries/System.IO.Pipelines)
 * [System.Threading.Tasks.Dataflow](https://github.com/dotnet/runtime/tree/master/src/libraries/System.Threading.Tasks.Dataflow)
