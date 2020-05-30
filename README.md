@@ -35,19 +35,25 @@ var tcpClient = new TcpClientIo<Request>(IPAddress.Any, 10000, TcpClientIoOption
 // Creating some request
 Request request = new Request
 {
-    Id = 123U, // Serialized to [7B, 00, 00, 00], but if we set force reverse = true, it will serialized to [00, 00, 00, 7B] (My arch is Little-Endian)
+    // Serialized to [7B, 00, 00, 00], but if we set force reverse = true,
+    // it will serialized to [00, 00, 00, 7B] (My arch is Little-Endian
+    Id = 123U, 
     
     // The serializer will take the length of the TcpTypeBody and overwrite the value.
-    BodyLength = 6, // Serialized to [06, 00, 00, 00]
+    // Serialized to [06, 00, 00, 00] because the Data property has a length = 6
+    BodyLength = 0,
 
     // Will be used custom converter DateTime
-    DateTime = DateTime.Parse("1991-02-07 10:00:00"), // Serialized to [00, D0, 08, A7, 79, 28, B7, 08]
+    // Serialized to [00, D0, 08, A7, 79, 28, B7, 08]
+    DateTime = DateTime.Parse("1991-02-07 10:00:00"),
 
     // Will be used custom converter Guid
-    Guid = Guid.Parse("13590ba3-2749-4637-b6d0-75a2ef07fa1f"), // Serialized to [A3, 0B, 59, 13, 49, 27, 37, 46, B6, D0, 75, A2, EF, 07, FA, 1F]
-
+    // Serialized to [A3, 0B, 59, 13, 49, 27, 37, 46, B6, D0, 75, A2, EF, 07, FA, 1F]
+    Guid = Guid.Parse("13590ba3-2749-4637-b6d0-75a2ef07fa1f"),
+    
     // Will be used custom converter string
-    Data = "Hello!" // Serialized to [48, 65, 6C, 6C, 6F, 21]
+    // Serialized to [48, 65, 6C, 6C, 6F, 21]
+    Data = "Hello!"
 };
 
 // Send request asynchronously
@@ -60,17 +66,20 @@ ITcpBatch<Response> resultBatch = await tcpClient.ReceiveAsync(123U, Cancellatio
 // Batch support iteration
 foreach (var response in resultBatch)
 {
-    // code
+    // Hello!
+    Console.WriteLine(response.Data);
 }
 // and LINQ queries
 var response = resultBatch.First();
+// Hello!
+Console.WriteLine(response.Data);
 
 // Check result
 Assert.AreEqual(request.Id, response.Id);
 Assert.AreEqual(request.BodyLength, response.BodyLength);
 Assert.AreEqual(request.Data, response.Data);
 
-//Cleanup
+//Stop & Cleanup
 await tcpClient.DisposeAsync();
 ```
 #### Attribute schema
@@ -92,7 +101,7 @@ public class Request
 
     // Required if TcpDataType.Body set
     [TcpData(4, 4, TcpDataType = TcpDataType.BodyLength)]
-    public uint Size { get; set; }
+    public uint BodyLength { get; set; }
 
     [TcpData(8, 8)]
     public DateTime DateTime { get; set; }
