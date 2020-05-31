@@ -4,7 +4,7 @@ using Drenalol.Client;
 namespace Drenalol.Base
 {
     /// <summary>
-    /// Batch of responses from <see cref="TcpClientIo{TRequest,TResponse}"/> of the specified Id.
+    /// Batch of responses of the specified Id.
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns><see cref="ITcpBatch{T}"/></returns>

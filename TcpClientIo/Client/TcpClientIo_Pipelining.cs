@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using Drenalol.Base;
 using Microsoft.Extensions.Logging;
 
 namespace Drenalol.Client
@@ -131,11 +132,15 @@ namespace Drenalol.Client
         private void StopReader(Exception exception)
         {
             _logger?.LogDebug("Completion NetworkStream PipeReader started");
-            foreach (var completedResponse in _completeResponses.Where(tcs => tcs.Value.Task.Status == TaskStatus.WaitingForActivation))
+
+            if (_disposing)
             {
-                var innerException = exception ?? new OperationCanceledException();
-                _logger?.LogDebug($"Set force {innerException.GetType()} in TaskCompletionSource in TaskStatus.WaitingForActivation");
-                completedResponse.Value.TrySetException(innerException);
+                foreach (var completedResponse in _completeResponses.Where(tcs => tcs.Value.Task.Status == TaskStatus.WaitingForActivation))
+                {
+                    var innerException = exception ?? new OperationCanceledException();
+                    _logger?.LogDebug($"Set force {innerException.GetType()} in {nameof(TaskCompletionSource<ITcpBatch<TResponse>>)} in {nameof(TaskStatus.WaitingForActivation)}");
+                    completedResponse.Value.TrySetException(innerException);
+                }
             }
 
             _networkStreamPipeReader.CancelPendingRead();

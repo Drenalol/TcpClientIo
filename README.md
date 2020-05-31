@@ -96,11 +96,11 @@ public class Request
     // Type - Sets the property type for the serializer.
 
     // Required
-    [TcpData(0, 4, TcpDataType = TcpDataType.Id)]
+    [TcpData(0, 4, TcpDataType.Id)]
     public uint Id { get; set; }
 
     // Required if TcpDataType.Body set
-    [TcpData(4, 4, TcpDataType = TcpDataType.BodyLength)]
+    [TcpData(4, 4, TcpDataType.BodyLength)]
     public uint BodyLength { get; set; }
 
     [TcpData(8, 8)]
