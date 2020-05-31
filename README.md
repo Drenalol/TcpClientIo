@@ -21,10 +21,11 @@ Your TCP Server accepts and send messages with application-level header
 | Property name | Index | Length | Bytes                                                            | Value                                          | Reverse | Change Type | Custom converter |
 |---------------|--------|--------|------------------------------------------------------------------|------------------------------------------------|---------|-------------|------------------|
 | Id            | 0      | 4      | [7B, 00, 00, 00]                                                 | 123                                            | false   | false       | false            |
-| BodyLength    | 4      | 4      | [06, 00, 00, 00]                                                 | 6                                              | false   | false       | false            |
+| * BodyLength  | 4      | 4      | [06, 00, 00, 00]                                                 | 6                                              | false   | false       | false            |
 | DateTime      | 8      | 8      | [00, D0, 08, A7, 79, 28, B7, 08]                                 | "1991-02-07 10:00:00" as DateTime              | false   | false       | true             |
 | Guid          | 16     | 16     | [A3, 0B, 59, 13, 49, 27, 37, 46, B6, D0, 75, A2, EF, 07, FA, 1F] | "13590ba3-2749-4637-b6d0-75a2ef07fa1f" as Guid | false   | false       | true             |
-| Body          | 32     | 6      | [48, 65, 6C, 6C, 6F, 21]                                         | "Hello!" as string                             | false   | false       | true             |
+| * Body        | 32     | 6      | [48, 65, 6C, 6C, 6F, 21]                                         | "Hello!" as string                             | false   | false       | true             |
+`* Mandatory if at least one is set.`
 #### Examples
 ###### Example #1. Sending and receiving.
 ```c#
@@ -120,7 +121,7 @@ await foreach (ITcpBatch<RequestResponse> batch in tcpClientIo.GetConsumingAsync
 }
 ```
 #### Attribute schema
-Request with first 32 bytes header, and body
+Example request with first 32 bytes header, and body
 ```c#
 public class Request
 {
