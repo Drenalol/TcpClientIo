@@ -2,7 +2,7 @@ using Drenalol.Attributes;
 
 namespace Drenalol.Stuff
 {
-    public struct MockTest2
+    public struct MockByteBody
     {
         [TcpData(0, 4, TcpDataType = TcpDataType.Id)]
         public int Id { get; set; }

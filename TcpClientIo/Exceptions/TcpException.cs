@@ -22,13 +22,13 @@ namespace Drenalol.Exceptions
                 case TcpTypeException.PropertyArgumentIsNull:
                     return new TcpException($"NULL value cannot be converted ({someData[0]})").CaptureError(logger);
                 case TcpTypeException.PropertyCanReadWrite:
-                    return new TcpException($"Set and Get keywords required for Serializtion. Type: {someData[0]}, {nameof(TcpDataType)}: {someData[1]}").CaptureError(logger);
+                    return new TcpException($"Set and Get keywords required for Serializtion. Type: {someData[0]}, {nameof(TcpDataType)}: {someData[1]}, {(someData[1] == nameof(TcpDataType.MetaData) ? $"Index: {someData[2]}" : null)}").CaptureError(logger);
                 case TcpTypeException.ConverterNotFoundType:
                     return new TcpException($"Not found converter for {someData[0]}").CaptureError(logger);
                 case TcpTypeException.ConverterUnknownError:
                     return new TcpException($"Error while trying convert data {someData[0]}, error: {someData[1]}").CaptureError(logger);
-                case TcpTypeException.AttributeKeyRequired:
-                    return new TcpException($"{someData[0]} does not have required attribute {nameof(TcpDataType.Id)}").CaptureError(logger);
+                case TcpTypeException.AttributesRequired:
+                    return new TcpException($"{someData[0]} does not have any {nameof(TcpDataAttribute)}").CaptureError(logger);
                 case TcpTypeException.AttributeBodyLengthRequired:
                     return new TcpException($"In {someData[0]} {nameof(TcpDataType.BodyLength)} could not work without {nameof(TcpDataType.Body)}").CaptureError(logger);
                 case TcpTypeException.AttributeBodyRequired:

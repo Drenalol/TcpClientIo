@@ -7,11 +7,11 @@ namespace Drenalol.Stuff
 {
     public struct Mock : IEquatable<Mock>
     {
-        [TcpData(0, 8, TcpDataType = TcpDataType.Id)]
+        [TcpData(0, 8, TcpDataType.Id)]
         [JsonIgnore]
         public long Id { get; set; }
 
-        [TcpData(8, 4, TcpDataType = TcpDataType.BodyLength)]
+        [TcpData(8, 4, TcpDataType.BodyLength)]
         public int Size { get; set; }
 
         [TcpData(12, 58)]

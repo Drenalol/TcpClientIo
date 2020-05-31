@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Reflection;
 using Drenalol.Abstractions;
-using Drenalol.Base;
 using Drenalol.Exceptions;
 using Drenalol.Extensions;
 using Microsoft.Extensions.Logging;

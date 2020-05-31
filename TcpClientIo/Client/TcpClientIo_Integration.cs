@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -34,8 +37,9 @@ namespace Drenalol.Client
                 }
                 else
                     AddOrUpdate();
-                
+
                 tcs.SetResult(batch);
+                _manualResetEvent.Set();
             }
 
             void AddOrUpdate(TaskCompletionSource<ITcpBatch<TResponse>> innerTcs = null)
@@ -115,8 +119,81 @@ namespace Drenalol.Client
                 _logger?.LogInformation(cancelled ? $"Response has been cancelled successfulfy: Id {responseId}" : $"Response cancellation was failed: Id {responseId}, TaskStatus: {tcs.Task.Status.ToString()}");
             }))
             {
-                return await tcs.Task;
+                var result = await tcs.Task;
+                return result;
             }
         }
+
+#if NETSTANDARD2_1
+        public override IAsyncEnumerable<object> GetConsumingAsyncEnumerable(CancellationToken token = default, bool isObject = true) => GetConsumingAsyncEnumerable(token);
+
+        /// <summary>Provides a consuming <see cref="T:System.Collections.Generics.IAsyncEnumerable{T}"/> for <see cref="ITcpBatch{TResponse}"/> in the collection.
+        /// Calling MoveNextAsync on the returned enumerable will block if there is no data available, or will
+        /// throw an <see cref="System.OperationCanceledException"/> if the <see cref="CancellationToken"/> is canceled.
+        /// </summary>
+        /// <param name="token">A cancellation token to observe.</param>
+        /// <returns></returns>
+        /// <exception cref="OperationCanceledException">If the <see cref="token"/> is canceled.</exception>
+        public async IAsyncEnumerable<ITcpBatch<TResponse>> GetConsumingAsyncEnumerable([EnumeratorCancellation] CancellationToken token = default)
+        {
+            var internalToken = token == default ? _baseCancellationToken : token;
+
+            while (true)
+            {
+                IList<ITcpBatch<TResponse>> result;
+
+                try
+                {
+                    internalToken.ThrowIfCancellationRequested();
+                    KeyValuePair<object, TaskCompletionSource<ITcpBatch<TResponse>>>[] completedResponses;
+                    
+                    // Info about lock read in SetResponseAsync method
+                    using (await _asyncLock.LockAsync(internalToken))
+                    {
+                        completedResponses = _completeResponses
+                            .ToArray() // This trick is cheaper than calling ConcurrentDictionary.Where.
+                            .Where(p => p.Value.Task.Status == TaskStatus.RanToCompletion)
+                            .ToArray();
+                    }
+
+                    if (completedResponses.Length == 0)
+                    {
+                        await _manualResetEvent.WaitAsync(internalToken);
+                        _manualResetEvent.Reset();
+                        continue;
+                    }
+
+                    using (await _asyncLock.LockAsync(internalToken))
+                    {
+                        result = new List<ITcpBatch<TResponse>>();
+
+                        foreach (var pair in completedResponses)
+                        {
+                            internalToken.ThrowIfCancellationRequested();
+
+                            if (_completeResponses.TryRemove(pair.Key, out var tcs))
+                            {
+                                result.Add(await tcs.Task);
+                            }
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    _logger?.LogCritical($"{nameof(GetConsumingAsyncEnumerable)} Got {exception.GetType()}, {exception}");
+                    throw;
+                }
+
+                foreach (var batch in result)
+                {
+                    yield return batch;
+                }
+            }
+        }
+#endif
     }
 }

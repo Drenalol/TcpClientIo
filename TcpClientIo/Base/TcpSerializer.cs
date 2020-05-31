@@ -121,7 +121,7 @@ namespace Drenalol.Base
             var response = new TResponse();
             var key = 0;
             var examined = 0;
-            object id = null;
+            object tcpId = null;
             var tcpBodyLength = 0;
             var properties = _reflectionHelper.GetResponseProperties();
 
@@ -156,7 +156,7 @@ namespace Drenalol.Base
                         break;
                     case TcpDataType.Id:
                         value = _bitConverterHelper.ConvertFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
-                        id = value;
+                        tcpId = value;
                         break;
                     case TcpDataType.BodyLength:
                         value = _bitConverterHelper.ConvertFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
@@ -177,7 +177,7 @@ namespace Drenalol.Base
             if (examined != properties.Count)
                 throw TcpException.Throw(TcpTypeException.SerializerSequenceViolated, _logger);
 
-            return (id, tcpBodyLength, response);
+            return (tcpId ?? TcpClientIo.Unassigned, tcpBodyLength, response);
         }
     }
 }

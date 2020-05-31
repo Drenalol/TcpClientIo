@@ -11,7 +11,7 @@ namespace Drenalol.Attributes
         public int Index { get; }
 
         /// <summary>
-        /// Property length in Byte Array. If TcpDataType set to TcpDataType.Body is ignored.
+        /// Property length in Byte Array. If TcpDataType set to TcpDataType.Body is ignored. Overwritten by the serializer.
         /// </summary>
         public int Length { get; }
 
@@ -31,10 +31,11 @@ namespace Drenalol.Attributes
         /// </summary>
         public TcpDataType TcpDataType { get; set; }
 
-        public TcpDataAttribute(int index, int length = 0)
+        public TcpDataAttribute(int index, int length = 0, TcpDataType tcpDataType = TcpDataType.MetaData)
         {
             Index = index;
             Length = length;
+            TcpDataType = tcpDataType;
         }
     }
 }

@@ -21,12 +21,13 @@ namespace Drenalol.Client
     /// <typeparam name="TResponse"></typeparam>
     [DebuggerDisplay("Id: {Id,nq}, Requests: {Requests,nq}, Waiters: {Waiters,nq}")]
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-    public partial class TcpClientIo<TRequest, TResponse> : TcpClientIoBase, IDuplexPipe, IAsyncDisposable where TResponse : new()
+    public partial class TcpClientIo<TRequest, TResponse> : TcpClientIo, IDuplexPipe, IAsyncDisposable where TResponse : new()
 #else
-    public partial class TcpClientIo<TRequest, TResponse> : TcpClientIoBase, IDuplexPipe, IDisposable where TResponse : new()
+    public partial class TcpClientIo<TRequest, TResponse> : TcpClientIo, IDuplexPipe, IDisposable where TResponse : new()
 #endif
     {
-        internal readonly Guid Id;
+        [DebuggerNonUserCode]
+        private Guid Id { get; }
         private readonly TcpClientIoOptions _options;
         private readonly CancellationTokenSource _baseCancellationTokenSource;
         private readonly CancellationToken _baseCancellationToken;
@@ -36,15 +37,17 @@ namespace Drenalol.Client
         private readonly AsyncLock _asyncLock = new AsyncLock();
         private readonly TcpSerializer<TRequest, TResponse> _serializer;
         private readonly SemaphoreSlim _semaphore;
+        private readonly AsyncManualResetEvent _manualResetEvent;
         private readonly PipeReader _deserializePipeReader;
         private readonly PipeWriter _deserializePipeWriter;
         private readonly ILogger<TcpClientIo<TRequest, TResponse>> _logger;
         private Exception _internalException;
         private PipeReader _networkStreamPipeReader;
         private PipeWriter _networkStreamPipeWriter;
+        private bool _disposing;
         PipeReader IDuplexPipe.Input => _networkStreamPipeReader;
         PipeWriter IDuplexPipe.Output => _networkStreamPipeWriter;
-        
+
         /// <summary>
         /// Gets the number of total bytes written to the <see cref="NetworkStream"/>.
         /// </summary>
@@ -107,6 +110,7 @@ namespace Drenalol.Client
             _completeResponses = new ConcurrentDictionary<object, TaskCompletionSource<ITcpBatch<TResponse>>>();
             _serializer = new TcpSerializer<TRequest, TResponse>(_options.Converters, logger);
             _semaphore = new SemaphoreSlim(2, 2);
+            _manualResetEvent = new AsyncManualResetEvent();
             _deserializePipeReader = pipe.Reader;
             _deserializePipeWriter = pipe.Writer;
         }
@@ -125,9 +129,9 @@ namespace Drenalol.Client
 
         private void SetupTasks()
         {
-            Task.Factory.StartNew(TcpWriteAsync, TaskCreationOptions.LongRunning);
-            Task.Factory.StartNew(TcpReadAsync, TaskCreationOptions.LongRunning);
-            Task.Factory.StartNew(DeserializeResponseAsync, TaskCreationOptions.LongRunning);
+            Task.Run(TcpWriteAsync, CancellationToken.None);
+            Task.Run(TcpReadAsync, CancellationToken.None);
+            Task.Run(DeserializeResponseAsync, CancellationToken.None);
         }
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
         public async ValueTask DisposeAsync()
@@ -136,7 +140,8 @@ namespace Drenalol.Client
 #endif
         {
             _logger?.LogInformation("Dispose started");
-
+            _disposing = true;
+            
             if (_baseCancellationTokenSource != null && !_baseCancellationTokenSource.IsCancellationRequested)
                 _baseCancellationTokenSource.Cancel();
 
