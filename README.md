@@ -138,11 +138,11 @@ public class Request
     //
     // Type - Sets the property type for the serializer.
 
-    // TcpDataType.Id no more Required (Available in 1.0.9)
+    // TcpDataType.Id not mandatory from 1.0.9
     [TcpData(0, 4, TcpDataType.Id)]
     public uint Id { get; set; }
 
-    // TcpDataType.BodyLength required if TcpDataType.Body set
+    // TcpDataType.BodyLength mandatory if TcpDataType.Body set
     [TcpData(4, 4, TcpDataType.BodyLength)]
     public uint BodyLength { get; set; }
 
@@ -152,7 +152,7 @@ public class Request
     [TcpData(16, 16)]
     public Guid Guid { get; set; }
 
-    // TcpDataType.Body required if TcpDataType.BodyLength set
+    // TcpDataType.Body mandatory if TcpDataType.BodyLength set
     [TcpData(32, TcpDataType = TcpDataType.Body)]
     public string Data { get; set; }
 }
