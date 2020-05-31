@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Drenalol.Client;
 
 namespace Drenalol.Base
 {

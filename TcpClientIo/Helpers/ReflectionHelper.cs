@@ -63,12 +63,10 @@ namespace Drenalol.Helpers
         {
             var key = properties.Where(item => item.Value.Attribute.TcpDataType == TcpDataType.Id).ToList();
 
-            if (key.Count == 0)
-                throw TcpException.Throw(TcpTypeException.AttributeKeyRequired, _logger, type.ToString());
             if (key.Count > 1)
                 throw TcpException.Throw(TcpTypeException.AttributeDuplicate, _logger, type.ToString(), nameof(TcpDataType.Id));
 
-            if (!key.Single().Value.CanReadWrite)
+            if (key.Count == 1 && !key.Single().Value.CanReadWrite)
                 throw TcpException.Throw(TcpTypeException.PropertyCanReadWrite, _logger, type.ToString(), nameof(TcpDataType.Id));
 
             var body = properties.Where(item => item.Value.Attribute.TcpDataType == TcpDataType.Body).ToList();
@@ -90,6 +88,16 @@ namespace Drenalol.Helpers
             
             if (bodyLength.Count == 1 && body.Count == 1 && !bodyLength.Single().Value.CanReadWrite)
                 throw TcpException.Throw(TcpTypeException.PropertyCanReadWrite, _logger, type.ToString(), nameof(TcpDataType.BodyLength));
+            
+            var metaData = properties.Where(item => item.Value.Attribute.TcpDataType == TcpDataType.MetaData).ToList();
+            
+            if (key.Count == 0 && bodyLength.Count == 0 && body.Count == 0 && metaData.Count == 0)
+                throw TcpException.Throw(TcpTypeException.AttributesRequired, _logger, type.ToString());
+
+            foreach (var pair in metaData.Where(pair => !pair.Value.CanReadWrite))
+            {
+                throw TcpException.Throw(TcpTypeException.PropertyCanReadWrite, _logger, type.ToString(), nameof(TcpDataType.MetaData), pair.Value.Attribute.Index.ToString());
+            }
         }
 
         public ImmutableDictionary<int, TcpProperty> GetRequestProperties() => _internalCache[_request];

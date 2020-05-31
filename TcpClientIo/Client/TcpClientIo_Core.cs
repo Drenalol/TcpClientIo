@@ -21,9 +21,9 @@ namespace Drenalol.Client
     /// <typeparam name="TResponse"></typeparam>
     [DebuggerDisplay("Id: {Id,nq}, Requests: {Requests,nq}, Waiters: {Waiters,nq}")]
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-    public partial class TcpClientIo<TRequest, TResponse> : TcpClientIoBase, IDuplexPipe, IAsyncDisposable where TResponse : new()
+    public partial class TcpClientIo<TRequest, TResponse> : TcpClientIo, IDuplexPipe, IAsyncDisposable where TResponse : new()
 #else
-    public partial class TcpClientIo<TRequest, TResponse> : TcpClientIoBase, IDuplexPipe, IDisposable where TResponse : new()
+    public partial class TcpClientIo<TRequest, TResponse> : TcpClientIo, IDuplexPipe, IDisposable where TResponse : new()
 #endif
     {
         [DebuggerNonUserCode]

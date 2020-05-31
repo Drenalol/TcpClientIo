@@ -9,7 +9,7 @@ namespace Drenalol.Exceptions
         PropertyCanReadWrite,
         ConverterNotFoundType,
         ConverterUnknownError,
-        AttributeKeyRequired,
+        AttributesRequired,
         AttributeBodyRequired,
         AttributeBodyLengthRequired,
         AttributeDuplicate

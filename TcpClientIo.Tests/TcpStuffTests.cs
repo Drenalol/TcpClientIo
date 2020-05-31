@@ -6,7 +6,6 @@ using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Net;
-using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Drenalol.Abstractions;
@@ -24,54 +23,61 @@ namespace Drenalol
 {
     public class TcpStuffTests
     {
+        // ReSharper disable once ClassNeverInstantiated.Local
         private class DoesNotHaveAny
         {
         }
 
-        private class DoesNotHaveKeyAttribute
-        {
-            [TcpData(1, 1, TcpDataType = TcpDataType.Body)]
-            public int Body { get; set; }
-            [TcpData(2, 1, TcpDataType = TcpDataType.BodyLength)]
-            public int BodyLength { get; set; }
-        }
-
+        // ReSharper disable once ClassNeverInstantiated.Local
         private class DoesNotHaveBodyAttribute
         {
             [TcpData(0, 1, TcpDataType = TcpDataType.Id)]
             public int Key { get; set; }
+
             [TcpData(1, 2, TcpDataType = TcpDataType.BodyLength)]
             public int BodyLength { get; set; }
         }
 
+        // ReSharper disable once ClassNeverInstantiated.Local
         private class DoesNotHaveBodyLengthAttribute
         {
             [TcpData(0, 1, TcpDataType = TcpDataType.Id)]
             public int Key { get; set; }
+
             [TcpData(1, 2, TcpDataType = TcpDataType.Body)]
             public int Body { get; set; }
         }
 
+        // ReSharper disable once ClassNeverInstantiated.Local
         private class KeyDoesNotHaveSetter
         {
             [TcpData(0, 1, TcpDataType = TcpDataType.Id)]
             public int Key { get; }
+
             [TcpData(1, 2, TcpDataType = TcpDataType.BodyLength)]
             public int BodyLength { get; set; }
+
             [TcpData(3, 2, TcpDataType = TcpDataType.Body)]
             public int Body { get; set; }
+        }
+
+        // ReSharper disable once ClassNeverInstantiated.Local
+        private class MetaDataNotHaveSetter
+        {
+            [TcpData(0, 4)]
+            public int Meta { get; }
         }
 
         [Test]
         public void ReflectionErrorsTest()
         {
             Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveAny, DoesNotHaveAny>(NullLogger.Instance));
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveKeyAttribute, DoesNotHaveKeyAttribute>(NullLogger.Instance));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<MetaDataNotHaveSetter, MetaDataNotHaveSetter>(NullLogger.Instance));
             Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveBodyAttribute, DoesNotHaveBodyAttribute>(NullLogger.Instance));
             Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveBodyLengthAttribute, DoesNotHaveBodyLengthAttribute>(NullLogger.Instance));
             Assert.Catch(typeof(TcpException), () => new ReflectionHelper<KeyDoesNotHaveSetter, KeyDoesNotHaveSetter>(NullLogger.Instance));
         }
-        
+
         [Test]
         public async Task AttributeMockSerializeDeserializeTest()
         {
@@ -111,9 +117,9 @@ namespace Drenalol
                 {typeof(DateTime), new TcpDateTimeConverter()},
                 {typeof(Guid), new TcpGuidConverter()}
             }.ToImmutableDictionary();
-            
+
             var bitConverterHelper = new BitConverterHelper(dict, NullLogger.Instance);
-            
+
             var str = "Hello my friend";
             var stringResult = bitConverterHelper.ConvertToBytes(str, typeof(string));
             var stringResultBack = bitConverterHelper.ConvertFromBytes(stringResult, typeof(string));
@@ -134,14 +140,14 @@ namespace Drenalol
             var guidResultBack = bitConverterHelper.ConvertFromBytes(guidResult, typeof(Guid));
             Assert.AreEqual(guid, guidResultBack);
         }
-        
+
         [Test]
         public void OopTest()
         {
-            TcpClientIoBase tcpClientIoBase = new TcpClientIo<Mock>(IPAddress.Any, 10000);
+            TcpClientIo tcpClientIoBase = new TcpClientIo<Mock>(IPAddress.Any, 10000);
             var oneMock = (TcpClientIo<Mock>) tcpClientIoBase;
-            Assert.IsTrue(tcpClientIoBase.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIoBase.SendAsync)) == 2);
-            Assert.IsTrue(tcpClientIoBase.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIoBase.ReceiveAsync)) == 2);
+            Assert.IsTrue(tcpClientIoBase.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo.SendAsync)) == 2);
+            Assert.IsTrue(tcpClientIoBase.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo.ReceiveAsync)) == 2);
             Assert.IsTrue(oneMock.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo<object>.SendAsync)) == 2);
             Assert.IsTrue(oneMock.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo<object>.ReceiveAsync)) == 2);
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
@@ -149,10 +155,10 @@ namespace Drenalol
 #else
             Assert.NotNull(oneMock.GetType().GetMethod(nameof(TcpClientIo<object>.Dispose)));
 #endif
-            TcpClientIoBase tcpClientIoBase2 = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000);
+            TcpClientIo tcpClientIoBase2 = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000);
             var twoMock = (TcpClientIo<Mock, Mock>) tcpClientIoBase2;
-            Assert.IsTrue(tcpClientIoBase2.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIoBase.SendAsync)) == 2);
-            Assert.IsTrue(tcpClientIoBase2.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIoBase.ReceiveAsync)) == 2);
+            Assert.IsTrue(tcpClientIoBase2.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo.SendAsync)) == 2);
+            Assert.IsTrue(tcpClientIoBase2.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo.ReceiveAsync)) == 2);
             Assert.IsTrue(twoMock.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo<object>.SendAsync)) == 2);
             Assert.IsTrue(twoMock.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo<object>.ReceiveAsync)) == 2);
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0

@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
-using System.IO.Pipelines;
 using System.Linq;
 using System.Net;
-using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Drenalol.Abstractions;
@@ -71,9 +69,9 @@ namespace Drenalol
         [Test]
         public async Task SingleByteAndByteArrayTest()
         {
-            var tcpClient = GetClient<MockTest2>();
+            var tcpClient = GetClient<MockByteBody>();
 
-            var mock = new MockTest2
+            var mock = new MockByteBody
             {
                 Id = 1,
                 Body = "TestHello",
@@ -153,7 +151,7 @@ namespace Drenalol
             TestContext.WriteLine($"BytesWrite: {Math.Round(bytesWrite / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
             TestContext.WriteLine($"BytesRead: {Math.Round(bytesRead / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
         }
-
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
         [TestCase(250000, true)]
         [TestCase(250000, false)]
         public async Task ConsumingAsyncEnumerableTest(int requests, bool batchesOnly)
@@ -204,7 +202,7 @@ namespace Drenalol
                 TestContext.WriteLine($"BytesRead: {Math.Round(tcpClient.BytesRead / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
             }
         }
-
+#endif
         [Test]
         public async Task NoIdTest()
         {
@@ -214,7 +212,8 @@ namespace Drenalol
                 Body = "Qwerty!"
             };
             await client.SendAsync(mock);
-            await client.ReceiveAsync(-1);
+            var batch = await client.ReceiveAsync(TcpClientIo.Unassigned);
+            var response = batch.First();
         }
         
         [Test]
@@ -309,7 +308,7 @@ namespace Drenalol
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
             await using var tcpClient = GetClient<Mock>();
 #else
-            var tcpClient = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000, options);
+            var tcpClient = GetClient<Mock>();
 #endif
             var mock = Mocks[666];
             var attempts = 0;
