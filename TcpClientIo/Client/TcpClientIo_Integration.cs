@@ -146,7 +146,7 @@ namespace Drenalol.Client
                 {
                     internalToken.ThrowIfCancellationRequested();
                     KeyValuePair<object, TaskCompletionSource<ITcpBatch<TResponse>>>[] completedResponses;
-                    
+
                     // Info about lock read in SetResponseAsync method
                     using (await _asyncLock.LockAsync(internalToken))
                     {
@@ -191,6 +191,26 @@ namespace Drenalol.Client
                 foreach (var batch in result)
                 {
                     yield return batch;
+                }
+            }
+        }
+        
+        public override IAsyncEnumerable<object> GetExpandableConsumingAsyncEnumerable(CancellationToken token = default, bool isObject = true) => (IAsyncEnumerable<object>) GetExpandableConsumingAsyncEnumerable(token);
+
+        /// <summary>Provides a consuming <see cref="T:System.Collections.Generics.IAsyncEnumerable{T}"/> for <see cref="TResponse"/> in the collection.
+        /// Calling MoveNextAsync on the returned enumerable will block if there is no data available, or will
+        /// throw an <see cref="System.OperationCanceledException"/> if the <see cref="CancellationToken"/> is canceled.
+        /// </summary>
+        /// <param name="token">A cancellation token to observe.</param>
+        /// <returns></returns>
+        /// <exception cref="OperationCanceledException">If the <see cref="token"/> is canceled.</exception>
+        public async IAsyncEnumerable<TResponse> GetExpandableConsumingAsyncEnumerable([EnumeratorCancellation] CancellationToken token = default)
+        {
+            await foreach (var batch in GetConsumingAsyncEnumerable(token))
+            {
+                foreach (var response in batch)
+                {
+                    yield return response;
                 }
             }
         }

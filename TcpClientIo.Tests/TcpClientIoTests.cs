@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
+using System.IO.Pipelines;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -21,12 +22,10 @@ namespace Drenalol
     {
         public static ImmutableList<Mock> Mocks;
 
-        private static TcpClientIo<T, T> GetClient<T>(LogLevel logLevel = LogLevel.Warning) where T : new() => GetClient<T, T>(logLevel);
-
-        private static TcpClientIo<T, TR> GetClient<T, TR>(LogLevel logLevel = LogLevel.Warning) where TR : new()
+        private static (TcpClientIoOptions, ILoggerFactory) GetDefaults(LogLevel logLevel)
         {
             var options = TcpClientIoOptions.Default;
-            
+
             options.Converters = new List<TcpConverter>
             {
                 new TcpGuidConverter(),
@@ -34,6 +33,9 @@ namespace Drenalol
                 new TcpUtf8StringConverter()
             };
             
+            options.StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 10240000);
+            options.StreamPipeWriterOptions = new StreamPipeWriterOptions();
+
             var loggerFactory = LoggerFactory.Create(lb =>
             {
                 lb.AddFilter("Drenalol.Client.TcpClientIo", logLevel);
@@ -41,7 +43,19 @@ namespace Drenalol
                 lb.AddConsole();
             });
 
-            return new TcpClientIo<T, TR>(IPAddress.Any, 10000, options, loggerFactory.CreateLogger<TcpClientIo<T, TR>>());
+            return (options, loggerFactory);
+        }
+
+        public static TcpClientIo<T, T> GetClient<T>(IPAddress ipAddress = null, LogLevel logLevel = LogLevel.Warning) where T : new()
+        {
+            var (options, loggerFactory) = GetDefaults(logLevel);
+            return new TcpClientIo<T>(ipAddress ?? IPAddress.Any, 10000, options, loggerFactory.CreateLogger<TcpClientIo<T>>());
+        }
+
+        public static TcpClientIo<T, TR> GetClient<T, TR>(IPAddress ipAddress = null, LogLevel logLevel = LogLevel.Warning) where TR : new()
+        {
+            var (options, loggerFactory) = GetDefaults(logLevel);
+            return new TcpClientIo<T, TR>(ipAddress ?? IPAddress.Any, 10000, options, loggerFactory.CreateLogger<TcpClientIo<T, TR>>());
         }
 
         [OneTimeSetUp]
@@ -154,7 +168,7 @@ namespace Drenalol
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
         [TestCase(250000, true)]
         [TestCase(250000, false)]
-        public async Task ConsumingAsyncEnumerableTest(int requests, bool batchesOnly)
+        public async Task ConsumingAsyncEnumerableTest(int requests, bool expandBatch)
         {
             var sended = 0;
             var received = 0;
@@ -163,11 +177,11 @@ namespace Drenalol
 
             _ = Enumerable.Range(0, requests).Select(async i =>
             {
-                var mock = Mock.Create(batchesOnly ? 0 : i);
+                var mock = Mock.Create(expandBatch ? 0 : i);
                 await tcpClient.SendAsync(mock, cts.Token);
                 Interlocked.Increment(ref sended);
             }).ToArray();
-            
+
             _ = Task.Run(async () =>
             {
                 while (received < requests && !cts.IsCancellationRequested)
@@ -180,12 +194,19 @@ namespace Drenalol
 
             try
             {
-                await foreach (var tcpBatch in tcpClient.GetConsumingAsyncEnumerable(cts.Token))
+                if (expandBatch)
                 {
-                    if (batchesOnly)
-                        Interlocked.Add(ref received, tcpBatch.Count);
-                    else
+                    await foreach (var _ in tcpClient.GetExpandableConsumingAsyncEnumerable(cts.Token))
+                    {
                         Interlocked.Increment(ref received);
+                    }
+                }
+                else
+                {
+                    await foreach (var _ in tcpClient.GetConsumingAsyncEnumerable(cts.Token))
+                    {
+                        Interlocked.Increment(ref received);
+                    }
                 }
             }
             catch (Exception)
@@ -215,7 +236,7 @@ namespace Drenalol
             var batch = await client.ReceiveAsync(TcpClientIo.Unassigned);
             var response = batch.First();
         }
-        
+
         [Test]
         public async Task SameIdTest()
         {

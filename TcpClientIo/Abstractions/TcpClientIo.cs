@@ -11,6 +11,7 @@ namespace Drenalol.Abstractions
         public abstract Task<object> ReceiveAsync(object responseId, CancellationToken token = default, bool isObject = true);
 #if NETSTANDARD2_1
         public abstract IAsyncEnumerable<object> GetConsumingAsyncEnumerable(CancellationToken token = default, bool isObject = true);
+        public abstract IAsyncEnumerable<object> GetExpandableConsumingAsyncEnumerable(CancellationToken token = default, bool isObject = true);
 #endif
     }
 }

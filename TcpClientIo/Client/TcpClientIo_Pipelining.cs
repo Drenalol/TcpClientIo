@@ -23,7 +23,11 @@ namespace Drenalol.Client
                         continue;
 
                     var bytesArray = await _bufferBlockRequests.ReceiveAsync(_baseCancellationToken);
-                    await _networkStreamPipeWriter.WriteAsync(bytesArray, _baseCancellationToken);
+                    var writeResult = await _networkStreamPipeWriter.WriteAsync(bytesArray, _baseCancellationToken);
+                    
+                    if (writeResult.IsCanceled || writeResult.IsCompleted)
+                        break;
+                    
                     BytesWrite += (ulong) bytesArray.Length;
                     _logger?.LogDebug($"Tcp writed {bytesArray.Length.ToString()} bytes");
                 }
@@ -55,6 +59,9 @@ namespace Drenalol.Client
                 {
                     _baseCancellationToken.ThrowIfCancellationRequested();
                     var readResult = await _networkStreamPipeReader.ReadAsync(_baseCancellationToken);
+
+                    if (readResult.IsCanceled || readResult.IsCompleted)
+                        break;
                     
                     if (readResult.Buffer.IsEmpty)
                         continue;
@@ -147,6 +154,12 @@ namespace Drenalol.Client
 
             if (_tcpClient.Client.Connected)
                 _networkStreamPipeReader.Complete(exception);
+            
+            if (!_baseCancellationTokenSource.IsCancellationRequested)
+            {
+                _logger?.LogDebug("Cancelling _baseCancellationTokenSource from StopReader");
+                _baseCancellationTokenSource.Cancel();
+            }
 
             _logger?.LogDebug("Completion NetworkStream PipeReader ended");
         }
@@ -158,6 +171,14 @@ namespace Drenalol.Client
 
             if (_tcpClient.Client.Connected)
                 _networkStreamPipeWriter.Complete(exception);
+            
+            _bufferBlockRequests.Complete();
+
+            if (!_baseCancellationTokenSource.IsCancellationRequested)
+            {
+                _logger?.LogDebug("Cancelling _baseCancellationTokenSource from StopWriter");
+                _baseCancellationTokenSource.Cancel();
+            }
 
             _logger?.LogDebug("Completion NetworkStream PipeWriter ended");
         }

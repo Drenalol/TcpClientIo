@@ -154,7 +154,9 @@ namespace Drenalol.Client
                 Thread.Sleep(100);
 #endif
             }
-
+            
+            _baseCancellationTokenSource?.Dispose();
+            _completeResponses?.Clear();
             _tcpClient?.Dispose();
             _semaphore?.Dispose();
             _logger?.LogInformation("Dispose ended");

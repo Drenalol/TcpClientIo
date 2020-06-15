@@ -144,7 +144,7 @@ namespace Drenalol
         [Test]
         public void OopTest()
         {
-            TcpClientIo tcpClientIoBase = new TcpClientIo<Mock>(IPAddress.Any, 10000);
+            TcpClientIo tcpClientIoBase = TcpClientIoTests.GetClient<Mock>();
             var oneMock = (TcpClientIo<Mock>) tcpClientIoBase;
             Assert.IsTrue(tcpClientIoBase.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo.SendAsync)) == 2);
             Assert.IsTrue(tcpClientIoBase.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo.ReceiveAsync)) == 2);
@@ -155,7 +155,7 @@ namespace Drenalol
 #else
             Assert.NotNull(oneMock.GetType().GetMethod(nameof(TcpClientIo<object>.Dispose)));
 #endif
-            TcpClientIo tcpClientIoBase2 = new TcpClientIo<Mock, Mock>(IPAddress.Any, 10000);
+            TcpClientIo tcpClientIoBase2 = TcpClientIoTests.GetClient<Mock, Mock>();
             var twoMock = (TcpClientIo<Mock, Mock>) tcpClientIoBase2;
             Assert.IsTrue(tcpClientIoBase2.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo.SendAsync)) == 2);
             Assert.IsTrue(tcpClientIoBase2.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo.ReceiveAsync)) == 2);

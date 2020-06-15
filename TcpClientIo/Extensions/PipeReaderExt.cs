@@ -19,6 +19,12 @@ namespace Drenalol.Extensions
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var readResult = await reader.ReadAsync(cancellationToken);
+                
+                if (readResult.IsCanceled)
+                    throw new OperationCanceledException();
+
+                if (readResult.IsCompleted)
+                    return null;
 
                 if (readResult.Buffer.IsEmpty)
                     continue;
