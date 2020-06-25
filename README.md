@@ -93,10 +93,16 @@ await tcpClient.DisposeAsync();
 // GetConsumingAsyncEnumerable works like a stream and will be stopped by cancellation when necessary.
 await foreach (ITcpBatch<Response> batch in tcpClient.GetConsumingAsyncEnumerable(CancellationToken.None))
 {
+    // manual iterate batch
     foreach (var response in batch)
     {
-        // work
+        // work with response
     }
+}
+// or we can use Expandable method (will iterate batch for us inside)
+await foreach (Response response in tcpClient.GetExpandableConsumingAsyncEnumerable(CancellationToken.None))
+{
+    // work with response
 }
 ```
 ###### Example #3. TcpClient from TcpListener. (Available from 1.0.9, netstandard2.1 only)
