@@ -11,8 +11,6 @@ namespace Drenalol.Client
     {
         private async Task TcpWriteAsync()
         {
-            await _semaphore.WaitAsync(_baseCancellationToken);
-
             try
             {
                 while (true)
@@ -45,14 +43,12 @@ namespace Drenalol.Client
             finally
             {
                 StopWriter(_internalException);
-                _semaphore.Release();
+                _writeResetEvent.Set();
             }
         }
 
         private async Task TcpReadAsync()
         {
-            await _semaphore.WaitAsync(_baseCancellationToken);
-
             try
             {
                 while (true)
@@ -89,7 +85,7 @@ namespace Drenalol.Client
             finally
             {
                 StopReader(_internalException);
-                _semaphore.Release();
+                _readResetEvent.Set();
             }
         }
 

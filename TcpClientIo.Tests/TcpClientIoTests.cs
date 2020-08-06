@@ -20,6 +20,7 @@ namespace Drenalol
     [TestFixture(TestOf = typeof(TcpClientIo<,>))]
     public class TcpClientIoTests
     {
+        public static readonly IPAddress IpAddress = Dns.GetHostAddresses("yanysh.com")[0];// IPAddress.Any;
         public static ImmutableList<Mock> Mocks;
 
         private static (TcpClientIoOptions, ILoggerFactory) GetDefaults(LogLevel logLevel)
@@ -49,13 +50,13 @@ namespace Drenalol
         public static TcpClientIo<T, T> GetClient<T>(IPAddress ipAddress = null, LogLevel logLevel = LogLevel.Warning) where T : new()
         {
             var (options, loggerFactory) = GetDefaults(logLevel);
-            return new TcpClientIo<T>(ipAddress ?? IPAddress.Any, 10000, options, loggerFactory.CreateLogger<TcpClientIo<T>>());
+            return new TcpClientIo<T>(ipAddress ?? IpAddress, 10000, options, loggerFactory.CreateLogger<TcpClientIo<T>>());
         }
 
         public static TcpClientIo<T, TR> GetClient<T, TR>(IPAddress ipAddress = null, LogLevel logLevel = LogLevel.Warning) where TR : new()
         {
             var (options, loggerFactory) = GetDefaults(logLevel);
-            return new TcpClientIo<T, TR>(ipAddress ?? IPAddress.Any, 10000, options, loggerFactory.CreateLogger<TcpClientIo<T, TR>>());
+            return new TcpClientIo<T, TR>(ipAddress ?? IpAddress, 10000, options, loggerFactory.CreateLogger<TcpClientIo<T, TR>>());
         }
 
         [OneTimeSetUp]
@@ -103,8 +104,8 @@ namespace Drenalol
 #endif
         }
 
-        [TestCase(250000, 1, 5)]
-        [TestCase(250000, 4, 5)]
+        [TestCase(100000, 1, 5)]
+        [TestCase(100000, 4, 5)]
         public void MultipleConsumersAsyncTest(int requests, int consumers, double timeout)
         {
             var requestsPerConsumer = requests / consumers;
@@ -166,8 +167,8 @@ namespace Drenalol
             TestContext.WriteLine($"BytesRead: {Math.Round(bytesRead / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
         }
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-        [TestCase(250000, true)]
-        [TestCase(250000, false)]
+        [TestCase(100000, true)]
+        [TestCase(100000, false)]
         public async Task ConsumingAsyncEnumerableTest(int requests, bool expandBatch)
         {
             var sended = 0;

@@ -6,6 +6,7 @@ using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Drenalol.Abstractions;
@@ -144,12 +145,14 @@ namespace Drenalol
         [Test]
         public void OopTest()
         {
+            var fakeListener = TcpListener.Create(10000);
+            fakeListener.Start();
             TcpClientIo tcpClientIoBase = TcpClientIoTests.GetClient<Mock>();
             var oneMock = (TcpClientIo<Mock>) tcpClientIoBase;
-            Assert.IsTrue(tcpClientIoBase.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo.SendAsync)) == 2);
-            Assert.IsTrue(tcpClientIoBase.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo.ReceiveAsync)) == 2);
-            Assert.IsTrue(oneMock.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo<object>.SendAsync)) == 2);
-            Assert.IsTrue(oneMock.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo<object>.ReceiveAsync)) == 2);
+            Assert.NotNull(tcpClientIoBase.GetType().GetMethod(nameof(TcpClientIo.SendAsyncBase)));
+            Assert.NotNull(tcpClientIoBase.GetType().GetMethod(nameof(TcpClientIo.ReceiveAsyncBase)));
+            Assert.NotNull(oneMock.GetType().GetMethod(nameof(TcpClientIo<object>.SendAsync)));
+            Assert.NotNull(oneMock.GetType().GetMethod(nameof(TcpClientIo<object>.ReceiveAsync)));
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
             Assert.NotNull(oneMock.GetType().GetMethod(nameof(TcpClientIo<object>.DisposeAsync)));
 #else
@@ -157,15 +160,18 @@ namespace Drenalol
 #endif
             TcpClientIo tcpClientIoBase2 = TcpClientIoTests.GetClient<Mock, Mock>();
             var twoMock = (TcpClientIo<Mock, Mock>) tcpClientIoBase2;
-            Assert.IsTrue(tcpClientIoBase2.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo.SendAsync)) == 2);
-            Assert.IsTrue(tcpClientIoBase2.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo.ReceiveAsync)) == 2);
-            Assert.IsTrue(twoMock.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo<object>.SendAsync)) == 2);
-            Assert.IsTrue(twoMock.GetType().GetMethods().Count(method => method.Name == nameof(TcpClientIo<object>.ReceiveAsync)) == 2);
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
+            Assert.NotNull(tcpClientIoBase2.GetType().GetMethod(nameof(TcpClientIo.SendAsyncBase)));
+            Assert.NotNull(tcpClientIoBase2.GetType().GetMethod(nameof(TcpClientIo.ReceiveAsyncBase)));
+            Assert.NotNull(twoMock.GetType().GetMethod(nameof(TcpClientIo<object>.SendAsync)));
+            Assert.NotNull(twoMock.GetType().GetMethod(nameof(TcpClientIo<object>.ReceiveAsync)));
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0            
             Assert.NotNull(twoMock.GetType().GetMethod(nameof(TcpClientIo<object>.DisposeAsync)));
 #else
             Assert.NotNull(twoMock.GetType().GetMethod(nameof(TcpClientIo<object>.Dispose)));
 #endif
+            fakeListener.Stop();
+            tcpClientIoBase.DisposeBase();
+            tcpClientIoBase2.DisposeBase();
         }
     }
 }

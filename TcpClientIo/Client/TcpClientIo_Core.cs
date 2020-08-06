@@ -36,8 +36,9 @@ namespace Drenalol.Client
         private readonly ConcurrentDictionary<object, TaskCompletionSource<ITcpBatch<TResponse>>> _completeResponses;
         private readonly AsyncLock _asyncLock = new AsyncLock();
         private readonly TcpSerializer<TRequest, TResponse> _serializer;
-        private readonly SemaphoreSlim _semaphore;
-        private readonly AsyncManualResetEvent _manualResetEvent;
+        private readonly AsyncManualResetEvent _writeResetEvent;
+        private readonly AsyncManualResetEvent _readResetEvent;
+        private readonly AsyncManualResetEvent _consumingResetEvent;
         private readonly PipeReader _deserializePipeReader;
         private readonly PipeWriter _deserializePipeWriter;
         private readonly ILogger<TcpClientIo<TRequest, TResponse>> _logger;
@@ -109,8 +110,9 @@ namespace Drenalol.Client
             _bufferBlockRequests = new BufferBlock<byte[]>();
             _completeResponses = new ConcurrentDictionary<object, TaskCompletionSource<ITcpBatch<TResponse>>>();
             _serializer = new TcpSerializer<TRequest, TResponse>(_options.Converters, logger);
-            _semaphore = new SemaphoreSlim(2, 2);
-            _manualResetEvent = new AsyncManualResetEvent();
+            _writeResetEvent = new AsyncManualResetEvent();
+            _readResetEvent = new AsyncManualResetEvent();
+            _consumingResetEvent = new AsyncManualResetEvent();
             _deserializePipeReader = pipe.Reader;
             _deserializePipeWriter = pipe.Writer;
         }
@@ -133,9 +135,14 @@ namespace Drenalol.Client
             Task.Run(TcpReadAsync, CancellationToken.None);
             Task.Run(DeserializeResponseAsync, CancellationToken.None);
         }
+        
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
+        public override void DisposeBase() => DisposeAsync().GetAwaiter().GetResult();
+        
         public async ValueTask DisposeAsync()
 #else
+        public override void DisposeBase() => Dispose();
+
         public void Dispose()
 #endif
         {
@@ -145,20 +152,25 @@ namespace Drenalol.Client
             if (_baseCancellationTokenSource != null && !_baseCancellationTokenSource.IsCancellationRequested)
                 _baseCancellationTokenSource.Cancel();
 
-            var i = 0;
-            while (i++ < 60 && _semaphore.CurrentCount < 2)
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60)))
             {
+                var token = cts.Token;
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-                await Task.Delay(100, CancellationToken.None);
+                await _writeResetEvent.WaitAsync(token);
 #else
-                Thread.Sleep(100);
+                _writeResetEvent.Wait(token);
 #endif
+                
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
+                await _readResetEvent.WaitAsync(token);
+#else
+                _readResetEvent.Wait(token);
+#endif                
             }
-            
+
             _baseCancellationTokenSource?.Dispose();
             _completeResponses?.Clear();
             _tcpClient?.Dispose();
-            _semaphore?.Dispose();
             _logger?.LogInformation("Dispose ended");
         }
     }
