@@ -136,9 +136,18 @@ namespace Drenalol.Client
         /// <exception cref="OperationCanceledException">If the <see cref="token"/> is canceled.</exception>
         public async IAsyncEnumerable<ITcpBatch<TResponse>> GetConsumingAsyncEnumerable([EnumeratorCancellation] CancellationToken token = default)
         {
-            var internalToken = token == default ? _baseCancellationToken : token;
+            CancellationTokenSource internalCts = null;
+            CancellationToken internalToken;
 
-            while (true)
+            if (token != default)
+            {
+                internalCts = CancellationTokenSource.CreateLinkedTokenSource(_baseCancellationToken, token);
+                internalToken = internalCts.Token;
+            }
+            else
+                internalToken = _baseCancellationToken;
+
+            while (!internalToken.IsCancellationRequested)
             {
                 IList<ITcpBatch<TResponse>> result;
 
@@ -193,8 +202,10 @@ namespace Drenalol.Client
                     yield return batch;
                 }
             }
+
+            internalCts?.Dispose();
         }
-        
+
         public override IAsyncEnumerable<object> GetExpandableConsumingAsyncEnumerableBase(CancellationToken token = default) => (IAsyncEnumerable<object>) GetExpandableConsumingAsyncEnumerable(token);
 
         /// <summary>Provides a consuming <see cref="T:System.Collections.Generics.IAsyncEnumerable{T}"/> for <see cref="TResponse"/> in the collection.
