@@ -141,37 +141,5 @@ namespace Drenalol
             var guidResultBack = bitConverterHelper.ConvertFromBytes(guidResult, typeof(Guid));
             Assert.AreEqual(guid, guidResultBack);
         }
-
-        [Test]
-        public void OopTest()
-        {
-            var fakeListener = TcpListener.Create(10000);
-            fakeListener.Start();
-            TcpClientIo tcpClientIoBase = TcpClientIoTests.GetClient<Mock>();
-            var oneMock = (TcpClientIo<Mock>) tcpClientIoBase;
-            Assert.NotNull(tcpClientIoBase.GetType().GetMethod(nameof(TcpClientIo.SendAsyncBase)));
-            Assert.NotNull(tcpClientIoBase.GetType().GetMethod(nameof(TcpClientIo.ReceiveAsyncBase)));
-            Assert.NotNull(oneMock.GetType().GetMethod(nameof(TcpClientIo<object>.SendAsync)));
-            Assert.NotNull(oneMock.GetType().GetMethod(nameof(TcpClientIo<object>.ReceiveAsync)));
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-            Assert.NotNull(oneMock.GetType().GetMethod(nameof(TcpClientIo<object>.DisposeAsync)));
-#else
-            Assert.NotNull(oneMock.GetType().GetMethod(nameof(TcpClientIo<object>.Dispose)));
-#endif
-            TcpClientIo tcpClientIoBase2 = TcpClientIoTests.GetClient<Mock, Mock>();
-            var twoMock = (TcpClientIo<Mock, Mock>) tcpClientIoBase2;
-            Assert.NotNull(tcpClientIoBase2.GetType().GetMethod(nameof(TcpClientIo.SendAsyncBase)));
-            Assert.NotNull(tcpClientIoBase2.GetType().GetMethod(nameof(TcpClientIo.ReceiveAsyncBase)));
-            Assert.NotNull(twoMock.GetType().GetMethod(nameof(TcpClientIo<object>.SendAsync)));
-            Assert.NotNull(twoMock.GetType().GetMethod(nameof(TcpClientIo<object>.ReceiveAsync)));
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0            
-            Assert.NotNull(twoMock.GetType().GetMethod(nameof(TcpClientIo<object>.DisposeAsync)));
-#else
-            Assert.NotNull(twoMock.GetType().GetMethod(nameof(TcpClientIo<object>.Dispose)));
-#endif
-            fakeListener.Stop();
-            tcpClientIoBase.DisposeBase();
-            tcpClientIoBase2.DisposeBase();
-        }
     }
 }

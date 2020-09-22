@@ -137,13 +137,9 @@ namespace Drenalol.Client
         }
         
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-        public override void DisposeBase() => DisposeAsync().GetAwaiter().GetResult();
-        
-        public async ValueTask DisposeAsync()
+        public override async ValueTask DisposeAsync()
 #else
-        public override void DisposeBase() => Dispose();
-
-        public void Dispose()
+        public override void Dispose()
 #endif
         {
             _logger?.LogInformation("Dispose started");

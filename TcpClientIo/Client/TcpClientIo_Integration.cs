@@ -64,7 +64,7 @@ namespace Drenalol.Client
             Lazy<TaskCompletionSource<ITcpBatch<TResponse>>> InternalCreateLazyTcs() => new Lazy<TaskCompletionSource<ITcpBatch<TResponse>>>(() => new TaskCompletionSource<ITcpBatch<TResponse>>());
         }
 
-        public override Task SendAsyncBase(object request, CancellationToken token = default) => SendAsync((TRequest) request, token);
+        public override Task<bool> SendAsync(object request, CancellationToken token = default) => SendAsync((TRequest) request, token);
 
         /// <summary>
         /// Serialize and sends data asynchronously to a connected <see cref="TcpClientIo{TRequest,TResponse}"/> object.
@@ -87,7 +87,7 @@ namespace Drenalol.Client
         }
 
         // ReSharper disable once MethodOverloadWithOptionalParameter
-        public override async Task<object> ReceiveAsyncBase(object responseId, CancellationToken token = default) => await ReceiveAsync(responseId, token);
+        public override async Task<object> ReceiveAsync(object responseId, CancellationToken token = default, bool skipMe = true) => await ReceiveAsync(responseId, token);
 
         /// <summary>
         /// Begins an asynchronous request to receive response associated with the specified responseId from a connected <see cref="TcpClientIo{TRequest,TResponse}"/> object.
@@ -125,7 +125,8 @@ namespace Drenalol.Client
         }
 
 #if NETSTANDARD2_1
-        public override IAsyncEnumerable<object> GetConsumingAsyncEnumerableBase(CancellationToken token = default) => GetConsumingAsyncEnumerable(token);
+        // ReSharper disable once MethodOverloadWithOptionalParameter
+        public override IAsyncEnumerable<object> GetConsumingAsyncEnumerable(CancellationToken token = default, bool skipMe = true) => GetConsumingAsyncEnumerable(token);
 
         /// <summary>Provides a consuming <see cref="T:System.Collections.Generics.IAsyncEnumerable{T}"/> for <see cref="ITcpBatch{TResponse}"/> in the collection.
         /// Calling MoveNextAsync on the returned enumerable will block if there is no data available, or will
@@ -206,7 +207,8 @@ namespace Drenalol.Client
             internalCts?.Dispose();
         }
 
-        public override IAsyncEnumerable<object> GetExpandableConsumingAsyncEnumerableBase(CancellationToken token = default) => (IAsyncEnumerable<object>) GetExpandableConsumingAsyncEnumerable(token);
+        // ReSharper disable once MethodOverloadWithOptionalParameter
+        public override IAsyncEnumerable<object> GetExpandableConsumingAsyncEnumerable(CancellationToken token = default, bool skipMe = true) => (IAsyncEnumerable<object>) GetExpandableConsumingAsyncEnumerable(token);
 
         /// <summary>Provides a consuming <see cref="T:System.Collections.Generics.IAsyncEnumerable{T}"/> for <see cref="TResponse"/> in the collection.
         /// Calling MoveNextAsync on the returned enumerable will block if there is no data available, or will

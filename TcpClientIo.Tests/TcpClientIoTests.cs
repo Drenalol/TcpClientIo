@@ -104,8 +104,8 @@ namespace Drenalol
 #endif
         }
 
-        [TestCase(100000, 1, 5)]
-        [TestCase(100000, 4, 5)]
+        [TestCase(1000, 1, 5)]
+        [TestCase(1000, 4, 5)]
         public void MultipleConsumersAsyncTest(int requests, int consumers, double timeout)
         {
             var requestsPerConsumer = requests / consumers;
@@ -167,8 +167,8 @@ namespace Drenalol
             TestContext.WriteLine($"BytesRead: {Math.Round(bytesRead / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
         }
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-        [TestCase(100000, true)]
-        [TestCase(100000, false)]
+        [TestCase(1000, true)]
+        [TestCase(1000, false)]
         public async Task ConsumingAsyncEnumerableTest(int requests, bool expandBatch)
         {
             var sended = 0;
