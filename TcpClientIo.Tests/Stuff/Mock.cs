@@ -5,7 +5,7 @@ using NUnit.Framework;
 
 namespace Drenalol.Stuff
 {
-    public struct Mock : IEquatable<Mock>
+    public class Mock : IEquatable<Mock>
     {
         [TcpData(0, 8, TcpDataType.Id)]
         [JsonIgnore]

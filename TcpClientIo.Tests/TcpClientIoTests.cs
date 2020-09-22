@@ -9,6 +9,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Drenalol.Abstractions;
+using Drenalol.Base;
 using Drenalol.Client;
 using Drenalol.Converters;
 using Drenalol.Stuff;
@@ -174,7 +175,7 @@ namespace Drenalol
             var sended = 0;
             var received = 0;
             var cts = new CancellationTokenSource();
-            var tcpClient = GetClient<Mock>();
+            TcpClientIo tcpClient = GetClient<Mock>();
 
             _ = Enumerable.Range(0, requests).Select(async i =>
             {
@@ -197,22 +198,23 @@ namespace Drenalol
             {
                 if (expandBatch)
                 {
-                    await foreach (var _ in tcpClient.GetExpandableConsumingAsyncEnumerable(cts.Token))
+                    await foreach (Mock _ in tcpClient.GetExpandableConsumingAsyncEnumerable(cts.Token))
                     {
                         Interlocked.Increment(ref received);
                     }
                 }
                 else
                 {
-                    await foreach (var _ in tcpClient.GetConsumingAsyncEnumerable(cts.Token))
+                    await foreach (ITcpBatch<Mock> _ in tcpClient.GetConsumingAsyncEnumerable(cts.Token))
                     {
                         Interlocked.Increment(ref received);
                     }
                 }
             }
-            catch (Exception)
+            catch (TaskCanceledException) {}
+            catch (Exception e)
             {
-                //
+                TestContext.WriteLine(e);
             }
             finally
             {

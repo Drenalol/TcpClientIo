@@ -52,24 +52,24 @@ namespace Drenalol.Client
         /// <summary>
         /// Gets the number of total bytes written to the <see cref="NetworkStream"/>.
         /// </summary>
-        public ulong BytesWrite { get; private set; }
+        public override ulong BytesWrite { get; set; }
         
         /// <summary>
         /// Gets the number of total bytes read from the <see cref="NetworkStream"/>.
         /// </summary>
-        public ulong BytesRead { get; private set; }
+        public override ulong BytesRead { get; set; }
 
         /// <summary>
         /// Gets the number of responses to receive or the number of responses ready to receive.
         /// <para> </para>
         /// WARNING! This property lock whole internal <see cref="ConcurrentDictionary{TKey,TValue}"/>, be careful of frequently use.
         /// </summary>
-        public int Waiters => _completeResponses.Count;
+        public override int Waiters => _completeResponses.Count;
 
         /// <summary>
         /// Gets the number of <see cref="TRequest"/> ready to send.
         /// </summary>
-        public int Requests => _bufferBlockRequests.Count;
+        public override int Requests => _bufferBlockRequests.Count;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TcpClientIo{TRequest,TResponse}"/> class and connects to the specified port on the specified host.

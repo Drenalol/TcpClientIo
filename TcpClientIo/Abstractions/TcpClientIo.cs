@@ -9,6 +9,13 @@ namespace Drenalol.Abstractions
     public abstract class TcpClientIo
     {
         public static readonly object Unassigned = new object();
+
+        public abstract ulong BytesWrite { get; set; }
+        public abstract ulong BytesRead { get; set; }
+
+        public abstract int Waiters { get; }
+        public abstract int Requests { get; }
+
         public abstract Task<bool> SendAsync(object request, CancellationToken token = default);
         public abstract Task<object> ReceiveAsync(object responseId, CancellationToken token = default, bool skipMe = true);
 #if NETSTANDARD2_1
