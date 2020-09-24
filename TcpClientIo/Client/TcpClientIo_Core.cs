@@ -84,7 +84,7 @@ namespace Drenalol.Client
         public ImmutableDictionary<object, object> GetWaiters()
             => _completeResponses
                 .ToArray()
-                .ToImmutableDictionary(pair => pair.Key, pair => (object) (pair.Value.Task.Status == TaskStatus.RanToCompletion ? pair.Value.Task : null));
+                .ToImmutableDictionary(pair => pair.Key, pair => (object) (pair.Value.Task.Status == TaskStatus.RanToCompletion ? pair.Value.Task.Result : null));
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TcpClientIo{TRequest,TResponse}"/> class and connects to the specified port on the specified host.
