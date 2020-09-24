@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO.Pipelines;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -28,6 +31,7 @@ namespace Drenalol.Client
     {
         [DebuggerNonUserCode]
         private Guid Id { get; }
+
         private readonly TcpClientIoOptions _options;
         private readonly CancellationTokenSource _baseCancellationTokenSource;
         private readonly CancellationToken _baseCancellationToken;
@@ -53,7 +57,7 @@ namespace Drenalol.Client
         /// Gets the number of total bytes written to the <see cref="NetworkStream"/>.
         /// </summary>
         public override ulong BytesWrite { get; set; }
-        
+
         /// <summary>
         /// Gets the number of total bytes read from the <see cref="NetworkStream"/>.
         /// </summary>
@@ -70,6 +74,17 @@ namespace Drenalol.Client
         /// Gets the number of <see cref="TRequest"/> ready to send.
         /// </summary>
         public override int Requests => _bufferBlockRequests.Count;
+
+        // ReSharper disable once MethodOverloadWithOptionalParameter
+        public override ImmutableDictionary<object, object> GetWaiters(bool skipMe = true) => GetWaiters();
+
+        /// <summary>
+        /// Gets an immutable snapshot of responses to receive (key, null) or responses ready to receive (key, <see cref="ITcpBatch{T}"/>).
+        /// </summary>
+        public ImmutableDictionary<object, object> GetWaiters()
+            => _completeResponses
+                .ToArray()
+                .ToImmutableDictionary(pair => pair.Key, pair => (object) (pair.Value.Task.Status == TaskStatus.RanToCompletion ? pair.Value.Task : null));
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TcpClientIo{TRequest,TResponse}"/> class and connects to the specified port on the specified host.
@@ -135,7 +150,7 @@ namespace Drenalol.Client
             Task.Run(TcpReadAsync, CancellationToken.None);
             Task.Run(DeserializeResponseAsync, CancellationToken.None);
         }
-        
+
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
         public override async ValueTask DisposeAsync()
 #else
@@ -144,7 +159,7 @@ namespace Drenalol.Client
         {
             _logger?.LogInformation("Dispose started");
             _disposing = true;
-            
+
             if (_baseCancellationTokenSource != null && !_baseCancellationTokenSource.IsCancellationRequested)
                 _baseCancellationTokenSource.Cancel();
 
@@ -156,12 +171,12 @@ namespace Drenalol.Client
 #else
                 _writeResetEvent.Wait(token);
 #endif
-                
+
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
                 await _readResetEvent.WaitAsync(token);
 #else
                 _readResetEvent.Wait(token);
-#endif                
+#endif
             }
 
             _baseCancellationTokenSource?.Dispose();

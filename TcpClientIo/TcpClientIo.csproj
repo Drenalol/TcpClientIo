@@ -6,16 +6,15 @@
         <Authors>Bogdan Yanysh</Authors>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageId>TcpClientIo</PackageId>
-        <Version>1.1.1</Version>
-        <PackageVersion>1.1.1</PackageVersion>
+        <Version>1.2.0-beta</Version>
+        <PackageVersion>1.2.0-beta</PackageVersion>
         <PackageTags>TcpClient;TcpListener;Tcp;Serialization;Pipelines;Dataflow;Async;Threadsafe</PackageTags>
         <Description>Wrapper of TcpClient what help focus on WHAT you transfer over TCP not HOW
-
-            - Thread-safe
-            - Serialization with attribute schema
-            - Big/Little endian
-            - Async
-            - Cancellation support</Description>
+ - Thread-safe
+ - Serialization with attribute schema
+ - Big/Little endian
+ - Async
+ - Cancellation support</Description>
         <PackageProjectUrl>https://github.com/Drenalol/TcpClientIo</PackageProjectUrl>
         <RepositoryUrl>https://github.com/Drenalol/TcpClientIo</RepositoryUrl>
         <RepositoryType>git</RepositoryType>

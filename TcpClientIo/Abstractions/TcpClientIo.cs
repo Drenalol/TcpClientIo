@@ -1,6 +1,7 @@
 #if NETSTANDARD2_1
 using System.Collections.Generic;
 #endif
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -15,6 +16,8 @@ namespace Drenalol.Abstractions
 
         public abstract int Waiters { get; }
         public abstract int Requests { get; }
+
+        public abstract ImmutableDictionary<object, object> GetWaiters(bool skipMe = true);
 
         public abstract Task<bool> SendAsync(object request, CancellationToken token = default);
         public abstract Task<object> ReceiveAsync(object responseId, CancellationToken token = default, bool skipMe = true);
