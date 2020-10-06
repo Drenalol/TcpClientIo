@@ -4,7 +4,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TcpClientIo.Core", "TcpClie
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TcpClientIo.Tests", "TcpClientIo.Tests\TcpClientIo.Tests.csproj", "{07F8A424-1F99-4CF4-97FF-635EDADC9904}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TcpClientIo.Serialization", "TcpClientIo.Serialization\TcpClientIo.Serialization.csproj", "{12A6E91B-3DFD-4957-92C1-F2F96D6A4824}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TcpClientIo.TcpSerialization", "TcpClientIo.TcpSerialization\TcpClientIo.TcpSerialization.csproj", "{12A6E91B-3DFD-4957-92C1-F2F96D6A4824}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TcpClientIo.Converters", "TcpClientIo.Converters\TcpClientIo.Converters.csproj", "{92306E4A-88B7-40CD-AA5B-AA8169CB6801}"
 EndProject

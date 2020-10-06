@@ -35,17 +35,11 @@
     </ItemGroup>
     
     <ItemGroup>
-        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-            <_Parameter1>$(MSBuildProjectName).*</_Parameter1>
-        </AssemblyAttribute>
-    </ItemGroup>
-    
-    <ItemGroup>
       <ProjectReference Include="..\TcpClientIo.Abstractions\TcpClientIo.Abstractions.csproj" />
       <ProjectReference Include="..\TcpClientIo.Converters\TcpClientIo.Converters.csproj" />
       <ProjectReference Include="..\TcpClientIo.Options\TcpClientIo.Options.csproj" />
-      <ProjectReference Include="..\TcpClientIo.Serialization\TcpClientIo.Serialization.csproj" />
       <ProjectReference Include="..\TcpClientIo.TcpBatches\TcpClientIo.TcpBatches.csproj" />
+      <ProjectReference Include="..\TcpClientIo.TcpSerialization\TcpClientIo.TcpSerialization.csproj" />
     </ItemGroup>
 
 </Project>
