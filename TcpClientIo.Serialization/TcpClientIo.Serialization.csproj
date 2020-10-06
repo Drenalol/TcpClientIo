@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>netstandard2.1;netstandard2.0;</TargetFrameworks>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\TcpClientIo.Abstractions\TcpClientIo.Abstractions.csproj" />
+      <ProjectReference Include="..\TcpClientIo.Converters\TcpClientIo.Converters.csproj" />
+      <ProjectReference Include="..\TcpClientIo.Exceptions\TcpClientIo.Exceptions.csproj" />
+      <ProjectReference Include="..\TcpClientIo.Extensions\TcpClientIo.Extensions.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="System.Collections.Immutable" Version="1.4.0" />
+    </ItemGroup>
+
+</Project>

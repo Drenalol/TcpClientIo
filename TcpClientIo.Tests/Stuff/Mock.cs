@@ -1,7 +1,7 @@
 ﻿using System;
-using Drenalol.Attributes;
 using Newtonsoft.Json;
 using NUnit.Framework;
+using TcpClientIo.Attributes;
 
 namespace Drenalol.Stuff
 {
