@@ -125,17 +125,15 @@ namespace TcpClientIo.Serialization
 
             while (properties.TryGetValue(key, out var property))
             {
-                var sliceLength = 0;
+                int sliceLength;
 
                 switch (property.Attribute.TcpDataType)
                 {
-                    case TcpDataType.Id:
-                    case TcpDataType.BodyLength:
-                    case TcpDataType.MetaData:
-                        sliceLength = property.Attribute.Length;
-                        break;
                     case TcpDataType.Body:
                         sliceLength = tcpBodyLength;
+                        break;
+                    default:
+                        sliceLength = property.Attribute.Length;
                         break;
                 }
 
