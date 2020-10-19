@@ -1,6 +1,6 @@
 using System;
 
-namespace TcpClientIo.Attributes
+namespace Drenalol.TcpClientIo
 {
     [AttributeUsage(AttributeTargets.Property)]
     public class TcpDataAttribute : Attribute

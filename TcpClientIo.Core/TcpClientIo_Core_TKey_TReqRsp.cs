@@ -2,9 +2,8 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
-using TcpClientIo.Options;
 
-namespace Drenalol
+namespace Drenalol.TcpClientIo
 {
     /// <summary>
     /// <inheritdoc cref="TcpClientIo{TRequest,TResponse}"/>

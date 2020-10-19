@@ -2,7 +2,7 @@
 using System.Net;
 using Newtonsoft.Json;
 
-namespace Drenalol.Stuff
+namespace Drenalol.TcpClientIo.Stuff
 {
     public class JsonConverterIpAddress : JsonConverter<IPAddress>
     {

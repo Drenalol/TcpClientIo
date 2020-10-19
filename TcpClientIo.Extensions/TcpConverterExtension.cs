@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Immutable;
-using TcpClientIo.Converters;
 
-namespace TcpClientIo.Extensions
+namespace Drenalol.TcpClientIo
 {
     public static class TcpConverterExtension
     {

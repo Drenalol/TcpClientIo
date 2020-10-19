@@ -8,15 +8,11 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Drenalol.Stuff;
+using Drenalol.TcpClientIo.Stuff;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
-using TcpClientIo.Abstractions;
-using TcpClientIo.Converters;
-using TcpClientIo.Options;
-using TcpClientIo.TcpBatchRules;
 
-namespace Drenalol
+namespace Drenalol.TcpClientIo
 {
     [TestFixture(TestOf = typeof(TcpClientIo<,>))]
     public class TcpClientIoTests

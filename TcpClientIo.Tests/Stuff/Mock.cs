@@ -1,9 +1,8 @@
 ﻿using System;
 using Newtonsoft.Json;
 using NUnit.Framework;
-using TcpClientIo.Attributes;
 
-namespace Drenalol.Stuff
+namespace Drenalol.TcpClientIo.Stuff
 {
     public class Mock : IEquatable<Mock>
     {

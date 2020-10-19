@@ -1,4 +1,4 @@
-namespace TcpClientIo.Attributes
+namespace Drenalol.TcpClientIo
 {
     public enum TcpDataType
     {

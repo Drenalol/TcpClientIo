@@ -1,9 +1,8 @@
 using System.Collections.Generic;
 using System.IO.Pipelines;
 using System.Net.Sockets;
-using TcpClientIo.Converters;
 
-namespace TcpClientIo.Options
+namespace Drenalol.TcpClientIo
 {
     /// <summary>
     /// Options for the TcpClientIo.Core

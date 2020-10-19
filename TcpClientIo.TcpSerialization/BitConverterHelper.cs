@@ -2,11 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Reflection;
-using TcpClientIo.Converters;
-using TcpClientIo.Exceptions;
-using TcpClientIo.Extensions;
 
-namespace TcpClientIo.Serialization
+namespace Drenalol.TcpClientIo
 {
     public class BitConverterHelper
     {

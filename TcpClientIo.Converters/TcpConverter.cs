@@ -1,6 +1,6 @@
 using System;
 
-namespace TcpClientIo.Converters
+namespace Drenalol.TcpClientIo
 {
     public abstract class TcpConverter
     {

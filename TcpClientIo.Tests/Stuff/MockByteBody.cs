@@ -1,6 +1,4 @@
-using TcpClientIo.Attributes;
-
-namespace Drenalol.Stuff
+namespace Drenalol.TcpClientIo.Stuff
 {
     public struct MockByteBody
     {

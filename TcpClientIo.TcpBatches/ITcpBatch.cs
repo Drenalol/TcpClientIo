@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace TcpClientIo.TcpBatchRules
+namespace Drenalol.TcpClientIo
 {
     /// <summary>
     /// Batch of responses of the specified Id.

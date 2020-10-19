@@ -6,13 +6,8 @@ using System.IO.Pipelines;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using TcpClientIo.Abstractions;
-using TcpClientIo.Attributes;
-using TcpClientIo.Converters;
-using TcpClientIo.Exceptions;
-using TcpClientIo.Extensions;
 
-namespace TcpClientIo.Serialization
+namespace Drenalol.TcpClientIo
 {
     public class TcpSerializer<TRequest, TResponse> where TResponse : new()
     {

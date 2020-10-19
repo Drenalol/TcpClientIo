@@ -1,6 +1,6 @@
 using System;
 
-namespace TcpClientIo.Exceptions
+namespace Drenalol.TcpClientIo
 {
     public class TcpClientIoException : Exception
     {

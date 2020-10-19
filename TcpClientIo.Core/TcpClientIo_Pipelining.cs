@@ -4,9 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.Logging;
-using TcpClientIo.TcpBatchRules;
 
-namespace Drenalol
+namespace Drenalol.TcpClientIo
 {
     public partial class TcpClientIo<TRequest, TResponse>
     {

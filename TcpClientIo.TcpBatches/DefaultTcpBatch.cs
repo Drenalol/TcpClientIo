@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 
-namespace TcpClientIo.TcpBatchRules
+namespace Drenalol.TcpClientIo
 {
     /// <summary>
     /// Default TcpBatch instance

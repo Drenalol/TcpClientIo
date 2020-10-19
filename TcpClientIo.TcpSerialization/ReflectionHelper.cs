@@ -2,10 +2,8 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
-using TcpClientIo.Attributes;
-using TcpClientIo.Exceptions;
 
-namespace TcpClientIo.Serialization
+namespace Drenalol.TcpClientIo
 {
     public class ReflectionHelper<TRequest, TResponse>
     {

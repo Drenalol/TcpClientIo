@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO.Pipelines;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -12,12 +10,8 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
-using TcpClientIo.Abstractions;
-using TcpClientIo.Options;
-using TcpClientIo.Serialization;
-using TcpClientIo.TcpBatchRules;
 
-namespace Drenalol
+namespace Drenalol.TcpClientIo
 {
     /// <summary>
     /// Wrapper of TcpClient what help focus on WHAT you transfer over TCP, not HOW

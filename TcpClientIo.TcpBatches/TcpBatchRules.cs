@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TcpClientIo.TcpBatchRules
+namespace Drenalol.TcpClientIo
 {
     /// <summary>
     /// TcpBatch creation or update rules

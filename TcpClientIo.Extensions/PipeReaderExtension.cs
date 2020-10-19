@@ -4,7 +4,7 @@ using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace TcpClientIo.Extensions
+namespace Drenalol.TcpClientIo
 {
     public static class PipeReaderExtension
     {

@@ -1,4 +1,4 @@
-namespace TcpClientIo.Exceptions
+namespace Drenalol.TcpClientIo
 {
     public enum TcpTypeException
     {

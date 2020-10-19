@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace TcpClientIo.Converters
+namespace Drenalol.TcpClientIo
 {
     public class TcpUtf8StringConverter : TcpConverter<string>
     {

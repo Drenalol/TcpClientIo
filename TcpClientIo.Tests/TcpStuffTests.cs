@@ -7,14 +7,10 @@ using System.IO.Pipelines;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Drenalol.Stuff;
+using Drenalol.TcpClientIo.Stuff;
 using NUnit.Framework;
-using TcpClientIo.Attributes;
-using TcpClientIo.Converters;
-using TcpClientIo.Exceptions;
-using TcpClientIo.Serialization;
 
-namespace Drenalol
+namespace Drenalol.TcpClientIo
 {
     public class TcpStuffTests
     {

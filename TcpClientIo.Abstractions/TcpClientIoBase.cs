@@ -1,11 +1,11 @@
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 #if NETSTANDARD2_1
-using System.Collections.Generic;
 #endif
-using System.Collections.Immutable;
 
-namespace TcpClientIo.Abstractions
+namespace Drenalol.TcpClientIo
 {
     public abstract class TcpClientIoBase
     {

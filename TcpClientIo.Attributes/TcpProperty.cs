@@ -4,7 +4,7 @@
 using System;
 using System.Reflection;
 
-namespace TcpClientIo.Attributes
+namespace Drenalol.TcpClientIo
 {
     public class TcpProperty
     {
