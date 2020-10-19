@@ -4,8 +4,6 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 #endif
 using System.Collections.Immutable;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace TcpClientIo.Abstractions
 {

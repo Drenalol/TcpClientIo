@@ -215,7 +215,8 @@ var options = new TcpClientIoOptions
 var tcpClient = new TcpClientIo<Request, Response>(IPAddress.Any, 10000, options);
 ```
 ## Dependencies
-* [Microsoft.Extensions.Logging.Abstractions](https://github.com/dotnet/extensions#package-list)
 * [AsyncEx](https://github.com/StephenCleary/AsyncEx)
+* [Microsoft.Extensions.Logging.Abstractions](https://github.com/dotnet/extensions#package-list)
 * [System.IO.Pipelines](https://github.com/dotnet/runtime/tree/master/src/libraries/System.IO.Pipelines)
 * [System.Threading.Tasks.Dataflow](https://github.com/dotnet/runtime/tree/master/src/libraries/System.Threading.Tasks.Dataflow)
+* [System.Collections.Immutable](https://github.com/dotnet/runtime/tree/master/src/libraries/System.Collections.Immutable)
