@@ -65,7 +65,7 @@ namespace Drenalol.TcpClientIo.Stuff
             Data == other.Data;
 
         public override bool Equals(object obj) => obj is Mock other && Equals(other);
-        
+
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
         public override int GetHashCode()
         {

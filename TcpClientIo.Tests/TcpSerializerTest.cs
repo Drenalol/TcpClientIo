@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
+using System.IO.Pipelines;
+using System.Threading;
+using System.Threading.Tasks;
 using Drenalol.TcpClientIo.Stuff;
 using NUnit.Framework;
 
@@ -8,6 +12,20 @@ namespace Drenalol.TcpClientIo
 {
     public class TcpSerializerTest
     {
+        [Test]
+        public async Task SerializeDeserializeTest()
+        {
+            var ethalon = TcpClientIoTests.Mocks[123];
+            const int ethalonBodyLength = 17238;
+            const int ethalonHeaderLength = 270;
+            
+            var serializer = new TcpSerializer<Mock, Mock>(new List<TcpConverter> {new TcpUtf8StringConverter()});
+            var serialize = serializer.Serialize(ethalon);
+            Assert.IsTrue(serialize.Length == ethalonBodyLength + ethalonHeaderLength);
+            var (_, _, deserialize) = await serializer.DeserializeAsync(PipeReader.Create(new MemoryStream(serialize)), CancellationToken.None);
+            Assert.IsTrue(ethalon.Equals(deserialize));
+        }
+
         [Test]
         public void NotFoundConverterExceptionTest()
         {

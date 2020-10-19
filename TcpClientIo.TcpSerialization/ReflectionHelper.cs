@@ -40,7 +40,7 @@ namespace Drenalol.TcpClientIo
                 (from property in type.GetProperties()
                     let attribute = GetTcpDataAttribute(property)
                     where attribute != null
-                    select new TcpProperty(property, attribute, type.IsValueType))
+                    select new TcpProperty(property, attribute, type))
                 .ToImmutableDictionary(key => key.Attribute.Index, property => property);
 
             TcpDataAttribute GetTcpDataAttribute(ICustomAttributeProvider property)

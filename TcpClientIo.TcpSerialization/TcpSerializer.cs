@@ -48,37 +48,34 @@ namespace Drenalol.TcpClientIo
             var examined = 0;
 
             var properties = _reflectionHelper.GetRequestProperties();
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-            var (_, bodyValue) = properties.SingleOrDefault(p => p.Value.Attribute.TcpDataType == TcpDataType.Body);
-#else
-            var bodyProperty = properties.SingleOrDefault(p => p.Value.Attribute.TcpDataType == TcpDataType.Body);
-            var bodyValue = bodyProperty.Value;
-#endif
-            
-            if (bodyValue != null)
-            {
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-                var (_, bodyLengthValue) = properties.SingleOrDefault(p => p.Value.Attribute.TcpDataType == TcpDataType.BodyLength);
-#else
-                var bodyLengthProperty = properties.SingleOrDefault(p => p.Value.Attribute.TcpDataType == TcpDataType.BodyLength);
-                var bodyLengthValue = bodyLengthProperty.Value;
-#endif
+            var bodyProperty = properties.SingleOrDefault(p => p.Value.Attribute.TcpDataType == TcpDataType.Body).Value;
 
-                if (bodyValue.PropertyType == typeof(byte[]))
+            if (bodyProperty != null)
+            {
+                var bodyLengthProperty = properties.SingleOrDefault(p => p.Value.Attribute.TcpDataType == TcpDataType.BodyLength).Value;
+
+                if (bodyProperty.PropertyType == typeof(byte[]))
                 {
-                    var bytes = (byte[]) bodyValue.Get(request);
-                    serializedBody = bodyValue.Attribute.Reverse ? _bitConverterHelper.Reverse(bytes) : bytes;
+                    var bodyBytes = (byte[]) bodyProperty.Get(request);
+                    serializedBody = bodyProperty.Attribute.Reverse ? _bitConverterHelper.Reverse(bodyBytes) : bodyBytes;
                 }
                 else
-                    serializedBody = _bitConverterHelper.ConvertToBytes(bodyValue.Get(request), bodyValue.PropertyType, bodyValue.Attribute.Reverse);
+                {
+                    var bodyValue = bodyProperty.Get(request);
+                    serializedBody = _bitConverterHelper.ConvertToBytes(bodyValue, bodyProperty.PropertyType, bodyProperty.Attribute.Reverse);
+                }
 
                 if (serializedBody == null)
                     throw TcpException.Throw(TcpTypeException.SerializerBodyIsEmpty);
 
-                if (bodyLengthValue.IsValueType)
-                    request = (TRequest) bodyLengthValue.SetInValueType(request, bodyLengthValue.PropertyType == typeof(int) ? serializedBody.Length : Convert.ChangeType(serializedBody.Length, bodyLengthValue.PropertyType));
+                var lengthValue = bodyLengthProperty.PropertyType == typeof(int)
+                    ? serializedBody.Length
+                    : Convert.ChangeType(serializedBody.Length, bodyLengthProperty.PropertyType);
+                
+                if (bodyLengthProperty.IsValueType)
+                    request = (TRequest) bodyLengthProperty.Set(request, lengthValue);
                 else
-                    bodyLengthValue.SetInClass(request, bodyLengthValue.PropertyType == typeof(int) ? serializedBody.Length : Convert.ChangeType(serializedBody.Length, bodyLengthValue.PropertyType));
+                    bodyLengthProperty.Set(request, lengthValue);
             }
 
             while (properties.TryGetValue(key, out var property))
@@ -101,10 +98,10 @@ namespace Drenalol.TcpClientIo
                 key += attributeLength;
                 examined++;
                 Trace.WriteLine($"Serialize property {property.Attribute.TcpDataType.ToString()} Index: {property.Attribute.Index.ToString()} {valueLength.ToString()}/{property.Attribute.Length.ToString()} bytes");
+                
+                if (examined == properties.Count)
+                    break;
             }
-
-            if (examined != properties.Count)
-                throw TcpException.Throw(TcpTypeException.SerializerSequenceViolated);
 
             return serializedRequest;
         }
@@ -117,7 +114,7 @@ namespace Drenalol.TcpClientIo
             object tcpId = null;
             var tcpBodyLength = 0;
             var properties = _reflectionHelper.GetResponseProperties();
-
+            
             while (properties.TryGetValue(key, out var property))
             {
                 int sliceLength;
@@ -156,17 +153,17 @@ namespace Drenalol.TcpClientIo
                 }
 
                 if (property.IsValueType)
-                    response = (TResponse) property.SetInValueType(response, value);
+                    response = (TResponse) property.Set(response, value);
                 else
-                    property.SetInClass(response, value);
+                    property.Set(response, value);
 
                 key += sliceLength;
                 examined++;
                 Trace.WriteLine($"Deserialize property {property.Attribute.TcpDataType.ToString()} Index: {property.Attribute.Index.ToString()} {sliceLength.ToString()}/{property.Attribute.Length.ToString()} bytes");
-            }
 
-            if (examined != properties.Count)
-                throw TcpException.Throw(TcpTypeException.SerializerSequenceViolated);
+                if (examined == properties.Count)
+                    break;
+            }
 
             return (tcpId ?? TcpClientIoBase.Unassigned, tcpBodyLength, response);
         }

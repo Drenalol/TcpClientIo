@@ -24,6 +24,7 @@ namespace Drenalol.TcpClientIo
         /// <summary>
         /// Sets the property type for the serializer.
         /// </summary>
+        [Obsolete]
         public Type Type { get; set; }
         
         /// <summary>

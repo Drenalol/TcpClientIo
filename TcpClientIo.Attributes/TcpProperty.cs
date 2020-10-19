@@ -1,46 +1,33 @@
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-#nullable enable
-#endif
 using System;
 using System.Reflection;
+using FastMember;
 
 namespace Drenalol.TcpClientIo
 {
     public class TcpProperty
     {
-        public readonly bool IsValueType;
-        private PropertyInfo Property { get; }
+        private readonly TypeAccessor _accessor;
+        private readonly PropertyInfo _propertyInfo;
+
         public TcpDataAttribute Attribute { get; }
-        public Type PropertyType { get; }
+        public bool IsValueType { get; }
+        public Type PropertyType => _propertyInfo.PropertyType;
+        public bool CanReadWrite => _propertyInfo.CanRead && _propertyInfo.CanWrite;
 
-        public TcpProperty(PropertyInfo property, TcpDataAttribute attribute, bool isValueType)
+        public TcpProperty(PropertyInfo propertyInfo, TcpDataAttribute attribute, Type accessorType)
         {
-            IsValueType = isValueType;
-            Property = property;
             Attribute = attribute;
-            PropertyType = attribute.Type ?? property.PropertyType;
+            IsValueType = accessorType.IsValueType;
+            _propertyInfo = propertyInfo;
+            _accessor = TypeAccessor.Create(accessorType);
         }
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-        public object? Get(object? input) => Property.GetValue(input);
-#else
-        public object Get(object input) => Property.GetValue(input);
-#endif
 
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-        public object? SetInValueType(object? input, object? @object)
-#else
-        public object SetInValueType(object input, object @object)
-#endif
+        public object Get(object input) => _accessor[input, _propertyInfo.Name];
+
+        public object Set(object input, object value)
         {
-            Property.SetValue(input, @object);
+            _accessor[input, _propertyInfo.Name] = value;
             return input;
         }
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-            public void SetInClass(object? input, object? @object) => Property.SetValue(input, @object);
-#else
-            public void SetInClass(object input, object @object) => Property.SetValue(input, @object);
-#endif
-
-        public bool CanReadWrite => Property.CanRead && Property.CanWrite;
     }
 }
