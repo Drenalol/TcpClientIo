@@ -1,0 +1,44 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using Drenalol.TcpClientIo.Stuff;
+using NUnit.Framework;
+
+namespace Drenalol.TcpClientIo
+{
+    public class TcpSerializerTest
+    {
+        [Test]
+        public void NotFoundConverterExceptionTest()
+        {
+            var serializer = new TcpSerializer<Mock, Mock>(new List<TcpConverter>());
+            var mock = TcpClientIoTests.Mocks[123];
+            Assert.Catch<TcpException>(() => serializer.Serialize(mock));
+        }
+
+        [TestCase(true, 1, false)]
+        [TestCase('c', 2, false)]
+        [TestCase(1234.0, 8, false)]
+        [TestCase((short) 1234, 2, false)]
+        [TestCase(1234, 4, false)]
+        [TestCase(1234L, 8, true)]
+        [TestCase(1234F, 4, false)]
+        [TestCase((ushort) 1234, 2, false)]
+        [TestCase(1234U, 4, true)]
+        [TestCase(1234UL, 8, true)]
+        public void BitConverterToBytesTest(object obj, int expected, bool reverse)
+        {
+            var converter = new BitConverterHelper(ImmutableDictionary<Type, TcpConverter>.Empty);
+            Assert.That(converter.ConvertToBytes(obj, obj.GetType()).Length == expected, "converter.ConvertToBytes(obj, obj.GetType()).Length == expected");
+        }
+
+        [TestCase(new byte[] {25, 75}, typeof(short), false)]
+        [TestCase(new byte[] {0, 1, 2, 5}, typeof(int), false)]
+        [TestCase(new byte[] {0, 1, 2, 3, 4, 5, 6, 7}, typeof(long), false)]
+        public void BitConverterFromBytesTest(byte[] bytes, Type type, bool reverse)
+        {
+            var converter = new BitConverterHelper(ImmutableDictionary<Type, TcpConverter>.Empty);
+            Assert.That(converter.ConvertFromBytes(bytes, type, reverse).GetType() == type, "converter.ConvertFromBytes(bytes, type, reverse).GetType() == type");
+        }
+    }
+}

@@ -18,7 +18,7 @@ namespace Drenalol.TcpClientIo
     public class TcpClientIoTests
     {
         public static readonly IPAddress IpAddress = Dns.GetHostAddresses("yanysh.com")[0];// IPAddress.Any;
-        public static ImmutableList<Mock> Mocks;
+        public static ImmutableList<Mock> Mocks = JsonExt.Deserialize<List<Mock>>(File.ReadAllText("MOCK_DATA_1000")).ToImmutableList();
 
         private static (TcpClientIoOptions, ILoggerFactory) GetDefaults(LogLevel logLevel)
         {
@@ -54,12 +54,6 @@ namespace Drenalol.TcpClientIo
         {
             var (options, loggerFactory) = GetDefaults(logLevel);
             return new TcpClientIo<T, TR>(ipAddress ?? IpAddress, 10000, options, loggerFactory.CreateLogger<TcpClientIo<T, TR>>());
-        }
-
-        [OneTimeSetUp]
-        public void Load()
-        {
-            Mocks = JsonExt.Deserialize<List<Mock>>(File.ReadAllText("MOCK_DATA_1000")).ToImmutableList();
         }
 
         [Test]
