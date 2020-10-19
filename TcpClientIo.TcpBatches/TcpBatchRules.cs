@@ -8,15 +8,18 @@ namespace TcpClientIo.TcpBatchRules
     public class TcpBatchRules<TResponse>
     {
         /// <summary>
-        /// 
+        /// Creating rule of <see cref="ITcpBatch{T}"/>
         /// </summary>
         public Func<object, TResponse, ITcpBatch<TResponse>> Create { get; set; }
 
         /// <summary>
-        /// 
+        /// Update rule of <see cref="ITcpBatch{T}"/> 
         /// </summary>
         public Func<ITcpBatch<TResponse>, TResponse, ITcpBatch<TResponse>> Update { get; set; }
 
+        /// <summary>
+        /// Default rules for Create and Update
+        /// </summary>
         public static TcpBatchRules<TResponse> Default => new TcpBatchRules<TResponse>
         {
             Create = (objectId, response) =>

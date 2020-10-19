@@ -3,6 +3,10 @@ using System.Collections.Generic;
 
 namespace TcpClientIo.TcpBatchRules
 {
+    /// <summary>
+    /// Default TcpBatch instance
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public sealed class DefaultTcpBatch<T> : ITcpBatch<T>
     {
         private readonly IList<T> _internalList;
