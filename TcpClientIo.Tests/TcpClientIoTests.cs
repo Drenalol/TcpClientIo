@@ -8,13 +8,13 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Drenalol.Abstractions;
-using Drenalol.Base;
-using Drenalol.Client;
-using Drenalol.Converters;
 using Drenalol.Stuff;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using TcpClientIo.Abstractions;
+using TcpClientIo.Converters;
+using TcpClientIo.Options;
+using TcpClientIo.TcpBatchRules;
 
 namespace Drenalol
 {
@@ -40,7 +40,7 @@ namespace Drenalol
 
             var loggerFactory = LoggerFactory.Create(lb =>
             {
-                lb.AddFilter("Drenalol.Client.TcpClientIo", logLevel);
+                lb.AddFilter("Drenalol.Client.TcpClientIo.Core", logLevel);
                 lb.AddDebug();
                 lb.AddConsole();
             });
@@ -175,7 +175,7 @@ namespace Drenalol
             var sended = 0;
             var received = 0;
             var cts = new CancellationTokenSource();
-            TcpClientIo tcpClient = GetClient<Mock>();
+            TcpClientIoBase tcpClient = GetClient<Mock>();
 
             _ = Enumerable.Range(0, requests).Select(async i =>
             {
@@ -236,7 +236,7 @@ namespace Drenalol
                 Body = "Qwerty!"
             };
             await client.SendAsync(mock);
-            var batch = await client.ReceiveAsync(TcpClientIo.Unassigned);
+            var batch = await client.ReceiveAsync(TcpClientIoBase.Unassigned);
             var response = batch.First();
         }
 

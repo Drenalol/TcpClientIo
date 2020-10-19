@@ -22,7 +22,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\TcpClientIo\TcpClientIo.csproj" />
+      <ProjectReference Include="..\TcpClientIo.Core\TcpClientIo.Core.csproj" />
     </ItemGroup>
 
 </Project>
