@@ -6,7 +6,7 @@
         <Authors>Bogdan Yanysh</Authors>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageId>TcpClientIo</PackageId>
-        <PackageVersion>1.2.0-beta.3</PackageVersion>
+        <PackageVersion>1.2.0-beta.4</PackageVersion>
         <PackageTags>TcpClient;TcpListener;Tcp;Serialization;Pipelines;Dataflow;Async;Threadsafe</PackageTags>
         <Description>Wrapper of TcpClient what help focus on WHAT you transfer over TCP not HOW
  - Thread-safe
