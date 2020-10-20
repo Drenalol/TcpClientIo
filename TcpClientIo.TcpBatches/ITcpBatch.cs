@@ -5,13 +5,14 @@ namespace Drenalol.TcpClientIo
     /// <summary>
     /// Batch of responses of the specified Id.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <returns><see cref="ITcpBatch{T}"/></returns>
-    public interface ITcpBatch<T> : IEnumerable<T>
+    /// <typeparam name="TId"></typeparam>
+    /// <typeparam name="TResponse"></typeparam>
+    /// <returns><see cref="ITcpBatch{TId, TResponse}"/></returns>
+    public interface ITcpBatch<out TId, TResponse> : IEnumerable<TResponse>
     {
-        object Id { get; }
+        TId Id { get; }
         int Count { get; }
 
-        void Update(T response);
+        void Update(TResponse response);
     }
 }

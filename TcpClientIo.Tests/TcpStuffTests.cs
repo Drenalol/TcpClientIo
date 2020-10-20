@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
@@ -69,34 +68,38 @@ namespace Drenalol.TcpClientIo
             Assert.Catch(typeof(TcpException), () => new ReflectionHelper<KeyDoesNotHaveSetter, KeyDoesNotHaveSetter>());
         }
 
-        [Test]
-        public async Task AttributeMockSerializeDeserializeTest()
+        [TestCase(10000, false)]
+        [TestCase(10000, true)]
+        public async Task AttributeMockSerializeDeserializeTest(int count,bool useParallel)
         {
-            var index = 0;
-            var serializer = new TcpSerializer<AttributeMockSerialize, AttributeMockSerialize>(new List<TcpConverter>
+            var serializer = new TcpSerializer<uint, AttributeMockSerialize, AttributeMockSerialize>(new List<TcpConverter>
             {
                 new TcpUtf8StringConverter(),
                 new TcpDateTimeConverter()
             });
-            var tasks = Enumerable.Range(0, 1000).Select(i => Task.Run(() =>
+
+            var mock = new AttributeMockSerialize
             {
-                var mock = new AttributeMockSerialize
-                {
-                    Id = TestContext.CurrentContext.Random.NextUInt(),
-                    DateTime = DateTime.Now.AddSeconds(TestContext.CurrentContext.Random.NextUInt()),
-                    LongNumbers = TestContext.CurrentContext.Random.NextULong(),
-                    IntNumbers = TestContext.CurrentContext.Random.NextUInt()
-                };
-                mock.BuildBody();
-                Interlocked.Increment(ref index);
-                Debug.WriteLine($"{index.ToString()}: {mock.Size.ToString()} bytes");
-                var serialize = serializer.Serialize(mock);
-                Assert.IsNotEmpty(serialize);
-                var deserialize = serializer.DeserializeAsync(PipeReader.Create(new MemoryStream(serialize)), CancellationToken.None).Result;
-                Assert.NotNull(deserialize);
-            })).ToArray();
+                Id = TestContext.CurrentContext.Random.NextUInt(),
+                DateTime = DateTime.Now.AddSeconds(TestContext.CurrentContext.Random.NextUInt()),
+                LongNumbers = TestContext.CurrentContext.Random.NextULong(),
+                IntNumbers = TestContext.CurrentContext.Random.NextUInt()
+            };
+
+            mock.BuildBody();
+
+            var enumerable = Enumerable.Range(0, count);
+
+            var tasks = (useParallel ? enumerable.AsParallel().Select(Selector) : enumerable.Select(Selector)).ToArray();
 
             await Task.WhenAll(tasks);
+            
+            Task Selector(int i) =>
+                Task.Run(() =>
+                {
+                    var serialize = serializer.Serialize(mock);
+                    _ = serializer.DeserializeAsync(PipeReader.Create(new MemoryStream(serialize)), CancellationToken.None).Result;
+                });
         }
 
         [Test]

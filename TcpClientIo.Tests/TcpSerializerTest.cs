@@ -19,7 +19,7 @@ namespace Drenalol.TcpClientIo
             const int ethalonBodyLength = 17238;
             const int ethalonHeaderLength = 270;
             
-            var serializer = new TcpSerializer<Mock, Mock>(new List<TcpConverter> {new TcpUtf8StringConverter()});
+            var serializer = new TcpSerializer<long, Mock, Mock>(new List<TcpConverter> {new TcpUtf8StringConverter()});
             var serialize = serializer.Serialize(ethalon);
             Assert.IsTrue(serialize.Length == ethalonBodyLength + ethalonHeaderLength);
             var (_, _, deserialize) = await serializer.DeserializeAsync(PipeReader.Create(new MemoryStream(serialize)), CancellationToken.None);
@@ -29,7 +29,7 @@ namespace Drenalol.TcpClientIo
         [Test]
         public void NotFoundConverterExceptionTest()
         {
-            var serializer = new TcpSerializer<Mock, Mock>(new List<TcpConverter>());
+            var serializer = new TcpSerializer<long, Mock, Mock>(new List<TcpConverter>());
             var mock = TcpClientIoTests.Mocks[123];
             Assert.Catch<TcpException>(() => serializer.Serialize(mock));
         }

@@ -8,7 +8,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TcpClientIo.TcpSerializatio
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TcpClientIo.Converters", "TcpClientIo.Converters\TcpClientIo.Converters.csproj", "{92306E4A-88B7-40CD-AA5B-AA8169CB6801}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TcpClientIo.Abstractions", "TcpClientIo.Abstractions\TcpClientIo.Abstractions.csproj", "{3A4AEBFB-EAF2-4C44-B500-AEBD922C9BE6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TcpClientIo.Contracts", "TcpClientIo.Contracts\TcpClientIo.Contracts.csproj", "{3A4AEBFB-EAF2-4C44-B500-AEBD922C9BE6}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TcpClientIo.TcpBatches", "TcpClientIo.TcpBatches\TcpClientIo.TcpBatches.csproj", "{F3E4ADED-3631-43B2-8570-758CE1E7C328}"
 EndProject

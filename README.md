@@ -29,10 +29,10 @@ Your TCP Server accepts and send messages with application-level header
 #### Examples
 ###### Example #1. Sending and receiving.
 ```c#
-// Creating TcpClientIo instance with different schema of request/response
+// Creating TcpClientIo instance with schema of request/response and uint ID type
+var tcpClient = new TcpClientIo<uint, Request, Response>(IPAddress.Any, 10000, TcpClientIoOptions.Default);
+// Or without ID type (if your transport does'nt have id, only Body and Length)
 var tcpClient = new TcpClientIo<Request, Response>(IPAddress.Any, 10000, TcpClientIoOptions.Default);
-// Or creating TcpClientIo instance with both schema of request/response
-var tcpClient = new TcpClientIo<RequestResponse>(IPAddress.Any, 10000, TcpClientIoOptions.Default);
 
 // Creating request
 Request request = new Request
@@ -64,10 +64,11 @@ await tcpClient.SendAsync(request, CancellationToken.None);
 // Receive response in overtype ITcpBatch<Response> by identifier asynchronously.
 // !!! WARNING !!!
 // Identifier is strongly-typed, you must use the type specified in the request.
-ITcpBatch<Response> resultBatch = await tcpClient.ReceiveAsync(123U, CancellationToken.None);
+ITcpBatch<uint, Response> resultBatch = await tcpClient.ReceiveAsync(123U, CancellationToken.None);
 
 // Or if schema does not have TcpDataType.Id (Available from 1.0.9)
-ITcpBatch<Response> resultBatch = await tcpClient.ReceiveAsync(TcpClientIo.Unassigned, CancellationToken.None);
+// Id (int) will always be zero
+ITcpBatch<int, Response> resultBatch = await tcpClient.ReceiveAsync(default, CancellationToken.None);
 
 // Batch support iteration
 foreach (var response in resultBatch)
@@ -115,10 +116,10 @@ listener.Start();
 var tcpClient = await _listener.AcceptTcpClientAsync();
 
 // Create TcpClientIo and pass it TcpClient
-var tcpClientIo = new TcpClientIo<RequestResponse>(tcpClient, TcpClientIoOptions.Default);
+var tcpClientIo = new TcpClientIo<uint, Request, Response>(tcpClient, TcpClientIoOptions.Default);
 
 //Start consuming from TcpClientIo
-await foreach (ITcpBatch<RequestResponse> batch in tcpClientIo.GetConsumingAsyncEnumerable(CancellationToken.None))
+await foreach (ITcpBatch<uint, Request, Response> batch in tcpClientIo.GetConsumingAsyncEnumerable(CancellationToken.None))
 {
     foreach (var response in batch)
     {
@@ -142,8 +143,6 @@ public class Request
     //
     // Reverse - Reverses the sequence of the elements in the serialized Byte Array,
     // used for cases where the receiving side uses a different endianness.
-    //
-    // Type - Sets the property type for the serializer.
 
     // TcpDataType.Id not mandatory from 1.0.9
     [TcpData(0, 4, TcpDataType.Id)]

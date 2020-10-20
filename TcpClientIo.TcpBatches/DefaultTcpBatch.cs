@@ -6,22 +6,23 @@ namespace Drenalol.TcpClientIo
     /// <summary>
     /// Default TcpBatch instance
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public sealed class DefaultTcpBatch<T> : ITcpBatch<T>
+    /// <typeparam name="TId"></typeparam>
+    /// <typeparam name="TResponse"></typeparam>
+    public sealed class DefaultTcpBatch<TId, TResponse> : ITcpBatch<TId, TResponse>
     {
-        private readonly IList<T> _internalList;
-        public object Id { get; }
+        private readonly IList<TResponse> _internalList;
+        public TId Id { get; }
         public int Count => _internalList.Count;
 
-        public DefaultTcpBatch(object id)
+        public DefaultTcpBatch(TId id)
         {
             Id = id;
-            _internalList = new List<T>();
+            _internalList = new List<TResponse>();
         }
 
-        public void Update(T response) => _internalList.Add(response);
+        public void Update(TResponse response) => _internalList.Add(response);
         
-        public IEnumerator<T> GetEnumerator() => _internalList.GetEnumerator();
+        public IEnumerator<TResponse> GetEnumerator() => _internalList.GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }

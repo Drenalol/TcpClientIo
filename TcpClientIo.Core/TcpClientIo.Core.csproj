@@ -6,8 +6,7 @@
         <Authors>Bogdan Yanysh</Authors>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageId>TcpClientIo</PackageId>
-        <Version>1.2.0-beta.2</Version>
-        <PackageVersion>1.2.0-beta.2</PackageVersion>
+        <PackageVersion>1.2.0-beta.3</PackageVersion>
         <PackageTags>TcpClient;TcpListener;Tcp;Serialization;Pipelines;Dataflow;Async;Threadsafe</PackageTags>
         <Description>Wrapper of TcpClient what help focus on WHAT you transfer over TCP not HOW
  - Thread-safe
@@ -34,7 +33,7 @@
     </ItemGroup>
     
     <ItemGroup>
-      <ProjectReference Include="..\TcpClientIo.Abstractions\TcpClientIo.Abstractions.csproj" />
+      <ProjectReference Include="..\TcpClientIo.Contracts\TcpClientIo.Contracts.csproj" />
       <ProjectReference Include="..\TcpClientIo.Converters\TcpClientIo.Converters.csproj" />
       <ProjectReference Include="..\TcpClientIo.Options\TcpClientIo.Options.csproj" />
       <ProjectReference Include="..\TcpClientIo.TcpBatches\TcpClientIo.TcpBatches.csproj" />

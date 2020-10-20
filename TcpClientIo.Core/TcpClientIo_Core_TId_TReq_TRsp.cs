@@ -14,35 +14,33 @@ using Nito.AsyncEx;
 namespace Drenalol.TcpClientIo
 {
     /// <summary>
-    /// Wrapper of TcpClient what help focus on WHAT you transfer over TCP, not HOW
+    /// Wrapper of TcpClient what help focus on WHAT you transfer over TCP, not HOW.
+    /// <para>With Identifier version.</para>
     /// </summary>
-    /// <typeparam name="TRequest"></typeparam>
-    /// <typeparam name="TResponse"></typeparam>
+    /// <typeparam name="TId">Identifier Type in Requests/Responses</typeparam>
+    /// <typeparam name="TRequest">Request Type</typeparam>
+    /// <typeparam name="TResponse">Response Type</typeparam>
     [DebuggerDisplay("Id: {Id,nq}, Requests: {Requests,nq}, Waiters: {Waiters,nq}")]
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-    public partial class TcpClientIo<TRequest, TResponse> : TcpClientIoBase, IDuplexPipe, IAsyncDisposable where TResponse : new()
-#else
-    public partial class TcpClientIo<TRequest, TResponse> : TcpClientIoBase, IDuplexPipe, IDisposable where TResponse : new()
-#endif
+    public partial class TcpClientIo<TId, TRequest, TResponse> : ITcpClientIo<TId, TRequest, TResponse> where TResponse : new() where TId : struct
     {
         [DebuggerNonUserCode]
         private Guid Id { get; }
 
         private readonly TcpClientIoOptions _options;
-        private readonly TcpBatchRules<TResponse> _batchRules;
+        private readonly TcpBatchRules<TId, TResponse> _batchRules;
         private readonly CancellationTokenSource _baseCancellationTokenSource;
         private readonly CancellationToken _baseCancellationToken;
         private readonly TcpClient _tcpClient;
         private readonly BufferBlock<byte[]> _bufferBlockRequests;
-        private readonly ConcurrentDictionary<object, TaskCompletionSource<ITcpBatch<TResponse>>> _completeResponses;
+        private readonly ConcurrentDictionary<TId, TaskCompletionSource<ITcpBatch<TId, TResponse>>> _completeResponses;
         private readonly AsyncLock _asyncLock = new AsyncLock();
-        private readonly TcpSerializer<TRequest, TResponse> _serializer;
+        private readonly TcpSerializer<TId, TRequest, TResponse> _serializer;
         private readonly AsyncManualResetEvent _writeResetEvent;
         private readonly AsyncManualResetEvent _readResetEvent;
         private readonly AsyncManualResetEvent _consumingResetEvent;
         private readonly PipeReader _deserializePipeReader;
         private readonly PipeWriter _deserializePipeWriter;
-        private readonly ILogger<TcpClientIo<TRequest, TResponse>> _logger;
+        private readonly ILogger<TcpClientIo<TId, TRequest, TResponse>> _logger;
         private Exception _internalException;
         private PipeReader _networkStreamPipeReader;
         private PipeWriter _networkStreamPipeWriter;
@@ -53,35 +51,32 @@ namespace Drenalol.TcpClientIo
         /// <summary>
         /// Gets the number of total bytes written to the <see cref="NetworkStream"/>.
         /// </summary>
-        public override ulong BytesWrite { get; set; }
+        public ulong BytesWrite { get; private set; }
 
         /// <summary>
         /// Gets the number of total bytes read from the <see cref="NetworkStream"/>.
         /// </summary>
-        public override ulong BytesRead { get; set; }
+        public ulong BytesRead { get; private set; }
 
         /// <summary>
         /// Gets the number of responses to receive or the number of responses ready to receive.
         /// <para> </para>
-        /// WARNING! This property lock whole internal <see cref="ConcurrentDictionary{TKey,TValue}"/>, be careful of frequently use.
+        /// WARNING! This property lock whole internal <see cref="ConcurrentDictionary{TId,TValue}"/>, be careful of frequently use.
         /// </summary>
-        public override int Waiters => _completeResponses.Count;
+        public int Waiters => _completeResponses.Count;
 
         /// <summary>
         /// Gets the number of <see cref="TRequest"/> ready to send.
         /// </summary>
-        public override int Requests => _bufferBlockRequests.Count;
-
-        // ReSharper disable once MethodOverloadWithOptionalParameter
-        public override ImmutableDictionary<object, object> GetWaiters(bool skipMe = true) => GetWaiters();
+        public int Requests => _bufferBlockRequests.Count;
 
         /// <summary>
-        /// Gets an immutable snapshot of responses to receive (key, null) or responses ready to receive (key, <see cref="ITcpBatch{T}"/>).
+        /// Gets an immutable snapshot of responses to receive (id, null) or responses ready to receive (id, <see cref="ITcpBatch{TId, TResponse}"/>).
         /// </summary>
-        public ImmutableDictionary<object, object> GetWaiters()
+        public ImmutableDictionary<TId, ITcpBatch<TId, TResponse>> GetWaiters()
             => _completeResponses
                 .ToArray()
-                .ToImmutableDictionary(pair => pair.Key, pair => (object) (pair.Value.Task.Status == TaskStatus.RanToCompletion ? pair.Value.Task.Result : null));
+                .ToImmutableDictionary(pair => pair.Key, pair => pair.Value.Task.Status == TaskStatus.RanToCompletion ? pair.Value.Task.Result : null);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TcpClientIo{TRequest,TResponse}"/> class and connects to the specified port on the specified host.
@@ -90,7 +85,7 @@ namespace Drenalol.TcpClientIo
         /// <param name="port"></param>
         /// <param name="tcpClientIoOptions"></param>
         /// <param name="logger"></param>
-        public TcpClientIo(IPAddress address, int port, TcpClientIoOptions tcpClientIoOptions = null, ILogger<TcpClientIo<TRequest, TResponse>> logger = null) : this(tcpClientIoOptions, logger)
+        public TcpClientIo(IPAddress address, int port, TcpClientIoOptions tcpClientIoOptions = null, ILogger<TcpClientIo<TId, TRequest, TResponse>> logger = null) : this(tcpClientIoOptions, logger)
         {
             _tcpClient = new TcpClient();
             _tcpClient.Connect(address, port);
@@ -104,25 +99,25 @@ namespace Drenalol.TcpClientIo
         /// <param name="tcpClient"></param>
         /// <param name="tcpClientIoOptions"></param>
         /// <param name="logger"></param>
-        public TcpClientIo(TcpClient tcpClient, TcpClientIoOptions tcpClientIoOptions = null, ILogger<TcpClientIo<TRequest, TResponse>> logger = null) : this(tcpClientIoOptions, logger)
+        public TcpClientIo(TcpClient tcpClient, TcpClientIoOptions tcpClientIoOptions = null, ILogger<TcpClientIo<TId, TRequest, TResponse>> logger = null) : this(tcpClientIoOptions, logger)
         {
             _tcpClient = tcpClient;
             SetupTcpClient();
             SetupTasks();
         }
 
-        private TcpClientIo(TcpClientIoOptions tcpClientIoOptions, ILogger<TcpClientIo<TRequest, TResponse>> logger)
+        private TcpClientIo(TcpClientIoOptions tcpClientIoOptions, ILogger<TcpClientIo<TId, TRequest, TResponse>> logger)
         {
             var pipe = new Pipe();
             Id = Guid.NewGuid();
             _logger = logger;
             _options = tcpClientIoOptions ?? TcpClientIoOptions.Default;
-            _batchRules = TcpBatchRules<TResponse>.Default;
+            _batchRules = TcpBatchRules<TId, TResponse>.Default;
             _baseCancellationTokenSource = new CancellationTokenSource();
             _baseCancellationToken = _baseCancellationTokenSource.Token;
             _bufferBlockRequests = new BufferBlock<byte[]>();
-            _completeResponses = new ConcurrentDictionary<object, TaskCompletionSource<ITcpBatch<TResponse>>>();
-            _serializer = new TcpSerializer<TRequest, TResponse>(_options.Converters);
+            _completeResponses = new ConcurrentDictionary<TId, TaskCompletionSource<ITcpBatch<TId, TResponse>>>();
+            _serializer = new TcpSerializer<TId, TRequest, TResponse>(_options.Converters);
             _writeResetEvent = new AsyncManualResetEvent();
             _readResetEvent = new AsyncManualResetEvent();
             _consumingResetEvent = new AsyncManualResetEvent();
@@ -150,9 +145,9 @@ namespace Drenalol.TcpClientIo
         }
 
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-        public override async ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
 #else
-        public override void Dispose()
+        public void Dispose()
 #endif
         {
             _logger?.LogInformation("Dispose started");

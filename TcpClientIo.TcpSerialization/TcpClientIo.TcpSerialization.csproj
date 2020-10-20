@@ -6,14 +6,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\TcpClientIo.Abstractions\TcpClientIo.Abstractions.csproj" />
+      <ProjectReference Include="..\TcpClientIo.Contracts\TcpClientIo.Contracts.csproj" />
       <ProjectReference Include="..\TcpClientIo.Converters\TcpClientIo.Converters.csproj" />
       <ProjectReference Include="..\TcpClientIo.Exceptions\TcpClientIo.Exceptions.csproj" />
       <ProjectReference Include="..\TcpClientIo.Extensions\TcpClientIo.Extensions.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="FastMember" Version="1.5.0" />
       <PackageReference Include="System.Collections.Immutable" Version="1.7.1" />
     </ItemGroup>
 

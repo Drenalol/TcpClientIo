@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Drenalol.TcpClientIo
 {
-    public partial class TcpClientIo<TRequest, TResponse>
+    public partial class TcpClientIo<TId, TRequest, TResponse>
     {
         private async Task TcpWriteAsync()
         {
@@ -141,7 +141,7 @@ namespace Drenalol.TcpClientIo
                 foreach (var completedResponse in _completeResponses.Where(tcs => tcs.Value.Task.Status == TaskStatus.WaitingForActivation))
                 {
                     var innerException = exception ?? new OperationCanceledException();
-                    Debug.WriteLine($"Set force {innerException.GetType()} in {nameof(TaskCompletionSource<ITcpBatch<TResponse>>)} in {nameof(TaskStatus.WaitingForActivation)}");
+                    Debug.WriteLine($"Set force {innerException.GetType()} in {nameof(TaskCompletionSource<ITcpBatch<TId, TResponse>>)} in {nameof(TaskStatus.WaitingForActivation)}");
                     completedResponse.Value.TrySetException(innerException);
                 }
             }

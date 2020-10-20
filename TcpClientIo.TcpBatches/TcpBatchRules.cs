@@ -5,26 +5,26 @@ namespace Drenalol.TcpClientIo
     /// <summary>
     /// TcpBatch creation or update rules
     /// </summary>
-    public class TcpBatchRules<TResponse>
+    public class TcpBatchRules<TId, TResponse>
     {
         /// <summary>
-        /// Creating rule of <see cref="ITcpBatch{T}"/>
+        /// Creating rule of <see cref="ITcpBatch{TId, TResponse}"/>
         /// </summary>
-        public Func<object, TResponse, ITcpBatch<TResponse>> Create { get; set; }
+        public Func<TId, TResponse, ITcpBatch<TId, TResponse>> Create { get; set; }
 
         /// <summary>
-        /// Update rule of <see cref="ITcpBatch{T}"/> 
+        /// Update rule of <see cref="ITcpBatch{TId, TResponse}"/> 
         /// </summary>
-        public Func<ITcpBatch<TResponse>, TResponse, ITcpBatch<TResponse>> Update { get; set; }
+        public Func<ITcpBatch<TId, TResponse>, TResponse, ITcpBatch<TId, TResponse>> Update { get; set; }
 
         /// <summary>
         /// Default rules for Create and Update
         /// </summary>
-        public static TcpBatchRules<TResponse> Default => new TcpBatchRules<TResponse>
+        public static TcpBatchRules<TId, TResponse> Default => new TcpBatchRules<TId, TResponse>
         {
             Create = (objectId, response) =>
             {
-                var batch = new DefaultTcpBatch<TResponse>(objectId);
+                var batch = new DefaultTcpBatch<TId, TResponse>(objectId);
                 batch.Update(response);
                 return batch;
             },

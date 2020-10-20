@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Drenalol.TcpClientIo
 {
-    public class TcpSerializer<TRequest, TResponse> where TResponse : new()
+    public class TcpSerializer<TId, TRequest, TResponse> where TResponse : new() where TId : struct
     {
         private readonly ReflectionHelper<TRequest, TResponse> _reflectionHelper;
         private readonly BitConverterHelper _bitConverterHelper;
@@ -71,7 +71,7 @@ namespace Drenalol.TcpClientIo
                 var lengthValue = bodyLengthProperty.PropertyType == typeof(int)
                     ? serializedBody.Length
                     : Convert.ChangeType(serializedBody.Length, bodyLengthProperty.PropertyType);
-                
+
                 if (bodyLengthProperty.IsValueType)
                     request = (TRequest) bodyLengthProperty.Set(request, lengthValue);
                 else
@@ -98,7 +98,7 @@ namespace Drenalol.TcpClientIo
                 key += attributeLength;
                 examined++;
                 Trace.WriteLine($"Serialize property {property.Attribute.TcpDataType.ToString()} Index: {property.Attribute.Index.ToString()} {valueLength.ToString()}/{property.Attribute.Length.ToString()} bytes");
-                
+
                 if (examined == properties.Count)
                     break;
             }
@@ -106,15 +106,15 @@ namespace Drenalol.TcpClientIo
             return serializedRequest;
         }
 
-        public async Task<(object, int, TResponse)> DeserializeAsync(PipeReader pipeReader, CancellationToken token)
+        public async Task<(TId, int, TResponse)> DeserializeAsync(PipeReader pipeReader, CancellationToken token)
         {
             var response = new TResponse();
             var key = 0;
             var examined = 0;
-            object tcpId = null;
-            var tcpBodyLength = 0;
+            TId id = default;
+            var bodyLength = 0;
             var properties = _reflectionHelper.GetResponseProperties();
-            
+
             while (properties.TryGetValue(key, out var property))
             {
                 int sliceLength;
@@ -122,7 +122,7 @@ namespace Drenalol.TcpClientIo
                 switch (property.Attribute.TcpDataType)
                 {
                     case TcpDataType.Body:
-                        sliceLength = tcpBodyLength;
+                        sliceLength = bodyLength;
                         break;
                     default:
                         sliceLength = property.Attribute.Length;
@@ -144,11 +144,11 @@ namespace Drenalol.TcpClientIo
                         break;
                     case TcpDataType.Id:
                         value = _bitConverterHelper.ConvertFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
-                        tcpId = value;
+                        id = (TId) value;
                         break;
                     case TcpDataType.BodyLength:
                         value = _bitConverterHelper.ConvertFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
-                        tcpBodyLength = Convert.ToInt32(value);
+                        bodyLength = Convert.ToInt32(value);
                         break;
                 }
 
@@ -165,7 +165,7 @@ namespace Drenalol.TcpClientIo
                     break;
             }
 
-            return (tcpId ?? TcpClientIoBase.Unassigned, tcpBodyLength, response);
+            return (id, bodyLength, response);
         }
     }
 }

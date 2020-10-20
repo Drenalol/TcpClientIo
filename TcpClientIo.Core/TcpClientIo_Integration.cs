@@ -1,7 +1,9 @@
 using System;
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+#endif
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -9,17 +11,17 @@ using Microsoft.Extensions.Logging;
 
 namespace Drenalol.TcpClientIo
 {
-    public partial class TcpClientIo<TRequest, TResponse>
+    public partial class TcpClientIo<TId, TRequest, TResponse>
     {
-        private async Task SetResponseAsync(object responseId, TResponse response)
+        private async Task SetResponseAsync(TId responseId, TResponse response)
         {
-            TaskCompletionSource<ITcpBatch<TResponse>> tcs;
-            ITcpBatch<TResponse> batch = null;
+            TaskCompletionSource<ITcpBatch<TId, TResponse>> tcs;
+            ITcpBatch<TId, TResponse> batch = null;
 
-            // From MSDN: ConcurrentDictionary<TKey,TValue> is designed for multi-threaded scenarios.
+            // From MSDN: ConcurrentDictionary<TId,TValue> is designed for multi-threaded scenarios.
             // You do not have to use locks in your code to add or remove items from the collection.
             // However, it is always possible for one thread to retrieve a value, and another thread
-            // to immediately update the collection by giving the same key a new value.
+            // to immediately update the collection by giving the same id a new value.
             using (await _asyncLock.LockAsync())
             {
                 if (_completeResponses.TryRemove(responseId, out tcs))
@@ -41,7 +43,7 @@ namespace Drenalol.TcpClientIo
                 _consumingResetEvent.Set();
             }
 
-            void AddOrUpdate(TaskCompletionSource<ITcpBatch<TResponse>> innerTcs = null)
+            void AddOrUpdate(TaskCompletionSource<ITcpBatch<TId, TResponse>> innerTcs = null)
             {
                 batch = _batchRules.Create(responseId, response);
                 tcs = innerTcs ?? InternalGetOrAddLazyTcs(responseId);
@@ -57,13 +59,13 @@ namespace Drenalol.TcpClientIo
             }
         }
 
-        private TaskCompletionSource<ITcpBatch<TResponse>> InternalGetOrAddLazyTcs(object key)
+        private TaskCompletionSource<ITcpBatch<TId, TResponse>> InternalGetOrAddLazyTcs(TId id)
         {
-            return _completeResponses.GetOrAdd(key, _ => InternalCreateLazyTcs().Value);
-            Lazy<TaskCompletionSource<ITcpBatch<TResponse>>> InternalCreateLazyTcs() => new Lazy<TaskCompletionSource<ITcpBatch<TResponse>>>(() => new TaskCompletionSource<ITcpBatch<TResponse>>());
-        }
+            return _completeResponses.GetOrAdd(id, _ => InternalCreateLazyTcs().Value);
 
-        public override Task<bool> SendAsync(object request, CancellationToken token = default) => SendAsync((TRequest) request, token);
+            Lazy<TaskCompletionSource<ITcpBatch<TId, TResponse>>> InternalCreateLazyTcs() =>
+                new Lazy<TaskCompletionSource<ITcpBatch<TId, TResponse>>>(() => new TaskCompletionSource<ITcpBatch<TId, TResponse>>());
+        }
 
         /// <summary>
         /// Serialize and sends data asynchronously to a connected <see cref="TcpClientIo{TRequest,TResponse}"/> object.
@@ -85,21 +87,18 @@ namespace Drenalol.TcpClientIo
             }
         }
 
-        // ReSharper disable once MethodOverloadWithOptionalParameter
-        public override async Task<object> ReceiveAsync(object responseId, CancellationToken token = default, bool skipMe = true) => await ReceiveAsync(responseId, token);
-
         /// <summary>
-        /// Begins an asynchronous request to receive response associated with the specified responseId from a connected <see cref="TcpClientIo{TRequest,TResponse}"/> object.
+        /// Begins an asynchronous request to receive response associated with the specified <see cref="TId"/> from a connected <see cref="TcpClientIo{TId,TRequest,TResponse}"/> object.
         /// <para> </para>
         /// WARNING! Identifier is strongly-typed, if Id of <see cref="TRequest"/> have type uint, you must pass it value in uint too, otherwise the call will be forever or cancelled by <see cref="CancellationToken"/>.
         /// </summary>
         /// <param name="responseId"></param>
         /// <param name="token"></param>
-        /// <returns><see cref="ITcpBatch{T}"/></returns>
-        public async Task<ITcpBatch<TResponse>> ReceiveAsync(object responseId, CancellationToken token = default)
+        /// <returns><see cref="ITcpBatch{TId, TResponse}"/></returns>
+        public async Task<ITcpBatch<TId, TResponse>> ReceiveAsync(TId responseId, CancellationToken token = default)
         {
             var internalToken = token == default ? _baseCancellationToken : token;
-            TaskCompletionSource<ITcpBatch<TResponse>> tcs;
+            TaskCompletionSource<ITcpBatch<TId, TResponse>> tcs;
             // Info about lock read in SetResponseAsync method
             using (await _asyncLock.LockAsync())
             {
@@ -124,17 +123,14 @@ namespace Drenalol.TcpClientIo
         }
 
 #if NETSTANDARD2_1
-        // ReSharper disable once MethodOverloadWithOptionalParameter
-        public override IAsyncEnumerable<object> GetConsumingAsyncEnumerable(CancellationToken token = default, bool skipMe = true) => GetConsumingAsyncEnumerable(token);
-
-        /// <summary>Provides a consuming <see cref="T:System.Collections.Generics.IAsyncEnumerable{T}"/> for <see cref="ITcpBatch{TResponse}"/> in the collection.
+        /// <summary>Provides a consuming <see cref="T:System.Collections.Generics.IAsyncEnumerable{T}"/> for <see cref="ITcpBatch{TId, TResponse}"/> in the collection.
         /// Calling MoveNextAsync on the returned enumerable will block if there is no data available, or will
         /// throw an <see cref="System.OperationCanceledException"/> if the <see cref="CancellationToken"/> is canceled.
         /// </summary>
         /// <param name="token">A cancellation token to observe.</param>
         /// <returns></returns>
         /// <exception cref="OperationCanceledException">If the <see cref="token"/> is canceled.</exception>
-        public async IAsyncEnumerable<ITcpBatch<TResponse>> GetConsumingAsyncEnumerable([EnumeratorCancellation] CancellationToken token = default)
+        public async IAsyncEnumerable<ITcpBatch<TId, TResponse>> GetConsumingAsyncEnumerable([EnumeratorCancellation] CancellationToken token = default)
         {
             CancellationTokenSource internalCts = null;
             CancellationToken internalToken;
@@ -149,12 +145,12 @@ namespace Drenalol.TcpClientIo
 
             while (!internalToken.IsCancellationRequested)
             {
-                IList<ITcpBatch<TResponse>> result;
+                IList<ITcpBatch<TId, TResponse>> result;
 
                 try
                 {
                     internalToken.ThrowIfCancellationRequested();
-                    KeyValuePair<object, TaskCompletionSource<ITcpBatch<TResponse>>>[] completedResponses;
+                    KeyValuePair<TId, TaskCompletionSource<ITcpBatch<TId, TResponse>>>[] completedResponses;
 
                     // Info about lock read in SetResponseAsync method
                     using (await _asyncLock.LockAsync(internalToken))
@@ -174,7 +170,7 @@ namespace Drenalol.TcpClientIo
 
                     using (await _asyncLock.LockAsync(internalToken))
                     {
-                        result = new List<ITcpBatch<TResponse>>();
+                        result = new List<ITcpBatch<TId, TResponse>>();
 
                         foreach (var pair in completedResponses)
                         {
@@ -205,9 +201,6 @@ namespace Drenalol.TcpClientIo
 
             internalCts?.Dispose();
         }
-
-        // ReSharper disable once MethodOverloadWithOptionalParameter
-        public override IAsyncEnumerable<object> GetExpandableConsumingAsyncEnumerable(CancellationToken token = default, bool skipMe = true) => (IAsyncEnumerable<object>) GetExpandableConsumingAsyncEnumerable(token);
 
         /// <summary>Provides a consuming <see cref="T:System.Collections.Generics.IAsyncEnumerable{T}"/> for <see cref="TResponse"/> in the collection.
         /// Calling MoveNextAsync on the returned enumerable will block if there is no data available, or will

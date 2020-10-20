@@ -18,7 +18,7 @@ namespace Drenalol.TcpClientIo
     public class TcpClientIoTests
     {
         public static readonly IPAddress IpAddress = Dns.GetHostAddresses("yanysh.com")[0];// IPAddress.Any;
-        public static ImmutableList<Mock> Mocks = JsonExt.Deserialize<List<Mock>>(File.ReadAllText("MOCK_DATA_1000")).ToImmutableList();
+        public static readonly ImmutableList<Mock> Mocks = JsonExt.Deserialize<List<Mock>>(File.ReadAllText("MOCK_DATA_1000")).ToImmutableList();
 
         private static (TcpClientIoOptions, ILoggerFactory) GetDefaults(LogLevel logLevel)
         {
@@ -44,22 +44,16 @@ namespace Drenalol.TcpClientIo
             return (options, loggerFactory);
         }
 
-        public static TcpClientIo<T, T> GetClient<T>(IPAddress ipAddress = null, LogLevel logLevel = LogLevel.Warning) where T : new()
+        public static TcpClientIo<TId, T, TR> GetClient<TId, T, TR>(IPAddress ipAddress = null, LogLevel logLevel = LogLevel.Warning) where TR : new() where TId : struct
         {
             var (options, loggerFactory) = GetDefaults(logLevel);
-            return new TcpClientIo<T>(ipAddress ?? IpAddress, 10000, options, loggerFactory.CreateLogger<TcpClientIo<T>>());
-        }
-
-        public static TcpClientIo<T, TR> GetClient<T, TR>(IPAddress ipAddress = null, LogLevel logLevel = LogLevel.Warning) where TR : new()
-        {
-            var (options, loggerFactory) = GetDefaults(logLevel);
-            return new TcpClientIo<T, TR>(ipAddress ?? IpAddress, 10000, options, loggerFactory.CreateLogger<TcpClientIo<T, TR>>());
+            return new TcpClientIo<TId, T, TR>(ipAddress ?? IpAddress, 10000, options, loggerFactory.CreateLogger<TcpClientIo<TId, T, TR>>());
         }
 
         [Test]
         public async Task SingleSendReceiveTest()
         {
-            var tcpClient = GetClient<Mock>();
+            var tcpClient = GetClient<long, Mock, Mock>();
             var request = Mock.Create(1337);
             await tcpClient.SendAsync(request);
             var batch = await tcpClient.ReceiveAsync(1337L);
@@ -75,7 +69,7 @@ namespace Drenalol.TcpClientIo
         [Test]
         public async Task SingleByteAndByteArrayTest()
         {
-            var tcpClient = GetClient<MockByteBody>();
+            var tcpClient = GetClient<int, MockByteBody, MockByteBody>();
 
             var mock = new MockByteBody
             {
@@ -102,7 +96,7 @@ namespace Drenalol.TcpClientIo
             var requestsPerConsumer = requests / consumers;
             var cts = new CancellationTokenSource();
             cts.CancelAfter(TimeSpan.FromMinutes(timeout));
-            var consumersList = Enumerable.Range(0, consumers).Select(i => GetClient<Mock>()).ToList();
+            var consumersList = Enumerable.Range(0, consumers).Select(i => GetClient<long, Mock, Mock>()).ToList();
             var requestQueue = 0;
             var waitersQueue = 0;
             var bytesWrite = 0L;
@@ -112,7 +106,7 @@ namespace Drenalol.TcpClientIo
 
             Task.WaitAll(consumersList.Select(io => Task.Run(() => DoWork(io), cts.Token)).ToArray());
 
-            void DoWork(TcpClientIo<Mock, Mock> tcpClient)
+            void DoWork(TcpClientIo<long, Mock, Mock> tcpClient)
             {
                 try
                 {
@@ -165,7 +159,7 @@ namespace Drenalol.TcpClientIo
             var sended = 0;
             var received = 0;
             var cts = new CancellationTokenSource();
-            TcpClientIoBase tcpClient = GetClient<Mock>();
+            ITcpClientIo<long, Mock, Mock> tcpClient = GetClient<long, Mock, Mock>();
 
             _ = Enumerable.Range(0, requests).Select(async i =>
             {
@@ -188,14 +182,14 @@ namespace Drenalol.TcpClientIo
             {
                 if (expandBatch)
                 {
-                    await foreach (Mock _ in tcpClient.GetExpandableConsumingAsyncEnumerable(cts.Token))
+                    await foreach (var _ in tcpClient.GetExpandableConsumingAsyncEnumerable(cts.Token))
                     {
                         Interlocked.Increment(ref received);
                     }
                 }
                 else
                 {
-                    await foreach (ITcpBatch<Mock> _ in tcpClient.GetConsumingAsyncEnumerable(cts.Token))
+                    await foreach (var _ in tcpClient.GetConsumingAsyncEnumerable(cts.Token))
                     {
                         Interlocked.Increment(ref received);
                     }
@@ -220,13 +214,13 @@ namespace Drenalol.TcpClientIo
         [Test]
         public async Task NoIdTest()
         {
-            var client = GetClient<MockNoId>();
+            var client = GetClient<long, MockNoId, MockNoId>();
             var mock = new MockNoId
             {
                 Body = "Qwerty!"
             };
             await client.SendAsync(mock);
-            var batch = await client.ReceiveAsync(TcpClientIoBase.Unassigned);
+            var batch = await client.ReceiveAsync(default);
             var response = batch.First();
         }
 
@@ -238,7 +232,7 @@ namespace Drenalol.TcpClientIo
             var count = 0;
             var error = 0;
 
-            var tcpClient = GetClient<Mock>();
+            var tcpClient = GetClient<long, Mock, Mock>();
 
             _ = Task.Run(() => Parallel.For(0, requests, i =>
             {
@@ -262,7 +256,7 @@ namespace Drenalol.TcpClientIo
                 if (error > 0)
                     throw new Exception("Parallel.For has errors");
 
-                var packageResult = await tcpClient.ReceiveAsync((long) 0);
+                var packageResult = await tcpClient.ReceiveAsync(0);
                 Assert.NotNull(packageResult);
                 var queue = packageResult.Count;
                 count += queue;
@@ -284,7 +278,7 @@ namespace Drenalol.TcpClientIo
         [Test]
         public async Task DisposeTest()
         {
-            var tcpClient = GetClient<Mock>();
+            var tcpClient = GetClient<long, Mock, Mock>();
             var timer = new System.Timers.Timer {Interval = 3000};
             timer.Start();
             timer.Elapsed += (sender, args) =>
@@ -320,7 +314,7 @@ namespace Drenalol.TcpClientIo
         public async Task CancelSendReceiveTest()
         {
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-            await using var tcpClient = GetClient<Mock>();
+            await using var tcpClient = GetClient<long, Mock, Mock>();
 #else
             var tcpClient = GetClient<Mock>();
 #endif

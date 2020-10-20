@@ -1,12 +1,10 @@
 using System;
 using System.Reflection;
-using FastMember;
 
 namespace Drenalol.TcpClientIo
 {
     public class TcpProperty
     {
-        private readonly TypeAccessor _accessor;
         private readonly PropertyInfo _propertyInfo;
 
         public TcpDataAttribute Attribute { get; }
@@ -19,14 +17,13 @@ namespace Drenalol.TcpClientIo
             Attribute = attribute;
             IsValueType = accessorType.IsValueType;
             _propertyInfo = propertyInfo;
-            _accessor = TypeAccessor.Create(accessorType);
         }
 
-        public object Get(object input) => _accessor[input, _propertyInfo.Name];
+        public object Get(object input) => _propertyInfo.GetValue(input);
 
         public object Set(object input, object value)
         {
-            _accessor[input, _propertyInfo.Name] = value;
+            _propertyInfo.SetValue(input, value);
             return input;
         }
     }
