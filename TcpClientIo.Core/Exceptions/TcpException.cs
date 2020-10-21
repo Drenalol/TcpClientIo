@@ -34,8 +34,8 @@ namespace Drenalol.TcpClientIo.Exceptions
                     return new TcpException($"In {someData[0]} {nameof(TcpDataType.Body)} could not work without {nameof(TcpDataType.BodyLength)}");
                 case TcpTypeException.AttributeDuplicate:
                     return new TcpException($"{someData[0]} could not work with multiple {someData[1]}");
-                case TcpTypeException.SerializerBodyIsEmpty:
-                    return new TcpException($"{nameof(TcpDataType.Body)} is Empty");
+                case TcpTypeException.SerializerBodyIsNull:
+                    return new TcpException($"{nameof(TcpDataType.Body)} is Null");
                 default:
                     return new TcpException(string.Empty);
             }

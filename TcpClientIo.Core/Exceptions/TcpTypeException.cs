@@ -4,7 +4,7 @@ namespace Drenalol.TcpClientIo.Exceptions
     {
         SerializerSequenceViolated,
         SerializerLengthOutOfRange,
-        SerializerBodyIsEmpty,
+        SerializerBodyIsNull,
         PropertyArgumentIsNull,
         PropertyCanReadWrite,
         ConverterNotFoundType,

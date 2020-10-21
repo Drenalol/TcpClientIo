@@ -21,7 +21,7 @@ namespace Drenalol.TcpClientIo
     [TestFixture(TestOf = typeof(TcpClientIo<,>))]
     public class TcpClientIoTests
     {
-        public static readonly IPAddress IpAddress = Dns.GetHostAddresses("yanysh.com")[0];// IPAddress.Any;
+        public static readonly IPAddress IpAddress = Dns.GetHostAddresses("yanysh.com")[0]; // IPAddress.Any;
         public static readonly ImmutableList<Mock> Mocks = JsonExt.Deserialize<List<Mock>>(File.ReadAllText("MOCK_DATA_1000")).ToImmutableList();
 
         private static (TcpClientIoOptions, ILoggerFactory) GetDefaults(LogLevel logLevel)
@@ -34,7 +34,7 @@ namespace Drenalol.TcpClientIo
                 new TcpDateTimeConverter(),
                 new TcpUtf8StringConverter()
             };
-            
+
             options.StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 10240000);
             options.StreamPipeWriterOptions = new StreamPipeWriterOptions();
 
@@ -199,7 +199,9 @@ namespace Drenalol.TcpClientIo
                     }
                 }
             }
-            catch (TaskCanceledException) {}
+            catch (TaskCanceledException)
+            {
+            }
             catch (Exception e)
             {
                 TestContext.WriteLine(e);
@@ -348,6 +350,15 @@ namespace Drenalol.TcpClientIo
 #if !NETSTANDARD2_1 && !NETCOREAPP3_1 && !NETCOREAPP3_0
             tcpClient.Dispose();
 #endif
+        }
+
+        [Test]
+        public async Task EmptyBodyTest()
+        {
+            var mock = new MockNoIdEmptyBody {Length = 0, Empty = new byte[0]};
+            var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>();
+            await client.SendAsync(mock);
+            Assert.NotNull(await client.ReceiveAsync(default));
         }
     }
 }

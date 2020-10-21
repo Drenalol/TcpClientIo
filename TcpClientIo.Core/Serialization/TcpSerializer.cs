@@ -70,7 +70,7 @@ namespace Drenalol.TcpClientIo.Serialization
                 }
 
                 if (serializedBody == null)
-                    throw TcpException.Throw(TcpTypeException.SerializerBodyIsEmpty);
+                    throw TcpException.Throw(TcpTypeException.SerializerBodyIsNull);
 
                 var lengthValue = bodyLengthProperty.PropertyType == typeof(int)
                     ? serializedBody.Length
@@ -122,36 +122,37 @@ namespace Drenalol.TcpClientIo.Serialization
             while (properties.TryGetValue(key, out var property))
             {
                 int sliceLength;
+                byte[] bytes;
 
-                switch (property.Attribute.TcpDataType)
+                if (property.Attribute.TcpDataType == TcpDataType.Body)
                 {
-                    case TcpDataType.Body:
-                        sliceLength = bodyLength;
-                        break;
-                    default:
-                        sliceLength = property.Attribute.Length;
-                        break;
+                    sliceLength = bodyLength;
+                    bytes = sliceLength == 0 ? new byte[0] : await pipeReader.ReadLengthAsync(sliceLength, token);
                 }
-
-                var bytesFromReader = await pipeReader.ReadLengthAsync(sliceLength, token);
+                else
+                {
+                    sliceLength = property.Attribute.Length;
+                    bytes = await pipeReader.ReadLengthAsync(sliceLength, token);
+                }
+                
                 object value = null;
 
                 switch (property.Attribute.TcpDataType)
                 {
                     case TcpDataType.MetaData:
-                        value = _bitConverterHelper.ConvertFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
+                        value = _bitConverterHelper.ConvertFromBytes(bytes, property.PropertyType, property.Attribute.Reverse);
                         break;
                     case TcpDataType.Body:
                         value = property.PropertyType == typeof(byte[])
-                            ? property.Attribute.Reverse ? _bitConverterHelper.Reverse(bytesFromReader) : bytesFromReader
-                            : _bitConverterHelper.ConvertFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
+                            ? property.Attribute.Reverse ? _bitConverterHelper.Reverse(bytes) : bytes
+                            : _bitConverterHelper.ConvertFromBytes(bytes, property.PropertyType, property.Attribute.Reverse);
                         break;
                     case TcpDataType.Id:
-                        value = _bitConverterHelper.ConvertFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
+                        value = _bitConverterHelper.ConvertFromBytes(bytes, property.PropertyType, property.Attribute.Reverse);
                         id = (TId) value;
                         break;
                     case TcpDataType.BodyLength:
-                        value = _bitConverterHelper.ConvertFromBytes(bytesFromReader, property.PropertyType, property.Attribute.Reverse);
+                        value = _bitConverterHelper.ConvertFromBytes(bytes, property.PropertyType, property.Attribute.Reverse);
                         bodyLength = Convert.ToInt32(value);
                         break;
                 }
