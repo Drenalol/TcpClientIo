@@ -1,3 +1,5 @@
+using Drenalol.TcpClientIo.Attributes;
+
 namespace Drenalol.TcpClientIo.Stuff
 {
     public class MockNoId

@@ -6,14 +6,9 @@
         <Authors>Bogdan Yanysh</Authors>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageId>TcpClientIo</PackageId>
-        <PackageVersion>1.2.0-beta.4</PackageVersion>
+        <PackageVersion>1.2.0-beta.5</PackageVersion>
         <PackageTags>TcpClient;TcpListener;Tcp;Serialization;Pipelines;Dataflow;Async;Threadsafe</PackageTags>
-        <Description>Wrapper of TcpClient what help focus on WHAT you transfer over TCP not HOW
- - Thread-safe
- - Serialization with attribute schema
- - Big/Little endian
- - Async
- - Cancellation support</Description>
+        <Description>Wrapper of TcpClient what help focus on WHAT you transfer over TCP not HOW (Async, Thread-safe, TcpSerialization with attribute schema, Big/Little endian, Cancellation support)</Description>
         <PackageProjectUrl>https://github.com/Drenalol/TcpClientIo</PackageProjectUrl>
         <RepositoryUrl>https://github.com/Drenalol/TcpClientIo</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
@@ -30,14 +25,6 @@
       <PackageReference Include="Nito.AsyncEx" Version="5.0.0" />
       <PackageReference Include="System.IO.Pipelines" Version="4.7.2" />
       <PackageReference Include="System.Threading.Tasks.Dataflow" Version="4.11.1" />
-    </ItemGroup>
-    
-    <ItemGroup>
-      <ProjectReference Include="..\TcpClientIo.Contracts\TcpClientIo.Contracts.csproj" />
-      <ProjectReference Include="..\TcpClientIo.Converters\TcpClientIo.Converters.csproj" />
-      <ProjectReference Include="..\TcpClientIo.Options\TcpClientIo.Options.csproj" />
-      <ProjectReference Include="..\TcpClientIo.TcpBatches\TcpClientIo.TcpBatches.csproj" />
-      <ProjectReference Include="..\TcpClientIo.TcpSerialization\TcpClientIo.TcpSerialization.csproj" />
     </ItemGroup>
 
 </Project>

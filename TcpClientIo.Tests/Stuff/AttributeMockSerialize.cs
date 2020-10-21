@@ -1,4 +1,5 @@
 using System;
+using Drenalol.TcpClientIo.Attributes;
 using NUnit.Framework;
 
 namespace Drenalol.TcpClientIo.Stuff

@@ -6,6 +6,10 @@ using System.IO.Pipelines;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Drenalol.TcpClientIo.Attributes;
+using Drenalol.TcpClientIo.Converters;
+using Drenalol.TcpClientIo.Exceptions;
+using Drenalol.TcpClientIo.Serialization;
 using Drenalol.TcpClientIo.Stuff;
 using NUnit.Framework;
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using Drenalol.TcpClientIo.Attributes;
 using Newtonsoft.Json;
 using NUnit.Framework;
 
