@@ -19,9 +19,9 @@ using NUnit.Framework;
 namespace Drenalol.TcpClientIo
 {
     [TestFixture(TestOf = typeof(TcpClientIo<,>))]
-    public class TcpClientIoTests
+    public class TcpClientIoTests : TcpListenerTest
     {
-        public static readonly IPAddress IpAddress = Dns.GetHostAddresses("yanysh.com")[0]; // IPAddress.Any;
+        public static readonly IPAddress IpAddress = IPAddress.Any;
         public static readonly ImmutableList<Mock> Mocks = JsonExt.Deserialize<List<Mock>>(File.ReadAllText("MOCK_DATA_1000")).ToImmutableList();
 
         private static (TcpClientIoOptions, ILoggerFactory) GetDefaults(LogLevel logLevel)

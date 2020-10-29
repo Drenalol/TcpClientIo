@@ -31,12 +31,12 @@ namespace Drenalol.TcpClientIo.Client
         private Guid Id { get; }
 
         private readonly TcpClientIoOptions _options;
-        private readonly TcpBatchRules<TId, TResponse> _batchRules;
+        private readonly TcpBatchRules<TResponse> _batchRules;
         private readonly CancellationTokenSource _baseCancellationTokenSource;
         private readonly CancellationToken _baseCancellationToken;
         private readonly TcpClient _tcpClient;
         private readonly BufferBlock<byte[]> _bufferBlockRequests;
-        private readonly ConcurrentDictionary<TId, TaskCompletionSource<ITcpBatch<TId, TResponse>>> _completeResponses;
+        private readonly ConcurrentDictionary<TId, TaskCompletionSource<ITcpBatch<TResponse>>> _completeResponses;
         private readonly AsyncLock _asyncLock = new AsyncLock();
         private readonly TcpSerializer<TId, TRequest, TResponse> _serializer;
         private readonly AsyncManualResetEvent _writeResetEvent;
@@ -75,11 +75,10 @@ namespace Drenalol.TcpClientIo.Client
         public int Requests => _bufferBlockRequests.Count;
 
         /// <summary>
-        /// Gets an immutable snapshot of responses to receive (id, null) or responses ready to receive (id, <see cref="ITcpBatch{TId, TResponse}"/>).
+        /// Gets an immutable snapshot of responses to receive (id, null) or responses ready to receive (id, <see cref="ITcpBatch{TResponse}"/>).
         /// </summary>
-        public ImmutableDictionary<TId, ITcpBatch<TId, TResponse>> GetWaiters()
+        public ImmutableDictionary<TId, ITcpBatch<TResponse>> GetWaiters()
             => _completeResponses
-                .ToArray()
                 .ToImmutableDictionary(pair => pair.Key, pair => pair.Value.Task.Status == TaskStatus.RanToCompletion ? pair.Value.Task.Result : null);
 
         /// <summary>
@@ -116,11 +115,11 @@ namespace Drenalol.TcpClientIo.Client
             Id = Guid.NewGuid();
             _logger = logger;
             _options = tcpClientIoOptions ?? TcpClientIoOptions.Default;
-            _batchRules = TcpBatchRules<TId, TResponse>.Default;
+            _batchRules = TcpBatchRules<TResponse>.Default;
             _baseCancellationTokenSource = new CancellationTokenSource();
             _baseCancellationToken = _baseCancellationTokenSource.Token;
             _bufferBlockRequests = new BufferBlock<byte[]>();
-            _completeResponses = new ConcurrentDictionary<TId, TaskCompletionSource<ITcpBatch<TId, TResponse>>>();
+            _completeResponses = new ConcurrentDictionary<TId, TaskCompletionSource<ITcpBatch<TResponse>>>();
             _serializer = new TcpSerializer<TId, TRequest, TResponse>(_options.Converters);
             _writeResetEvent = new AsyncManualResetEvent();
             _readResetEvent = new AsyncManualResetEvent();

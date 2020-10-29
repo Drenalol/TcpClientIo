@@ -16,8 +16,8 @@ namespace Drenalol.TcpClientIo.Client
     {
         private async Task SetResponseAsync(TId responseId, TResponse response)
         {
-            TaskCompletionSource<ITcpBatch<TId, TResponse>> tcs;
-            ITcpBatch<TId, TResponse> batch = null;
+            TaskCompletionSource<ITcpBatch<TResponse>> tcs;
+            ITcpBatch<TResponse> batch = null;
 
             // From MSDN: ConcurrentDictionary<TId,TValue> is designed for multi-threaded scenarios.
             // You do not have to use locks in your code to add or remove items from the collection.
@@ -44,9 +44,9 @@ namespace Drenalol.TcpClientIo.Client
                 _consumingResetEvent.Set();
             }
 
-            void AddOrUpdate(TaskCompletionSource<ITcpBatch<TId, TResponse>> innerTcs = null)
+            void AddOrUpdate(TaskCompletionSource<ITcpBatch<TResponse>> innerTcs = null)
             {
-                batch = _batchRules.Create(responseId, response);
+                batch = _batchRules.Create(response);
                 tcs = innerTcs ?? InternalGetOrAddLazyTcs(responseId);
                 _logger?.LogInformation($"Available new response: Id {responseId}, create new batch (Count: 1)");
             }
@@ -54,18 +54,18 @@ namespace Drenalol.TcpClientIo.Client
             async Task UpdateAsync()
             {
                 batch = await tcs.Task;
-                batch.Update(response);
+                batch.Add(response);
                 tcs = InternalGetOrAddLazyTcs(responseId);
                 _logger?.LogInformation($"Available new response: Id {responseId}, update exists batch (Count: {batch.Count.ToString()})");
             }
         }
 
-        private TaskCompletionSource<ITcpBatch<TId, TResponse>> InternalGetOrAddLazyTcs(TId id)
+        private TaskCompletionSource<ITcpBatch<TResponse>> InternalGetOrAddLazyTcs(TId id)
         {
             return _completeResponses.GetOrAdd(id, _ => InternalCreateLazyTcs().Value);
 
-            Lazy<TaskCompletionSource<ITcpBatch<TId, TResponse>>> InternalCreateLazyTcs() =>
-                new Lazy<TaskCompletionSource<ITcpBatch<TId, TResponse>>>(() => new TaskCompletionSource<ITcpBatch<TId, TResponse>>());
+            Lazy<TaskCompletionSource<ITcpBatch<TResponse>>> InternalCreateLazyTcs() =>
+                new Lazy<TaskCompletionSource<ITcpBatch<TResponse>>>(() => new TaskCompletionSource<ITcpBatch<TResponse>>());
         }
 
         /// <summary>
@@ -95,11 +95,11 @@ namespace Drenalol.TcpClientIo.Client
         /// </summary>
         /// <param name="responseId">Set 'default' if using No Identifier version.</param>
         /// <param name="token"></param>
-        /// <returns><see cref="ITcpBatch{TId, TResponse}"/></returns>
-        public async Task<ITcpBatch<TId, TResponse>> ReceiveAsync(TId responseId, CancellationToken token = default)
+        /// <returns><see cref="ITcpBatch{TResponse}"/></returns>
+        public async Task<ITcpBatch<TResponse>> ReceiveAsync(TId responseId, CancellationToken token = default)
         {
             var internalToken = token == default ? _baseCancellationToken : token;
-            TaskCompletionSource<ITcpBatch<TId, TResponse>> tcs;
+            TaskCompletionSource<ITcpBatch<TResponse>> tcs;
             // Info about lock read in SetResponseAsync method
             using (await _asyncLock.LockAsync())
             {
@@ -124,14 +124,14 @@ namespace Drenalol.TcpClientIo.Client
         }
 
 #if NETSTANDARD2_1
-        /// <summary>Provides a consuming <see cref="T:System.Collections.Generics.IAsyncEnumerable{T}"/> for <see cref="ITcpBatch{TId, TResponse}"/> in the collection.
+        /// <summary>Provides a consuming <see cref="T:System.Collections.Generics.IAsyncEnumerable{T}"/> for <see cref="ITcpBatch{TResponse}"/> in the collection.
         /// Calling MoveNextAsync on the returned enumerable will block if there is no data available, or will
         /// throw an <see cref="System.OperationCanceledException"/> if the <see cref="CancellationToken"/> is canceled.
         /// </summary>
         /// <param name="token">A cancellation token to observe.</param>
         /// <returns></returns>
         /// <exception cref="OperationCanceledException">If the <see cref="CancellationToken"/> is canceled.</exception>
-        public async IAsyncEnumerable<ITcpBatch<TId, TResponse>> GetConsumingAsyncEnumerable([EnumeratorCancellation] CancellationToken token = default)
+        public async IAsyncEnumerable<ITcpBatch<TResponse>> GetConsumingAsyncEnumerable([EnumeratorCancellation] CancellationToken token = default)
         {
             CancellationTokenSource internalCts = null;
             CancellationToken internalToken;
@@ -146,12 +146,12 @@ namespace Drenalol.TcpClientIo.Client
 
             while (!internalToken.IsCancellationRequested)
             {
-                IList<ITcpBatch<TId, TResponse>> result;
+                IList<ITcpBatch<TResponse>> result;
 
                 try
                 {
                     internalToken.ThrowIfCancellationRequested();
-                    KeyValuePair<TId, TaskCompletionSource<ITcpBatch<TId, TResponse>>>[] completedResponses;
+                    KeyValuePair<TId, TaskCompletionSource<ITcpBatch<TResponse>>>[] completedResponses;
 
                     // Info about lock read in SetResponseAsync method
                     using (await _asyncLock.LockAsync(internalToken))
@@ -171,7 +171,7 @@ namespace Drenalol.TcpClientIo.Client
 
                     using (await _asyncLock.LockAsync(internalToken))
                     {
-                        result = new List<ITcpBatch<TId, TResponse>>();
+                        result = new List<ITcpBatch<TResponse>>();
 
                         foreach (var pair in completedResponses)
                         {

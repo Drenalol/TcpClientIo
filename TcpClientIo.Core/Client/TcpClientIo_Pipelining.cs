@@ -142,7 +142,7 @@ namespace Drenalol.TcpClientIo.Client
                 foreach (var completedResponse in _completeResponses.Where(tcs => tcs.Value.Task.Status == TaskStatus.WaitingForActivation))
                 {
                     var innerException = exception ?? new OperationCanceledException();
-                    Debug.WriteLine($"Set force {innerException.GetType()} in {nameof(TaskCompletionSource<ITcpBatch<TId, TResponse>>)} in {nameof(TaskStatus.WaitingForActivation)}");
+                    Debug.WriteLine($"Set force {innerException.GetType()} in {nameof(TaskCompletionSource<ITcpBatch<TResponse>>)} in {nameof(TaskStatus.WaitingForActivation)}");
                     completedResponse.Value.TrySetException(innerException);
                 }
             }
