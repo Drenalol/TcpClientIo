@@ -52,7 +52,7 @@ namespace Drenalol.TcpClientIo.Serialization
             switch (propertyValue)
             {
                 case null:
-                    throw TcpException.Throw(TcpTypeException.PropertyArgumentIsNull, propertyType.ToString());
+                    throw TcpException.PropertyArgumentIsNull(propertyType.ToString());
                 case byte @byte:
                     return new[] {@byte};
                 case byte[] byteArray:
@@ -71,25 +71,25 @@ namespace Drenalol.TcpClientIo.Serialization
                         }
                         catch (Exception exception)
                         {
-                            throw TcpException.Throw(TcpTypeException.ConverterUnknownError, propertyType.ToString(), exception.Message);
+                            throw TcpException.ConverterUnknownError(propertyType.ToString(), exception.Message);
                         }
                     }
                     else
-                        throw TcpException.Throw(TcpTypeException.ConverterNotFoundType, propertyType.ToString());
+                        throw TcpException.ConverterNotFoundType(propertyType.ToString());
             }
         }
 
         public object ConvertFromBytes(byte[] propertyValue, Type propertyType, bool reverse = false)
         {
             if (propertyValue == null)
-                throw TcpException.Throw(TcpTypeException.PropertyArgumentIsNull, propertyType.ToString());
+                throw TcpException.PropertyArgumentIsNull(propertyType.ToString());
 
             if (propertyType == typeof(byte[]))
                 return reverse ? Reverse(propertyValue) : propertyValue;
 
             if (propertyType == typeof(byte))
                 return propertyValue.Length > 1
-                    ? throw TcpException.Throw(TcpTypeException.ConverterUnknownError, propertyType.ToString(), "byte array > 1")
+                    ? throw TcpException.ConverterUnknownError(propertyType.ToString(), "value Length more than one byte")
                     : propertyValue[0];
 
             var bytes = reverse ? Reverse(propertyValue) : propertyValue;
@@ -105,11 +105,11 @@ namespace Drenalol.TcpClientIo.Serialization
                 }
                 catch (Exception exception)
                 {
-                    throw TcpException.Throw(TcpTypeException.ConverterUnknownError, propertyType.ToString(), exception.Message);
+                    throw TcpException.ConverterUnknownError(propertyType.ToString(), exception.Message);
                 }
             }
             else
-                throw TcpException.Throw(TcpTypeException.ConverterNotFoundType, propertyType.ToString());
+                throw TcpException.ConverterNotFoundType(propertyType.ToString());
 
             return result;
         }

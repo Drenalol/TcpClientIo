@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Drenalol.TcpClientIo.Batches;
 using Drenalol.TcpClientIo.Contracts;
+using Drenalol.TcpClientIo.Exceptions;
 using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Serialization;
 using Microsoft.Extensions.Logging;
@@ -48,6 +49,8 @@ namespace Drenalol.TcpClientIo.Client
         private Exception _internalException;
         private PipeReader _networkStreamPipeReader;
         private PipeWriter _networkStreamPipeWriter;
+        private bool _pipelineReadEnded;
+        private bool _pipelineWriteEnded;
         private bool _disposing;
         PipeReader IDuplexPipe.Input => _networkStreamPipeReader;
         PipeWriter IDuplexPipe.Output => _networkStreamPipeWriter;
@@ -143,7 +146,14 @@ namespace Drenalol.TcpClientIo.Client
         private void SetupTasks()
         {
             Task.Run(TcpWriteAsync, CancellationToken.None);
-            Task.Run(TcpReadAsync, CancellationToken.None);
+            Task.Run(TcpReadAsync, CancellationToken.None).ContinueWith(antecedent =>
+            {
+                if (_disposing || !_pipelineReadEnded)
+                    return;
+                
+                foreach (var kv in _completeResponses.ToArray())
+                    kv.Value.TrySetException(TcpClientIoException.ConnectionBroken());
+            }, TaskContinuationOptions.OnlyOnRanToCompletion);
             Task.Run(DeserializeResponseAsync, CancellationToken.None);
         }
 

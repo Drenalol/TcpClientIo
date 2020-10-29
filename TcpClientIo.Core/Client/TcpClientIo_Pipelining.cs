@@ -45,6 +45,7 @@ namespace Drenalol.TcpClientIo.Client
             {
                 StopWriter(_internalException);
                 _writeResetEvent.Set();
+                _pipelineWriteEnded = true;
             }
         }
 
@@ -87,6 +88,7 @@ namespace Drenalol.TcpClientIo.Client
             {
                 StopReader(_internalException);
                 _readResetEvent.Set();
+                _pipelineReadEnded = true;
             }
         }
 

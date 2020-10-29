@@ -29,10 +29,11 @@ namespace Drenalol.TcpClientIo.Serialization
 
                 foreach (var converter in converters)
                 {
-                    var type = converter.GetType().BaseType;
+                    var converterType = converter.GetType();
+                    var type = converterType.BaseType;
 
                     if (type == null)
-                        throw TcpClientIoException.Throw(TcpClientIoTypeException.ConverterError);
+                        throw TcpClientIoException.ConverterError(converterType.Name);
 
                     var genericType = type.GenericTypeArguments.Single();
                     tempDict.Add(genericType, converter);
@@ -70,7 +71,7 @@ namespace Drenalol.TcpClientIo.Serialization
                 }
 
                 if (serializedBody == null)
-                    throw TcpException.Throw(TcpTypeException.SerializerBodyIsNull);
+                    throw TcpException.SerializerBodyIsNull();
 
                 var lengthValue = bodyLengthProperty.PropertyType == typeof(int)
                     ? serializedBody.Length
@@ -90,7 +91,7 @@ namespace Drenalol.TcpClientIo.Serialization
                 var valueLength = value.Length;
 
                 if (property.Attribute.TcpDataType != TcpDataType.Body && valueLength > property.Attribute.Length)
-                    throw TcpException.Throw(TcpTypeException.SerializerLengthOutOfRange, property.PropertyType.ToString(), valueLength.ToString(), property.Attribute.Length.ToString());
+                    throw TcpException.SerializerLengthOutOfRange(property.PropertyType.ToString(), valueLength.ToString(), property.Attribute.Length.ToString());
 
                 var attributeLength = property.Attribute.TcpDataType == TcpDataType.Body ? valueLength : property.Attribute.Length;
 

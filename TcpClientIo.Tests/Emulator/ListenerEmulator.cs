@@ -24,9 +24,9 @@ namespace Drenalol.TcpClientIo.Emulator
             _ = Task.Run(GetConnection);
         }
 
-        public static void Create(CancellationToken token, ListenerEmulatorConfig args)
+        public static ListenerEmulator Create(CancellationToken token, ListenerEmulatorConfig args)
         {
-            _ = new ListenerEmulator(token, args);
+            return new ListenerEmulator(token, args);
         }
 
         private async Task GetConnection()
@@ -48,8 +48,12 @@ namespace Drenalol.TcpClientIo.Emulator
             {
                 try
                 {
+                    _token.ThrowIfCancellationRequested();
+                    
                     var readResult = await reader.ReadAsync(_token);
 
+                    _token.ThrowIfCancellationRequested();
+                    
                     if (readResult.Buffer.IsEmpty)
                         continue;
 
@@ -58,9 +62,14 @@ namespace Drenalol.TcpClientIo.Emulator
                     else
                         foreach (var readOnlyMemory in readResult.Buffer)
                             await writer.WriteAsync(readOnlyMemory, _token);
-                    
+
                     reader.AdvanceTo(readResult.Buffer.End);
                     sw.Restart();
+                }
+                catch (OperationCanceledException)
+                {
+                    _listener.Stop();
+                    break;
                 }
                 catch (Exception)
                 {

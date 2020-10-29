@@ -61,39 +61,39 @@ namespace Drenalol.TcpClientIo.Serialization
             var key = properties.Where(item => item.Value.Attribute.TcpDataType == TcpDataType.Id).ToList();
 
             if (key.Count > 1)
-                throw TcpException.Throw(TcpTypeException.AttributeDuplicate, type.ToString(), nameof(TcpDataType.Id));
+                throw TcpException.AttributeDuplicate(type.ToString(), nameof(TcpDataType.Id));
 
             if (key.Count == 1 && !key.Single().Value.CanReadWrite)
-                throw TcpException.Throw(TcpTypeException.PropertyCanReadWrite, type.ToString(), nameof(TcpDataType.Id));
+                throw TcpException.PropertyCanReadWrite(type.ToString(), nameof(TcpDataType.Id));
 
             var body = properties.Where(item => item.Value.Attribute.TcpDataType == TcpDataType.Body).ToList();
 
             if (body.Count > 1)
-                throw TcpException.Throw(TcpTypeException.AttributeDuplicate, type.ToString(), nameof(TcpDataType.Body));
+                throw TcpException.AttributeDuplicate(type.ToString(), nameof(TcpDataType.Body));
             
             if (body.Count == 1 && !body.Single().Value.CanReadWrite)
-                throw TcpException.Throw(TcpTypeException.PropertyCanReadWrite, type.ToString(), nameof(TcpDataType.Body));
+                throw TcpException.PropertyCanReadWrite(type.ToString(), nameof(TcpDataType.Body));
 
             var bodyLength = properties.Where(item => item.Value.Attribute.TcpDataType == TcpDataType.BodyLength).ToList();
 
             if (bodyLength.Count > 1)
-                throw TcpException.Throw(TcpTypeException.AttributeDuplicate, type.ToString(), nameof(TcpDataType.BodyLength));
+                throw TcpException.AttributeDuplicate(type.ToString(), nameof(TcpDataType.BodyLength));
             if (body.Count == 1 && bodyLength.Count == 0)
-                throw TcpException.Throw(TcpTypeException.AttributeBodyLengthRequired, type.ToString());
+                throw TcpException.AttributeBodyLengthRequired(type.ToString());
             if (bodyLength.Count == 1 && body.Count == 0)
-                throw TcpException.Throw(TcpTypeException.AttributeBodyRequired, type.ToString());
+                throw TcpException.AttributeBodyRequired(type.ToString());
             
             if (bodyLength.Count == 1 && body.Count == 1 && !bodyLength.Single().Value.CanReadWrite)
-                throw TcpException.Throw(TcpTypeException.PropertyCanReadWrite,  type.ToString(), nameof(TcpDataType.BodyLength));
+                throw TcpException.PropertyCanReadWrite(type.ToString(), nameof(TcpDataType.BodyLength));
             
             var metaData = properties.Where(item => item.Value.Attribute.TcpDataType == TcpDataType.MetaData).ToList();
             
             if (key.Count == 0 && bodyLength.Count == 0 && body.Count == 0 && metaData.Count == 0)
-                throw TcpException.Throw(TcpTypeException.AttributesRequired, type.ToString());
+                throw TcpException.AttributesRequired(type.ToString());
 
             foreach (var pair in metaData.Where(pair => !pair.Value.CanReadWrite))
             {
-                throw TcpException.Throw(TcpTypeException.PropertyCanReadWrite, type.ToString(), nameof(TcpDataType.MetaData), pair.Value.Attribute.Index.ToString());
+                throw TcpException.PropertyCanReadWrite(type.ToString(), nameof(TcpDataType.MetaData), pair.Value.Attribute.Index.ToString());
             }
         }
 

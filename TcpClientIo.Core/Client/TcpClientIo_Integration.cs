@@ -1,14 +1,15 @@
 using System;
+#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+#endif
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Drenalol.TcpClientIo.Batches;
+using Drenalol.TcpClientIo.Exceptions;
 using Microsoft.Extensions.Logging;
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-#endif
 
 namespace Drenalol.TcpClientIo.Client
 {
@@ -40,7 +41,7 @@ namespace Drenalol.TcpClientIo.Client
                 else
                     AddOrUpdate();
 
-                tcs.SetResult(batch);
+                tcs.TrySetResult(batch);
                 _consumingResetEvent.Set();
             }
 
@@ -78,6 +79,9 @@ namespace Drenalol.TcpClientIo.Client
         {
             try
             {
+                if (!_disposing && _pipelineWriteEnded)
+                    throw TcpClientIoException.ConnectionBroken();
+
                 var serializedRequest = _serializer.Serialize(request);
                 return await _bufferBlockRequests.SendAsync(serializedRequest, token == default ? _baseCancellationToken : token);
             }
@@ -98,7 +102,20 @@ namespace Drenalol.TcpClientIo.Client
         /// <returns><see cref="ITcpBatch{TResponse}"/></returns>
         public async Task<ITcpBatch<TResponse>> ReceiveAsync(TId responseId, CancellationToken token = default)
         {
-            var internalToken = token == default ? _baseCancellationToken : token;
+            if (!_disposing && _pipelineReadEnded)
+                throw TcpClientIoException.ConnectionBroken();
+
+            var hasOwnToken = false;
+            CancellationToken internalToken;
+
+            if (token == default)
+                internalToken = _baseCancellationToken;
+            else
+            {
+                internalToken = token;
+                hasOwnToken = true;
+            }
+
             TaskCompletionSource<ITcpBatch<TResponse>> tcs;
             // Info about lock read in SetResponseAsync method
             using (await _asyncLock.LockAsync())
@@ -114,8 +131,10 @@ namespace Drenalol.TcpClientIo.Client
             using (internalToken.Register(() =>
 #endif
             {
-                var cancelled = tcs.TrySetCanceled();
-                _logger?.LogInformation(cancelled ? $"Response has been cancelled successfulfy: Id {responseId}" : $"Response cancellation was failed: Id {responseId}, TaskStatus: {tcs.Task.Status.ToString()}");
+                if (_disposing || hasOwnToken)
+                    tcs.TrySetCanceled();
+                else if (!_disposing && _pipelineReadEnded)
+                    tcs.TrySetException(TcpClientIoException.ConnectionBroken());
             }))
             {
                 var result = await tcs.Task;

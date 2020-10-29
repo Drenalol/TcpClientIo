@@ -11,6 +11,8 @@ using System.Threading.Tasks;
 using Drenalol.TcpClientIo.Client;
 using Drenalol.TcpClientIo.Contracts;
 using Drenalol.TcpClientIo.Converters;
+using Drenalol.TcpClientIo.Emulator;
+using Drenalol.TcpClientIo.Exceptions;
 using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Stuff;
 using Microsoft.Extensions.Logging;
@@ -19,7 +21,7 @@ using NUnit.Framework;
 namespace Drenalol.TcpClientIo
 {
     [TestFixture(TestOf = typeof(TcpClientIo<,>))]
-    public class TcpClientIoTests : TcpListenerTest
+    public class TcpClientIoTests : UseTcpListenerTest
     {
         public static readonly IPAddress IpAddress = IPAddress.Any;
         public static readonly ImmutableList<Mock> Mocks = JsonExt.Deserialize<List<Mock>>(File.ReadAllText("MOCK_DATA_1000")).ToImmutableList();
@@ -48,10 +50,10 @@ namespace Drenalol.TcpClientIo
             return (options, loggerFactory);
         }
 
-        public static TcpClientIo<TId, T, TR> GetClient<TId, T, TR>(IPAddress ipAddress = null, LogLevel logLevel = LogLevel.Warning) where TR : new() where TId : struct
+        public static TcpClientIo<TId, T, TR> GetClient<TId, T, TR>(IPAddress ipAddress = null, int port = 10000, LogLevel logLevel = LogLevel.Warning) where TR : new() where TId : struct
         {
             var (options, loggerFactory) = GetDefaults(logLevel);
-            return new TcpClientIo<TId, T, TR>(ipAddress ?? IpAddress, 10000, options, loggerFactory.CreateLogger<TcpClientIo<TId, T, TR>>());
+            return new TcpClientIo<TId, T, TR>(ipAddress ?? IpAddress, port, options, loggerFactory.CreateLogger<TcpClientIo<TId, T, TR>>());
         }
 
         [Test]
@@ -359,6 +361,37 @@ namespace Drenalol.TcpClientIo
             var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>();
             await client.SendAsync(mock);
             Assert.NotNull(await client.ReceiveAsync(default));
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void ReceiveAndDisconnectTest(bool ownToken)
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            var cfg = ListenerEmulatorConfig.Default;
+            cfg.Port = 10001;
+            ListenerEmulator.Create(cts.Token, cfg);
+            var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: 10001);
+            
+            Assert.CatchAsync<TcpClientIoException>(() =>
+            {
+                using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                return client.ReceiveAsync(0, ownToken ? cts2.Token : default);
+            });
+        }
+
+        [Test]
+        public async Task SendAndDisconnectTest()
+        {
+            using var cts = new CancellationTokenSource();
+            var cfg = ListenerEmulatorConfig.Default;
+            cfg.Port = 10001;
+            ListenerEmulator.Create(cts.Token, cfg);
+            var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: 10001);
+            
+            cts.Cancel();
+            await Task.Delay(5000, CancellationToken.None);
+            Assert.CatchAsync<TcpClientIoException>(() => client.SendAsync(new MockNoIdEmptyBody(), CancellationToken.None));
         }
     }
 }
