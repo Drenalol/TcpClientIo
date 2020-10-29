@@ -380,6 +380,30 @@ namespace Drenalol.TcpClientIo
             });
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ConsumeAndDisconnectTest(bool ownToken)
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            var cfg = ListenerEmulatorConfig.Default;
+            cfg.Port = 10001;
+            ListenerEmulator.Create(cts.Token, cfg);
+            var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: 10001);
+            
+            using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            
+            try
+            {
+                await foreach (var _ in client.GetExpandableConsumingAsyncEnumerable(ownToken ? cts2.Token : default))
+                {
+                }
+            }
+            catch (Exception e)
+            {
+                Assert.IsInstanceOf<TcpClientIoException>(e);
+            }
+        }
+
         [Test]
         public async Task SendAndDisconnectTest()
         {

@@ -43,9 +43,9 @@ namespace Drenalol.TcpClientIo.Client
             }
             finally
             {
+                _pipelineWriteEnded = true;
                 StopWriter(_internalException);
                 _writeResetEvent.Set();
-                _pipelineWriteEnded = true;
             }
         }
 
@@ -86,9 +86,9 @@ namespace Drenalol.TcpClientIo.Client
             }
             finally
             {
+                _pipelineReadEnded = true;
                 StopReader(_internalException);
                 _readResetEvent.Set();
-                _pipelineReadEnded = true;
             }
         }
 
@@ -130,6 +130,12 @@ namespace Drenalol.TcpClientIo.Client
             {
                 _deserializePipeWriter.Complete(exception);
                 _deserializePipeReader.Complete(exception);
+            }
+            
+            if (!_baseCancellationTokenSource.IsCancellationRequested)
+            {
+                Debug.WriteLine("Cancelling _baseCancellationTokenSource from StopDeserializeWriterReader");
+                _baseCancellationTokenSource.Cancel();
             }
 
             Debug.WriteLine("Completion Deserializer PipeWriter and PipeReader ended");
