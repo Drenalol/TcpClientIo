@@ -62,13 +62,11 @@ Request request = new Request
 await tcpClient.SendAsync(request, CancellationToken.None);
 
 // Receive response in overtype ITcpBatch<Response> by identifier asynchronously.
-// !!! WARNING !!!
 // Identifier is strongly-typed, you must use the type specified in the request.
-ITcpBatch<uint, Response> resultBatch = await tcpClient.ReceiveAsync(123U, CancellationToken.None);
+ITcpBatch<Response> resultBatch = await tcpClient.ReceiveAsync(123U, CancellationToken.None);
 
 // Or if schema does not have TcpDataType.Id (Available from 1.0.9)
-// Id (int) will always be zero
-ITcpBatch<int, Response> resultBatch = await tcpClient.ReceiveAsync(default, CancellationToken.None);
+ITcpBatch<Response> resultBatch = await tcpClient.ReceiveAsync(CancellationToken.None);
 
 // Batch support iteration
 foreach (var response in resultBatch)
