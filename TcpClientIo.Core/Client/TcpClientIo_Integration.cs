@@ -205,6 +205,9 @@ namespace Drenalol.TcpClientIo.Client
                 }
                 catch (OperationCanceledException)
                 {
+                    if (!_disposing && _pipelineReadEnded)
+                        throw TcpClientIoException.ConnectionBroken();
+                    
                     throw;
                 }
                 catch (Exception exception)
