@@ -74,7 +74,8 @@ namespace Drenalol.TcpClientIo.Client
         /// </summary>
         /// <param name="request"></param>
         /// <param name="token"></param>
-        /// <returns></returns>
+        /// <returns><see cref="bool"/></returns>
+        /// <exception cref="TcpClientIoException"></exception>
         public async Task<bool> SendAsync(TRequest request, CancellationToken token = default)
         {
             try
@@ -97,12 +98,11 @@ namespace Drenalol.TcpClientIo.Client
 
         /// <summary>
         /// Begins an asynchronous request to receive response associated with the specified ID from a connected <see cref="TcpClientIo{TId,TRequest,TResponse}"/> object.
-        /// <para> </para>
-        /// WARNING! Identifier is strongly-typed, if Id of Request have type uint, you must pass it value in uint too, otherwise the call will be forever or cancelled by <see cref="CancellationToken"/>.
         /// </summary>
         /// <param name="responseId">Set 'default' if using No Identifier version.</param>
         /// <param name="token"></param>
         /// <returns><see cref="ITcpBatch{TResponse}"/></returns>
+        /// <exception cref="TcpClientIoException"></exception>
         public async Task<ITcpBatch<TResponse>> ReceiveAsync(TId responseId, CancellationToken token = default)
         {
             if (_disposing)
@@ -156,6 +156,7 @@ namespace Drenalol.TcpClientIo.Client
         /// <param name="token">A cancellation token to observe.</param>
         /// <returns></returns>
         /// <exception cref="OperationCanceledException">If the <see cref="CancellationToken"/> is canceled.</exception>
+        /// <exception cref="TcpClientIoException"></exception>
         public async IAsyncEnumerable<ITcpBatch<TResponse>> GetConsumingAsyncEnumerable([EnumeratorCancellation] CancellationToken token = default)
         {
             CancellationTokenSource internalCts = null;
@@ -238,6 +239,7 @@ namespace Drenalol.TcpClientIo.Client
         /// <param name="token">A cancellation token to observe.</param>
         /// <returns></returns>
         /// <exception cref="OperationCanceledException">If the <see cref="CancellationToken"/> is canceled.</exception>
+        /// <exception cref="TcpClientIoException"></exception>
         public async IAsyncEnumerable<TResponse> GetExpandableConsumingAsyncEnumerable([EnumeratorCancellation] CancellationToken token = default)
         {
             await foreach (var batch in GetConsumingAsyncEnumerable(token))

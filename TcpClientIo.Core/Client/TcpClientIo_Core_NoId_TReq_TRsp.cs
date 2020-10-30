@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Drenalol.TcpClientIo.Batches;
+using Drenalol.TcpClientIo.Exceptions;
 using Drenalol.TcpClientIo.Options;
 using Microsoft.Extensions.Logging;
 
@@ -39,6 +40,12 @@ namespace Drenalol.TcpClientIo.Client
         {
         }
 
+        /// <summary>
+        /// Begins an asynchronous request to receive any response from a connected <see cref="TcpClientIo{TRequest,TResponse}"/> object.
+        /// </summary>
+        /// <param name="token"></param>
+        /// <returns><see cref="ITcpBatch{TResponse}"/></returns>
+        /// <exception cref="TcpClientIoException"></exception>
         public Task<ITcpBatch<TResponse>> ReceiveAsync(CancellationToken token = default) => ReceiveAsync(default, token);
     }
 }
