@@ -79,6 +79,9 @@ namespace Drenalol.TcpClientIo.Client
         {
             try
             {
+                if (_disposing)
+                    throw new ObjectDisposedException(nameof(_tcpClient));
+                
                 if (!_disposing && _pipelineWriteEnded)
                     throw TcpClientIoException.ConnectionBroken();
 
@@ -102,6 +105,9 @@ namespace Drenalol.TcpClientIo.Client
         /// <returns><see cref="ITcpBatch{TResponse}"/></returns>
         public async Task<ITcpBatch<TResponse>> ReceiveAsync(TId responseId, CancellationToken token = default)
         {
+            if (_disposing)
+                throw new ObjectDisposedException(nameof(_tcpClient));
+            
             if (!_disposing && _pipelineReadEnded)
                 throw TcpClientIoException.ConnectionBroken();
 
