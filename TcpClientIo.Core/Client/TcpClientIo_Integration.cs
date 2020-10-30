@@ -99,7 +99,7 @@ namespace Drenalol.TcpClientIo.Client
         /// <summary>
         /// Begins an asynchronous request to receive response associated with the specified ID from a connected <see cref="TcpClientIo{TId,TRequest,TResponse}"/> object.
         /// </summary>
-        /// <param name="responseId">Set 'default' if using No Identifier version.</param>
+        /// <param name="responseId"></param>
         /// <param name="token"></param>
         /// <returns><see cref="ITcpBatch{TResponse}"/></returns>
         /// <exception cref="TcpClientIoException"></exception>
