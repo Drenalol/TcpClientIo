@@ -52,18 +52,20 @@ namespace Drenalol.TcpClientIo.Client
         private bool _pipelineReadEnded;
         private bool _pipelineWriteEnded;
         private bool _disposing;
+        private long _bytesWrite;
+        private long _bytesRead;
         PipeReader IDuplexPipe.Input => _networkStreamPipeReader;
         PipeWriter IDuplexPipe.Output => _networkStreamPipeWriter;
 
         /// <summary>
         /// Gets the number of total bytes written to the <see cref="NetworkStream"/>.
         /// </summary>
-        public ulong BytesWrite { get; private set; }
+        public long BytesWrite => _bytesWrite;
 
         /// <summary>
         /// Gets the number of total bytes read from the <see cref="NetworkStream"/>.
         /// </summary>
-        public ulong BytesRead { get; private set; }
+        public long BytesRead => _bytesRead;
 
         /// <summary>
         /// Gets the number of responses to receive or the number of responses ready to receive.

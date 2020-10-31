@@ -9,8 +9,8 @@ namespace Drenalol.TcpClientIo.Contracts
     public interface ITcpClientIo : IDisposable, IDuplexPipe
 #endif
     {
-        ulong BytesWrite { get; }
-        ulong BytesRead { get; }
+        long BytesWrite { get; }
+        long BytesRead { get; }
         int Waiters { get; }
         int Requests { get; }
     }

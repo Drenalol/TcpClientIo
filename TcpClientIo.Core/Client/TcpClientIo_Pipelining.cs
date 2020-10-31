@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Drenalol.TcpClientIo.Batches;
@@ -27,7 +28,7 @@ namespace Drenalol.TcpClientIo.Client
                     if (writeResult.IsCanceled || writeResult.IsCompleted)
                         break;
                     
-                    BytesWrite += (ulong) bytesArray.Length;
+                    Interlocked.Add(ref _bytesWrite, bytesArray.Length);
                     Debug.WriteLine($"Tcp writed {bytesArray.Length.ToString()} bytes");
                 }
             }
@@ -67,7 +68,7 @@ namespace Drenalol.TcpClientIo.Client
                     foreach (var buffer in readResult.Buffer)
                     {
                         await _deserializePipeWriter.WriteAsync(buffer, _baseCancellationToken);
-                        BytesRead += (ulong) buffer.Length;
+                        Interlocked.Add(ref _bytesRead, buffer.Length);
                         Debug.WriteLine($"Tcp readed {buffer.Length.ToString()} bytes");
                     }
                     
