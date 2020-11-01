@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Reflection;
 using Drenalol.TcpClientIo.Converters;
 using Drenalol.TcpClientIo.Exceptions;
@@ -10,11 +9,11 @@ namespace Drenalol.TcpClientIo.Serialization
 {
     public class BitConverterHelper
     {
-        private readonly ImmutableDictionary<Type, MethodInfo> _builtInConvertersToBytes;
-        private readonly ImmutableDictionary<Type, MethodInfo> _builtInConvertersFromBytes;
-        private readonly ImmutableDictionary<Type, TcpConverter> _customConverters;
+        private readonly IReadOnlyDictionary<Type, MethodInfo> _builtInConvertersToBytes;
+        private readonly IReadOnlyDictionary<Type, MethodInfo> _builtInConvertersFromBytes;
+        private readonly IReadOnlyDictionary<Type, TcpConverter> _customConverters;
 
-        public BitConverterHelper(ImmutableDictionary<Type, TcpConverter> converters)
+        public BitConverterHelper(IReadOnlyDictionary<Type, TcpConverter> converters)
         {
             _customConverters = converters;
             var toBytes = new Dictionary<Type, MethodInfo>();
@@ -31,8 +30,8 @@ namespace Drenalol.TcpClientIo.Serialization
             Add(typeof(uint));
             Add(typeof(ulong));
 
-            _builtInConvertersToBytes = toBytes.ToImmutableDictionary();
-            _builtInConvertersFromBytes = fromBytes.ToImmutableDictionary();
+            _builtInConvertersToBytes = toBytes;
+            _builtInConvertersFromBytes = fromBytes;
 
             void Add(Type type)
             {

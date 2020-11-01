@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.IO;
 using System.IO.Pipelines;
 using System.Threading;
@@ -18,22 +17,22 @@ namespace Drenalol.TcpClientIo
         [Test]
         public async Task SerializeDeserializeTest()
         {
-            var ethalon = TcpClientIoTests.Mocks[123];
+            var ethalon = Mock.Default();
             const int ethalonBodyLength = 17238;
             const int ethalonHeaderLength = 270;
-            
-            var serializer = new TcpSerializer<long, Mock, Mock>(new List<TcpConverter> {new TcpUtf8StringConverter()});
+
+            var serializer = new TcpSerializer<long, Mock, Mock>(new List<TcpConverter> {new TcpUtf8StringConverter()}, i => new byte[i]);
             var serialize = serializer.Serialize(ethalon);
-            Assert.IsTrue(serialize.Length == ethalonBodyLength + ethalonHeaderLength);
-            var (_, _, deserialize) = await serializer.DeserializeAsync(PipeReader.Create(new MemoryStream(serialize)), CancellationToken.None);
+            Assert.IsTrue(serialize.Request.Length == ethalonBodyLength + ethalonHeaderLength);
+            var (_, deserialize) = await serializer.DeserializeAsync(PipeReader.Create(new MemoryStream(serialize.Request.ToArray())), CancellationToken.None);
             Assert.IsTrue(ethalon.Equals(deserialize));
         }
 
         [Test]
         public void NotFoundConverterExceptionTest()
         {
-            var serializer = new TcpSerializer<long, Mock, Mock>(new List<TcpConverter>());
-            var mock = TcpClientIoTests.Mocks[123];
+            var serializer = new TcpSerializer<long, Mock, Mock>(new List<TcpConverter>(), i => new byte[i]);
+            var mock = Mock.Default();
             Assert.Catch<TcpException>(() => serializer.Serialize(mock));
         }
 
@@ -49,7 +48,7 @@ namespace Drenalol.TcpClientIo
         [TestCase(1234UL, 8, true)]
         public void BitConverterToBytesTest(object obj, int expected, bool reverse)
         {
-            var converter = new BitConverterHelper(ImmutableDictionary<Type, TcpConverter>.Empty);
+            var converter = new BitConverterHelper(new Dictionary<Type, TcpConverter>());
             Assert.That(converter.ConvertToBytes(obj, obj.GetType()).Length == expected, "converter.ConvertToBytes(obj, obj.GetType()).Length == expected");
         }
 
@@ -58,7 +57,7 @@ namespace Drenalol.TcpClientIo
         [TestCase(new byte[] {0, 1, 2, 3, 4, 5, 6, 7}, typeof(long), false)]
         public void BitConverterFromBytesTest(byte[] bytes, Type type, bool reverse)
         {
-            var converter = new BitConverterHelper(ImmutableDictionary<Type, TcpConverter>.Empty);
+            var converter = new BitConverterHelper(new Dictionary<Type, TcpConverter>());
             Assert.That(converter.ConvertFromBytes(bytes, type, reverse).GetType() == type, "converter.ConvertFromBytes(bytes, type, reverse).GetType() == type");
         }
     }

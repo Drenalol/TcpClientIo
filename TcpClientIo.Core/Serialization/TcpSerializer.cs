@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Linq;
@@ -15,18 +14,18 @@ namespace Drenalol.TcpClientIo.Serialization
 {
     public class TcpSerializer<TId, TRequest, TResponse> where TResponse : new() where TId : struct
     {
+        private readonly Func<int, byte[]> _byteArrayFactory;
         private readonly ReflectionHelper<TRequest, TResponse> _reflectionHelper;
         private readonly BitConverterHelper _bitConverterHelper;
 
-        public TcpSerializer(IReadOnlyCollection<TcpConverter> converters)
+        public TcpSerializer(IReadOnlyCollection<TcpConverter> converters, Func<int, byte[]> byteArrayFactory)
         {
+            _byteArrayFactory = byteArrayFactory;
             _reflectionHelper = new ReflectionHelper<TRequest, TResponse>();
-            var immutableConverters = ImmutableDictionary<Type, TcpConverter>.Empty;
+            var preparedConverters = new Dictionary<Type, TcpConverter>();
 
             if (converters.Count > 0)
             {
-                var tempDict = new Dictionary<Type, TcpConverter>();
-
                 foreach (var converter in converters)
                 {
                     var converterType = converter.GetType();
@@ -36,18 +35,16 @@ namespace Drenalol.TcpClientIo.Serialization
                         throw TcpClientIoException.ConverterError(converterType.Name);
 
                     var genericType = type.GenericTypeArguments.Single();
-                    tempDict.Add(genericType, converter);
+                    preparedConverters.Add(genericType, converter);
                 }
-
-                immutableConverters = tempDict.ToImmutableDictionary();
             }
 
-            _bitConverterHelper = new BitConverterHelper(immutableConverters);
+            _bitConverterHelper = new BitConverterHelper(preparedConverters);
         }
 
-        public byte[] Serialize(TRequest request)
+        public SerializedRequest Serialize(TRequest request)
         {
-            var serializedRequest = new byte[0];
+            int realLength;
             var serializedBody = new byte[0];
             var key = 0;
             var examined = 0;
@@ -81,7 +78,22 @@ namespace Drenalol.TcpClientIo.Serialization
                     request = (TRequest) bodyLengthProperty.Set(request, lengthValue);
                 else
                     bodyLengthProperty.Set(request, lengthValue);
+
+                try
+                {
+                    realLength = (int) lengthValue + _reflectionHelper.GetRequestMetaCount;
+                }
+                catch (InvalidCastException)
+                {
+                    realLength = Convert.ToInt32(lengthValue) + _reflectionHelper.GetRequestMetaCount;
+                }
+                
+                // new byte[(int) lengthValue + _reflectionHelper.GetRequestMetaCount];
             }
+            else
+                realLength = _reflectionHelper.GetRequestMetaCount; //new byte[_reflectionHelper.GetRequestMetaCount];
+
+            var rentedArray = _byteArrayFactory(realLength);
 
             while (properties.TryGetValue(key, out var property))
             {
@@ -95,23 +107,24 @@ namespace Drenalol.TcpClientIo.Serialization
 
                 var attributeLength = property.Attribute.TcpDataType == TcpDataType.Body ? valueLength : property.Attribute.Length;
 
-                if (property.Attribute.TcpDataType == TcpDataType.MetaData && valueLength < attributeLength)
+                /*if (property.Attribute.TcpDataType == TcpDataType.MetaData && valueLength < attributeLength)
                     Array.Resize(ref value, attributeLength);
 
-                Array.Resize(ref serializedRequest, property.Attribute.Index + attributeLength);
-                Array.Copy(value, 0, serializedRequest, property.Attribute.Index, attributeLength);
+                Array.Resize(ref serializedRequest, property.Attribute.Index + attributeLength);*/
+                //Array.Copy(value, 0, serializedRequest, property.Attribute.Index, attributeLength);
+                value.CopyTo(rentedArray, property.Attribute.Index);
                 key += attributeLength;
                 examined++;
-                Trace.WriteLine($"Serialize property {property.Attribute.TcpDataType.ToString()} Index: {property.Attribute.Index.ToString()} {valueLength.ToString()}/{property.Attribute.Length.ToString()} bytes");
+                //Trace.WriteLine($"Serialize property {property.Attribute.TcpDataType.ToString()} Index: {property.Attribute.Index.ToString()} {valueLength.ToString()}/{property.Attribute.Length.ToString()} bytes");
 
                 if (examined == properties.Count)
                     break;
             }
 
-            return serializedRequest;
+            return new SerializedRequest(rentedArray, realLength);
         }
 
-        public async Task<(TId, int, TResponse)> DeserializeAsync(PipeReader pipeReader, CancellationToken token)
+        public async Task<(TId, TResponse)> DeserializeAsync(PipeReader pipeReader, CancellationToken token)
         {
             var response = new TResponse();
             var key = 0;
@@ -135,7 +148,7 @@ namespace Drenalol.TcpClientIo.Serialization
                     sliceLength = property.Attribute.Length;
                     bytes = await pipeReader.ReadLengthAsync(sliceLength, token);
                 }
-                
+
                 object value = null;
 
                 switch (property.Attribute.TcpDataType)
@@ -171,7 +184,7 @@ namespace Drenalol.TcpClientIo.Serialization
                     break;
             }
 
-            return (id, bodyLength, response);
+            return (id, response);
         }
     }
 }

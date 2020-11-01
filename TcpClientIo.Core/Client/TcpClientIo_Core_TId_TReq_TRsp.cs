@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -28,15 +29,14 @@ namespace Drenalol.TcpClientIo.Client
     [DebuggerDisplay("Id: {Id,nq}, Requests: {Requests,nq}, Waiters: {Waiters,nq}")]
     public partial class TcpClientIo<TId, TRequest, TResponse> : ITcpClientIo<TId, TRequest, TResponse> where TResponse : new() where TId : struct
     {
-        [DebuggerNonUserCode]
-        private Guid Id { get; }
+        [DebuggerNonUserCode] private Guid Id { get; }
 
         private readonly TcpClientIoOptions _options;
         private readonly TcpBatchRules<TResponse> _batchRules;
         private readonly CancellationTokenSource _baseCancellationTokenSource;
         private readonly CancellationToken _baseCancellationToken;
         private readonly TcpClient _tcpClient;
-        private readonly BufferBlock<byte[]> _bufferBlockRequests;
+        private readonly BufferBlock<SerializedRequest> _bufferBlockRequests;
         private readonly ConcurrentDictionary<TId, TaskCompletionSource<ITcpBatch<TResponse>>> _completeResponses;
         private readonly AsyncLock _asyncLock = new AsyncLock();
         private readonly TcpSerializer<TId, TRequest, TResponse> _serializer;
@@ -56,6 +56,7 @@ namespace Drenalol.TcpClientIo.Client
         private long _bytesRead;
         PipeReader IDuplexPipe.Input => _networkStreamPipeReader;
         PipeWriter IDuplexPipe.Output => _networkStreamPipeWriter;
+        private readonly ArrayPool<byte> _arrayPool = ArrayPool<byte>.Create();
 
         /// <summary>
         /// Gets the number of total bytes written to the <see cref="NetworkStream"/>.
@@ -123,9 +124,9 @@ namespace Drenalol.TcpClientIo.Client
             _batchRules = TcpBatchRules<TResponse>.Default;
             _baseCancellationTokenSource = new CancellationTokenSource();
             _baseCancellationToken = _baseCancellationTokenSource.Token;
-            _bufferBlockRequests = new BufferBlock<byte[]>();
+            _bufferBlockRequests = new BufferBlock<SerializedRequest>();
             _completeResponses = new ConcurrentDictionary<TId, TaskCompletionSource<ITcpBatch<TResponse>>>();
-            _serializer = new TcpSerializer<TId, TRequest, TResponse>(_options.Converters);
+            _serializer = new TcpSerializer<TId, TRequest, TResponse>(_options.Converters, length => _arrayPool.Rent(length));
             _writeResetEvent = new AsyncManualResetEvent();
             _readResetEvent = new AsyncManualResetEvent();
             _consumingResetEvent = new AsyncManualResetEvent();
@@ -152,7 +153,7 @@ namespace Drenalol.TcpClientIo.Client
             {
                 if (_disposing || !_pipelineReadEnded)
                     return;
-                
+
                 foreach (var kv in _completeResponses.ToArray())
                     kv.Value.TrySetException(TcpClientIoException.ConnectionBroken());
             }, TaskContinuationOptions.OnlyOnRanToCompletion);

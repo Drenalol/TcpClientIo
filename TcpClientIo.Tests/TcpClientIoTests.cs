@@ -24,7 +24,6 @@ namespace Drenalol.TcpClientIo
     public class TcpClientIoTests : UseTcpListenerTest
     {
         public static readonly IPAddress IpAddress = IPAddress.Any;
-        public static readonly ImmutableList<Mock> Mocks = JsonExt.Deserialize<List<Mock>>(File.ReadAllText("MOCK_DATA_1000")).ToImmutableList();
 
         private static (TcpClientIoOptions, ILoggerFactory) GetDefaults(LogLevel logLevel)
         {
@@ -60,7 +59,7 @@ namespace Drenalol.TcpClientIo
         public async Task SingleSendReceiveTest()
         {
             var tcpClient = GetClient<long, Mock, Mock>();
-            var request = Mock.Create(1337);
+            var request = Mock.Default();
             await tcpClient.SendAsync(request);
             var batch = await tcpClient.ReceiveAsync(1337L);
             var response = batch.First();
@@ -124,7 +123,7 @@ namespace Drenalol.TcpClientIo
 
                     async Task SendAsync(long id)
                     {
-                        var mock = Mock.Create(id);
+                        var mock = Mock.Default(id);
                         await tcpClient.SendAsync(mock, cts.Token);
                         Interlocked.Increment(ref sended);
                     }
@@ -143,8 +142,8 @@ namespace Drenalol.TcpClientIo
                 }
                 finally
                 {
-                    Interlocked.Add(ref bytesWrite, (long) tcpClient.BytesWrite);
-                    Interlocked.Add(ref bytesRead, (long) tcpClient.BytesRead);
+                    Interlocked.Add(ref bytesWrite, tcpClient.BytesWrite);
+                    Interlocked.Add(ref bytesRead, tcpClient.BytesRead);
                     Interlocked.Add(ref requestQueue, tcpClient.Requests);
                     Interlocked.Add(ref waitersQueue, tcpClient.Waiters);
                 }
@@ -169,7 +168,7 @@ namespace Drenalol.TcpClientIo
 
             _ = Enumerable.Range(0, requests).Select(async i =>
             {
-                var mock = Mock.Create(expandBatch ? 0 : i);
+                var mock = Mock.Default(expandBatch ? 0 : i);
                 await tcpClient.SendAsync(mock, cts.Token);
                 Interlocked.Increment(ref sended);
             }).ToArray();
@@ -229,13 +228,14 @@ namespace Drenalol.TcpClientIo
             };
             await client.SendAsync(mock);
             var batch = await client.ReceiveAsync(default);
-            var response = batch.First();
+            var mockNoId = batch.First();
+            Assert.IsTrue(mock.Size == mockNoId.Size);
         }
 
         [Test]
         public async Task SameIdTest()
         {
-            const int requests = 500;
+            const int requests = 10;
             var list = new List<int>();
             var count = 0;
             var error = 0;
@@ -244,7 +244,7 @@ namespace Drenalol.TcpClientIo
 
             _ = Task.Run(() => Parallel.For(0, requests, i =>
             {
-                var mock = Mock.Create(0);
+                var mock = Mock.Default(0);
 
                 try
                 {
@@ -274,7 +274,7 @@ namespace Drenalol.TcpClientIo
                 TestContext.WriteLine($"({count.ToString()}/{requests.ToString()}) +{queue.ToString()}, by {delay.ToString()} ms, SendQueue: {tcpClient.Requests.ToString()}, ReadCount: {tcpClient.Waiters.ToString()}");
             }
 
-            var havingCount = list.GroupBy(u => u).Where(p => p.Count() > 1).Select(ig => ig.Key.ToString()).Aggregate((acc, next) => $"{acc}, {next}");
+            var havingCount = list.GroupBy(u => u).Where(p => p.Count() > 1).Aggregate("", (acc, next) => $"{next.Key.ToString()}, {acc}");
             TestContext.WriteLine($"Non-UNIQ Sizes: {havingCount}");
 #if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
             await tcpClient.DisposeAsync();
@@ -298,7 +298,7 @@ namespace Drenalol.TcpClientIo
                 tcpClient.Dispose();
 #endif
             };
-            var mock = Mocks[666];
+            var mock = Mock.Default();
             while (true)
             {
                 try
@@ -326,7 +326,7 @@ namespace Drenalol.TcpClientIo
 #else
             var tcpClient = GetClient<Mock>();
 #endif
-            var mock = Mocks[666];
+            var mock = Mock.Default();
             var attempts = 0;
             while (attempts < 3)
             {

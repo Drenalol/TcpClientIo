@@ -22,14 +22,15 @@ namespace Drenalol.TcpClientIo.Client
                     if (!await _bufferBlockRequests.OutputAvailableAsync(_baseCancellationToken))
                         continue;
 
-                    var bytesArray = await _bufferBlockRequests.ReceiveAsync(_baseCancellationToken);
-                    var writeResult = await _networkStreamPipeWriter.WriteAsync(bytesArray, _baseCancellationToken);
+                    var serializedRequest = await _bufferBlockRequests.ReceiveAsync(_baseCancellationToken);
+                    //bytesArray = await _bufferBlockRequests.ReceiveAsync(_baseCancellationToken);
+                    var writeResult = await _networkStreamPipeWriter.WriteAsync(serializedRequest.Request, _baseCancellationToken);
+                    _arrayPool.Return(serializedRequest.RentedArray, true);
                     
                     if (writeResult.IsCanceled || writeResult.IsCompleted)
                         break;
                     
-                    Interlocked.Add(ref _bytesWrite, bytesArray.Length);
-                    Debug.WriteLine($"Tcp writed {bytesArray.Length.ToString()} bytes");
+                    Interlocked.Add(ref _bytesWrite, serializedRequest.Request.Length);
                 }
             }
             catch (OperationCanceledException canceledException)
@@ -69,7 +70,6 @@ namespace Drenalol.TcpClientIo.Client
                     {
                         await _deserializePipeWriter.WriteAsync(buffer, _baseCancellationToken);
                         Interlocked.Add(ref _bytesRead, buffer.Length);
-                        Debug.WriteLine($"Tcp readed {buffer.Length.ToString()} bytes");
                     }
                     
                     _networkStreamPipeReader.AdvanceTo(readResult.Buffer.End);
@@ -100,8 +100,7 @@ namespace Drenalol.TcpClientIo.Client
                 while (true)
                 {
                     _baseCancellationToken.ThrowIfCancellationRequested();
-                    var (responseId, responseLength, response) = await _serializer.DeserializeAsync(_deserializePipeReader, _baseCancellationToken);
-                    Debug.WriteLine($"Deserialized response: Id {responseId} Length {responseLength.ToString()} bytes");
+                    var (responseId, response) = await _serializer.DeserializeAsync(_deserializePipeReader, _baseCancellationToken);
                     await SetResponseAsync(responseId, response);
                 }
             }

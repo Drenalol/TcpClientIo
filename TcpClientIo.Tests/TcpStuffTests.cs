@@ -80,8 +80,8 @@ namespace Drenalol.TcpClientIo
             {
                 new TcpUtf8StringConverter(),
                 new TcpDateTimeConverter()
-            });
-
+            }, i => new byte[i]);
+            
             var mock = new AttributeMockSerialize
             {
                 Id = TestContext.CurrentContext.Random.NextUInt(),
@@ -102,7 +102,7 @@ namespace Drenalol.TcpClientIo
                 Task.Run(() =>
                 {
                     var serialize = serializer.Serialize(mock);
-                    _ = serializer.DeserializeAsync(PipeReader.Create(new MemoryStream(serialize)), CancellationToken.None).Result;
+                    _ = serializer.DeserializeAsync(PipeReader.Create(new MemoryStream(serialize.Request.ToArray())), CancellationToken.None).Result;
                 });
         }
 
@@ -114,7 +114,7 @@ namespace Drenalol.TcpClientIo
                 {typeof(string), new TcpUtf8StringConverter()},
                 {typeof(DateTime), new TcpDateTimeConverter()},
                 {typeof(Guid), new TcpGuidConverter()}
-            }.ToImmutableDictionary();
+            };
 
             var bitConverterHelper = new BitConverterHelper(dict);
 

@@ -82,7 +82,7 @@ namespace Drenalol.TcpClientIo.Client
             {
                 if (_disposing)
                     throw new ObjectDisposedException(nameof(_tcpClient));
-                
+
                 if (!_disposing && _pipelineWriteEnded)
                     throw TcpClientIoException.ConnectionBroken();
 
@@ -107,7 +107,7 @@ namespace Drenalol.TcpClientIo.Client
         {
             if (_disposing)
                 throw new ObjectDisposedException(nameof(_tcpClient));
-            
+
             if (!_disposing && _pipelineReadEnded)
                 throw TcpClientIoException.ConnectionBroken();
 
@@ -214,7 +214,7 @@ namespace Drenalol.TcpClientIo.Client
                 {
                     if (!_disposing && _pipelineReadEnded)
                         throw TcpClientIoException.ConnectionBroken();
-                    
+
                     throw;
                 }
                 catch (Exception exception)

@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Immutable;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Drenalol.TcpClientIo.Attributes;
@@ -11,7 +11,9 @@ namespace Drenalol.TcpClientIo.Serialization
     {
         private readonly Type _request;
         private readonly Type _response;
-        private ImmutableDictionary<Type, ImmutableDictionary<int, TcpProperty>> _internalCache = ImmutableDictionary<Type, ImmutableDictionary<int, TcpProperty>>.Empty;
+        private Dictionary<int, TcpProperty> _requestProperties;
+        private Dictionary<int, TcpProperty> _responseProperties;
+        private int _requestMetaCount;
 
         public ReflectionHelper()
         {
@@ -24,26 +26,28 @@ namespace Drenalol.TcpClientIo.Serialization
         {
             var requestProperties = GetTypeProperties(_request);
             EnsureTypeHasRequiredAttributes(_request, requestProperties);
-            ImmutableInterlocked.TryAdd(ref _internalCache, _request, requestProperties);
+            _requestProperties = requestProperties;
 
             if (_request != _response)
             {
                 var responseProperties = GetTypeProperties(_response);
                 EnsureTypeHasRequiredAttributes(_request, responseProperties);
-                ImmutableInterlocked.TryAdd(ref _internalCache, _response, responseProperties);
+                _responseProperties = responseProperties;
             }
             else
-                ImmutableInterlocked.TryAdd(ref _internalCache, _response, requestProperties);
+                _responseProperties = requestProperties;
+
+            _requestMetaCount = _requestProperties.Keys.Max();
         }
 
-        private static ImmutableDictionary<int, TcpProperty> GetTypeProperties(Type type)
+        private static Dictionary<int, TcpProperty> GetTypeProperties(Type type)
         {
             var tcpProperties =
                 (from property in type.GetProperties()
                     let attribute = GetTcpDataAttribute(property)
                     where attribute != null
                     select new TcpProperty(property, attribute, type))
-                .ToImmutableDictionary(key => key.Attribute.Index, property => property);
+                .ToDictionary(key => key.Attribute.Index, property => property);
 
             TcpDataAttribute GetTcpDataAttribute(ICustomAttributeProvider property)
             {
@@ -55,8 +59,8 @@ namespace Drenalol.TcpClientIo.Serialization
 
             return tcpProperties;
         }
-        
-        private void EnsureTypeHasRequiredAttributes(Type type, ImmutableDictionary<int, TcpProperty> properties)
+
+        private static void EnsureTypeHasRequiredAttributes(Type type, Dictionary<int, TcpProperty> properties)
         {
             var key = properties.Where(item => item.Value.Attribute.TcpDataType == TcpDataType.Id).ToList();
 
@@ -70,7 +74,7 @@ namespace Drenalol.TcpClientIo.Serialization
 
             if (body.Count > 1)
                 throw TcpException.AttributeDuplicate(type.ToString(), nameof(TcpDataType.Body));
-            
+
             if (body.Count == 1 && !body.Single().Value.CanReadWrite)
                 throw TcpException.PropertyCanReadWrite(type.ToString(), nameof(TcpDataType.Body));
 
@@ -82,12 +86,12 @@ namespace Drenalol.TcpClientIo.Serialization
                 throw TcpException.AttributeBodyLengthRequired(type.ToString());
             if (bodyLength.Count == 1 && body.Count == 0)
                 throw TcpException.AttributeBodyRequired(type.ToString());
-            
+
             if (bodyLength.Count == 1 && body.Count == 1 && !bodyLength.Single().Value.CanReadWrite)
                 throw TcpException.PropertyCanReadWrite(type.ToString(), nameof(TcpDataType.BodyLength));
-            
+
             var metaData = properties.Where(item => item.Value.Attribute.TcpDataType == TcpDataType.MetaData).ToList();
-            
+
             if (key.Count == 0 && bodyLength.Count == 0 && body.Count == 0 && metaData.Count == 0)
                 throw TcpException.AttributesRequired(type.ToString());
 
@@ -97,8 +101,10 @@ namespace Drenalol.TcpClientIo.Serialization
             }
         }
 
-        public ImmutableDictionary<int, TcpProperty> GetRequestProperties() => _internalCache[_request];
-        
-        public ImmutableDictionary<int, TcpProperty> GetResponseProperties() => _internalCache[_response];
+        public IReadOnlyDictionary<int, TcpProperty> GetRequestProperties() => _requestProperties;
+
+        public IReadOnlyDictionary<int, TcpProperty> GetResponseProperties() => _responseProperties;
+
+        public int GetRequestMetaCount => _requestMetaCount;
     }
 }

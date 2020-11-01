@@ -1,12 +1,12 @@
 using System;
-using System.Collections.Immutable;
+using System.Collections.Generic;
 using Drenalol.TcpClientIo.Converters;
 
 namespace Drenalol.TcpClientIo.Extensions
 {
     public static class TcpConverterExtension
     {
-        public static bool TryConvert(this ImmutableDictionary<Type, TcpConverter> converters, Type type, object o, out byte[] result)
+        public static bool TryConvert(this IReadOnlyDictionary<Type, TcpConverter> converters, Type type, object o, out byte[] result)
         {
             if (converters.TryGetValue(type, out var converter))
             {
@@ -18,7 +18,7 @@ namespace Drenalol.TcpClientIo.Extensions
             return false;
         }
 
-        public static bool TryConvertBack(this ImmutableDictionary<Type, TcpConverter> converters, Type type, byte[] bytes, out object result)
+        public static bool TryConvertBack(this IReadOnlyDictionary<Type, TcpConverter> converters, Type type, byte[] bytes, out object result)
         {
             if (converters.TryGetValue(type, out var converter))
             {
