@@ -40,6 +40,7 @@ namespace Drenalol.TcpClientIo.Client
         private readonly ConcurrentDictionary<TId, TaskCompletionSource<ITcpBatch<TResponse>>> _completeResponses;
         private readonly AsyncLock _asyncLock = new AsyncLock();
         private readonly TcpSerializer<TId, TRequest, TResponse> _serializer;
+        private readonly ArrayPool<byte> _arrayPool;
         private readonly AsyncManualResetEvent _writeResetEvent;
         private readonly AsyncManualResetEvent _readResetEvent;
         private readonly AsyncManualResetEvent _consumingResetEvent;
@@ -56,7 +57,6 @@ namespace Drenalol.TcpClientIo.Client
         private long _bytesRead;
         PipeReader IDuplexPipe.Input => _networkStreamPipeReader;
         PipeWriter IDuplexPipe.Output => _networkStreamPipeWriter;
-        private readonly ArrayPool<byte> _arrayPool = ArrayPool<byte>.Create();
 
         /// <summary>
         /// Gets the number of total bytes written to the <see cref="NetworkStream"/>.
@@ -126,6 +126,7 @@ namespace Drenalol.TcpClientIo.Client
             _baseCancellationToken = _baseCancellationTokenSource.Token;
             _bufferBlockRequests = new BufferBlock<SerializedRequest>();
             _completeResponses = new ConcurrentDictionary<TId, TaskCompletionSource<ITcpBatch<TResponse>>>();
+            _arrayPool = ArrayPool<byte>.Create();
             _serializer = new TcpSerializer<TId, TRequest, TResponse>(_options.Converters, length => _arrayPool.Rent(length));
             _writeResetEvent = new AsyncManualResetEvent();
             _readResetEvent = new AsyncManualResetEvent();
