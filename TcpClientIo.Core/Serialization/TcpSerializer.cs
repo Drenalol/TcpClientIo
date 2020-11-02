@@ -107,20 +107,6 @@ namespace Drenalol.TcpClientIo.Serialization
             return new SerializedRequest(rentedArray, realLength);
         }
 
-        /*public async Task<(TId, TResponse)> DeserializeRealAsync(ReadOnlySequence<byte> sequence)
-        {
-            var response = new TResponse();
-            TId id = default;
-            var key = 0;
-            var examined = 0;
-            var properties = _reflectionHelper.ResponseProperties;
-            
-            while (properties.TryGetValue(key, out var property))
-            {
-                
-            }
-        }*/
-
         public async Task<(TId, TResponse)> DeserializeAsync(PipeReader pipeReader, CancellationToken token)
         {
             var response = new TResponse();
@@ -129,11 +115,6 @@ namespace Drenalol.TcpClientIo.Serialization
             TId id = default;
             var bodyLength = 0;
             var properties = _reflectionHelper.ResponseProperties;
-
-            // 1. check if need bodyLength
-            // 2. deserialize only BodyLength for actual size (can be skipped)
-            // 3. wait for readResultLength == bodyLength (can be skipped)
-            // 4. invoke second deserialize method
 
             while (properties.TryGetValue(key, out var property))
             {
