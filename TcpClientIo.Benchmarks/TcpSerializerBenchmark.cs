@@ -13,7 +13,7 @@ using Drenalol.TcpClientIo.Stuff;
 
 namespace TcpClientIo.Benchmarks
 {
-    [SimpleJob(RuntimeMoniker.NetCoreApp31, targetCount: 1)]
+    [SimpleJob(RuntimeMoniker.NetCoreApp31, targetCount: 100)]
     [MemoryDiagnoser]
     [IterationsColumn]
     public class TcpSerializerBenchmark
