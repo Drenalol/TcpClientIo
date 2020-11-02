@@ -18,11 +18,11 @@ namespace Drenalol.TcpClientIo.Extensions
             return false;
         }
 
-        public static bool TryConvertBack(this IReadOnlyDictionary<Type, TcpConverter> converters, Type type, byte[] bytes, out object result)
+        public static bool TryConvertBack(this IReadOnlyDictionary<Type, TcpConverter> converters, Type type, ReadOnlySpan<byte> span, out object result)
         {
             if (converters.TryGetValue(type, out var converter))
             {
-                result = converter.ConvertBackTo(bytes);
+                result = converter.ConvertBackTo(span);
                 return true;
             }
 

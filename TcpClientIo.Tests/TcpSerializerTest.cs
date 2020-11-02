@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Pipelines;
@@ -18,12 +19,11 @@ namespace Drenalol.TcpClientIo
         public async Task SerializeDeserializeTest()
         {
             var ethalon = Mock.Default();
-            const int ethalonBodyLength = 17238;
             const int ethalonHeaderLength = 270;
 
             var serializer = new TcpSerializer<long, Mock, Mock>(new List<TcpConverter> {new TcpUtf8StringConverter()}, i => new byte[i]);
             var serialize = serializer.Serialize(ethalon);
-            Assert.IsTrue(serialize.Request.Length == ethalonBodyLength + ethalonHeaderLength);
+            Assert.IsTrue(serialize.Request.Length == ethalon.Size + ethalonHeaderLength);
             var (_, deserialize) = await serializer.DeserializeAsync(PipeReader.Create(new MemoryStream(serialize.Request.ToArray())), CancellationToken.None);
             Assert.IsTrue(ethalon.Equals(deserialize));
         }
@@ -58,7 +58,7 @@ namespace Drenalol.TcpClientIo
         public void BitConverterFromBytesTest(byte[] bytes, Type type, bool reverse)
         {
             var converter = new BitConverterHelper(new Dictionary<Type, TcpConverter>());
-            Assert.That(converter.ConvertFromBytes(bytes, type, reverse).GetType() == type, "converter.ConvertFromBytes(bytes, type, reverse).GetType() == type");
+            Assert.That(converter.ConvertFromBytes(new ReadOnlySequence<byte>(bytes), type, reverse).GetType() == type, "converter.ConvertFromBytes(bytes, type, reverse).GetType() == type");
         }
     }
 }

@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Globalization;
-using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Net;
@@ -64,11 +62,7 @@ namespace Drenalol.TcpClientIo
             var batch = await tcpClient.ReceiveAsync(1337L);
             var response = batch.First();
             Assert.IsTrue(request.Equals(response));
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
             await tcpClient.DisposeAsync();
-#else
-            tcpClient.Dispose();
-#endif
         }
 
         [Test]
@@ -87,15 +81,11 @@ namespace Drenalol.TcpClientIo
             await tcpClient.SendAsync(mock);
             var batch = await tcpClient.ReceiveAsync(1);
 
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
             await tcpClient.DisposeAsync();
-#else
-            tcpClient.Dispose();
-#endif
         }
 
-        [TestCase(1000, 1, 5)]
-        [TestCase(1000, 4, 5)]
+        [TestCase(100, 1, 5)]
+        [TestCase(100, 4, 5)]
         public void MultipleConsumersAsyncTest(int requests, int consumers, double timeout)
         {
             var requestsPerConsumer = requests / consumers;
@@ -111,7 +101,7 @@ namespace Drenalol.TcpClientIo
 
             Task.WaitAll(consumersList.Select(io => Task.Run(() => DoWork(io), cts.Token)).ToArray());
 
-            void DoWork(TcpClientIo<long, Mock, Mock> tcpClient)
+            void DoWork(ITcpClientIo<long, Mock, Mock> tcpClient)
             {
                 try
                 {
@@ -156,9 +146,9 @@ namespace Drenalol.TcpClientIo
             TestContext.WriteLine($"BytesWrite: {Math.Round(bytesWrite / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
             TestContext.WriteLine($"BytesRead: {Math.Round(bytesRead / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
         }
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
-        [TestCase(1000, true)]
-        [TestCase(1000, false)]
+        
+        [TestCase(100, true)]
+        [TestCase(100, false)]
         public async Task ConsumingAsyncEnumerableTest(int requests, bool expandBatch)
         {
             var sended = 0;
@@ -217,7 +207,7 @@ namespace Drenalol.TcpClientIo
                 TestContext.WriteLine($"BytesRead: {Math.Round(tcpClient.BytesRead / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
             }
         }
-#endif
+        
         [Test]
         public async Task NoIdTest()
         {
@@ -276,11 +266,8 @@ namespace Drenalol.TcpClientIo
 
             var havingCount = list.GroupBy(u => u).Where(p => p.Count() > 1).Aggregate("", (acc, next) => $"{next.Key.ToString()}, {acc}");
             TestContext.WriteLine($"Non-UNIQ Sizes: {havingCount}");
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
+            
             await tcpClient.DisposeAsync();
-#else
-            tcpClient.Dispose();
-#endif
         }
 
         [Test]
@@ -292,11 +279,7 @@ namespace Drenalol.TcpClientIo
             timer.Elapsed += (sender, args) =>
             {
                 ((System.Timers.Timer) sender).Stop();
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
                 tcpClient.DisposeAsync().GetAwaiter().GetResult();
-#else
-                tcpClient.Dispose();
-#endif
             };
             var mock = Mock.Default();
             while (true)
@@ -321,11 +304,7 @@ namespace Drenalol.TcpClientIo
         [Test]
         public async Task CancelSendReceiveTest()
         {
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
             await using var tcpClient = GetClient<long, Mock, Mock>();
-#else
-            var tcpClient = GetClient<Mock>();
-#endif
             var mock = Mock.Default();
             var attempts = 0;
             while (attempts < 3)
@@ -349,9 +328,6 @@ namespace Drenalol.TcpClientIo
                     }
                 }
             }
-#if !NETSTANDARD2_1 && !NETCOREAPP3_1 && !NETCOREAPP3_0
-            tcpClient.Dispose();
-#endif
         }
 
         [Test]

@@ -161,11 +161,7 @@ namespace Drenalol.TcpClientIo.Client
             Task.Run(DeserializeResponseAsync, CancellationToken.None);
         }
 
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
         public async ValueTask DisposeAsync()
-#else
-        public void Dispose()
-#endif
         {
             _logger?.LogInformation("Dispose started");
             _disposing = true;
@@ -176,17 +172,8 @@ namespace Drenalol.TcpClientIo.Client
             using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60)))
             {
                 var token = cts.Token;
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
                 await _writeResetEvent.WaitAsync(token);
-#else
-                _writeResetEvent.Wait(token);
-#endif
-
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
                 await _readResetEvent.WaitAsync(token);
-#else
-                _readResetEvent.Wait(token);
-#endif
             }
 
             _baseCancellationTokenSource?.Dispose();

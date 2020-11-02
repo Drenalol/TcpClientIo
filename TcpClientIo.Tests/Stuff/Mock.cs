@@ -1,7 +1,6 @@
 ﻿using System;
 using Drenalol.TcpClientIo.Attributes;
 using Newtonsoft.Json;
-using NUnit.Framework;
 
 namespace Drenalol.TcpClientIo.Stuff
 {
@@ -55,11 +54,9 @@ namespace Drenalol.TcpClientIo.Stuff
 
         public override bool Equals(object obj) => obj is Mock other && Equals(other);
 
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
         public override int GetHashCode()
         {
             return HashCode.Combine(Id, FirstName, LastName, Email, Gender, IpAddress, Data);
         }
-#endif
     }
 }

@@ -5,7 +5,7 @@ namespace Drenalol.TcpClientIo.Converters
     public abstract class TcpConverter
     {
         public abstract byte[] ConvertTo(object input);
-        public abstract object ConvertBackTo(byte[] input);
+        public abstract object ConvertBackTo(ReadOnlySpan<byte> input);
     }
     
     public abstract class TcpConverter<T> : TcpConverter
@@ -20,14 +20,14 @@ namespace Drenalol.TcpClientIo.Converters
 
         public abstract byte[] Convert(T input);
 
-        public sealed override object ConvertBackTo(byte[] input)
+        public sealed override object ConvertBackTo(ReadOnlySpan<byte> input)
         {
-            if (input != null)
+            if (!input.IsEmpty)
                 return ConvertBack(input);
             
             throw new ArgumentException(nameof(input));
         }
         
-        public abstract T ConvertBack(byte[] input);
+        public abstract T ConvertBack(ReadOnlySpan<byte> input);
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
@@ -74,14 +75,14 @@ namespace Drenalol.TcpClientIo
 
         [TestCase(10000, false)]
         [TestCase(10000, true)]
-        public async Task AttributeMockSerializeDeserializeTest(int count,bool useParallel)
+        public async Task AttributeMockSerializeDeserializeTest(int count, bool useParallel)
         {
             var serializer = new TcpSerializer<uint, AttributeMockSerialize, AttributeMockSerialize>(new List<TcpConverter>
             {
                 new TcpUtf8StringConverter(),
                 new TcpDateTimeConverter()
             }, i => new byte[i]);
-            
+
             var mock = new AttributeMockSerialize
             {
                 Id = TestContext.CurrentContext.Random.NextUInt(),
@@ -97,7 +98,7 @@ namespace Drenalol.TcpClientIo
             var tasks = (useParallel ? enumerable.AsParallel().Select(Selector) : enumerable.Select(Selector)).ToArray();
 
             await Task.WhenAll(tasks);
-            
+
             Task Selector(int i) =>
                 Task.Run(() =>
                 {
@@ -106,8 +107,9 @@ namespace Drenalol.TcpClientIo
                 });
         }
 
-        [Test]
-        public void BaseConvertersTest()
+        [TestCase(true)]
+        [TestCase(false)]
+        public void BaseConvertersTest(bool reverse)
         {
             var dict = new Dictionary<Type, TcpConverter>
             {
@@ -119,23 +121,18 @@ namespace Drenalol.TcpClientIo
             var bitConverterHelper = new BitConverterHelper(dict);
 
             var str = "Hello my friend";
-            var stringResult = bitConverterHelper.ConvertToBytes(str, typeof(string));
-            var stringResultBack = bitConverterHelper.ConvertFromBytes(stringResult, typeof(string));
+            var stringResult = bitConverterHelper.ConvertToBytes(str, typeof(string), reverse);
+            var stringResultBack = bitConverterHelper.ConvertFromBytes(new ReadOnlySequence<byte>(stringResult), typeof(string), reverse);
             Assert.AreEqual(str, stringResultBack);
 
-            var rts = "dneirf ym olleH";
-            var tluseRgnirts = bitConverterHelper.ConvertToBytes(rts, typeof(string), true);
-            var kcaBtluseRgnirts = bitConverterHelper.ConvertFromBytes(tluseRgnirts, typeof(string), true);
-            Assert.AreEqual(rts, kcaBtluseRgnirts);
-
             var datetime = DateTime.Now;
-            var dateTimeResult = bitConverterHelper.ConvertToBytes(datetime, typeof(DateTime));
-            var dateTimeResultBack = bitConverterHelper.ConvertFromBytes(dateTimeResult, typeof(DateTime));
+            var dateTimeResult = bitConverterHelper.ConvertToBytes(datetime, typeof(DateTime), reverse);
+            var dateTimeResultBack = bitConverterHelper.ConvertFromBytes(new ReadOnlySequence<byte>(dateTimeResult), typeof(DateTime), reverse);
             Assert.AreEqual(datetime, dateTimeResultBack);
 
             var guid = Guid.NewGuid();
-            var guidResult = bitConverterHelper.ConvertToBytes(guid, typeof(Guid));
-            var guidResultBack = bitConverterHelper.ConvertFromBytes(guidResult, typeof(Guid));
+            var guidResult = bitConverterHelper.ConvertToBytes(guid, typeof(Guid), reverse);
+            var guidResultBack = bitConverterHelper.ConvertFromBytes(new ReadOnlySequence<byte>(guidResult), typeof(Guid), reverse);
             Assert.AreEqual(guid, guidResultBack);
         }
     }

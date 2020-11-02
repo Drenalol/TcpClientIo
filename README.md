@@ -8,7 +8,6 @@ Wrapper of [TcpClient](https://github.com/dotnet/runtime/blob/c7a246c000747ec728
 - Cancellation support
 
 [![NuGet Pre Release](https://img.shields.io/nuget/vpre/TcpClientIo.svg?style=for-the-badge&logo=appveyor)](https://www.nuget.org/packages/TcpClientIo/)
-[![netstandard 2.0](https://img.shields.io/badge/netstandard-2.0-brightgreen.svg?style=for-the-badge&logo=appveyor)](https://docs.microsoft.com/en-us/dotnet/standard/net-standard)
 [![netstandard 2.1](https://img.shields.io/badge/netstandard-2.1-brightgreen.svg?style=for-the-badge&logo=appveyor)](https://docs.microsoft.com/en-us/dotnet/standard/net-standard) 
 ## Documentation
 #### Prerequisites
@@ -18,13 +17,13 @@ Your TCP Server accepts and send messages with application-level header
 | byte[] | 7B | 00 | 00 | 00 | 06 | 00 | 00 | 00 | 00 | D0 | 08 | A7 | 79 | 28 | B7 | 08 | A3 | 0B | 59 | 13 | 49 | 27 | 37 | 46 | B6 | D0 | 75 | A2 | EF | 07 | FA | 1F | 48 | 65 | 6C | 6C | 6F | 21 |
 |--------|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|
 ##### Serialization process
-| Property name | Index | Length | Bytes                                                            | Value                                          | Reverse | Change Type | Custom converter |
-|---------------|--------|--------|------------------------------------------------------------------|------------------------------------------------|---------|-------------|------------------|
-| Id            | 0      | 4      | [7B, 00, 00, 00]                                                 | 123                                            | false   | false       | false            |
-| * BodyLength  | 4      | 4      | [06, 00, 00, 00]                                                 | 6                                              | false   | false       | false            |
-| DateTime      | 8      | 8      | [00, D0, 08, A7, 79, 28, B7, 08]                                 | "1991-02-07 10:00:00" as DateTime              | false   | false       | true             |
-| Guid          | 16     | 16     | [A3, 0B, 59, 13, 49, 27, 37, 46, B6, D0, 75, A2, EF, 07, FA, 1F] | "13590ba3-2749-4637-b6d0-75a2ef07fa1f" as Guid | false   | false       | true             |
-| * Body        | 32     | 6      | [48, 65, 6C, 6C, 6F, 21]                                         | "Hello!" as string                             | false   | false       | true             |
+| Property name | Index | Length | Bytes                                                            | Value                                          | Reverse  | Custom converter |
+|---------------|--------|--------|------------------------------------------------------------------|------------------------------------------------|---------|------------------|
+| Id            | 0      | 4      | [7B, 00, 00, 00]                                                 | 123                                            | false   | false            |
+| * BodyLength  | 4      | 4      | [06, 00, 00, 00]                                                 | 6                                              | false   | false            |
+| DateTime      | 8      | 8      | [00, D0, 08, A7, 79, 28, B7, 08]                                 | "1991-02-07 10:00:00" as DateTime              | false   | true             |
+| Guid          | 16     | 16     | [A3, 0B, 59, 13, 49, 27, 37, 46, B6, D0, 75, A2, EF, 07, FA, 1F] | "13590ba3-2749-4637-b6d0-75a2ef07fa1f" as Guid | false   | true             |
+| * Body        | 32     | 6      | [48, 65, 6C, 6C, 6F, 21]                                         | "Hello!" as string                             | false   | true             |
 `* Mandatory if at least one is set.`
 #### Examples
 ###### Example #1. Sending and receiving.

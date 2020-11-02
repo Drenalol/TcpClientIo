@@ -13,7 +13,12 @@ namespace Drenalol.TcpClientIo.Serialization
         private readonly Type _response;
         private Dictionary<int, TcpProperty> _requestProperties;
         private Dictionary<int, TcpProperty> _responseProperties;
-        private int _requestMetaCount;
+
+        public IReadOnlyDictionary<int, TcpProperty> RequestProperties => _requestProperties;
+        public IReadOnlyDictionary<int, TcpProperty> ResponseProperties => _responseProperties;
+        public int RequestMetaCount { get; private set; }
+        public int ResponseMetaCount { get; private set; }
+        public TcpProperty ResponseBodyLengthProperty { get; private set; }
 
         public ReflectionHelper()
         {
@@ -37,7 +42,9 @@ namespace Drenalol.TcpClientIo.Serialization
             else
                 _responseProperties = requestProperties;
 
-            _requestMetaCount = _requestProperties.Keys.Max();
+            RequestMetaCount = _requestProperties.Keys.Max();
+            ResponseMetaCount = _responseProperties.Keys.Max();
+            ResponseBodyLengthProperty = _responseProperties.SingleOrDefault(p => p.Value.Attribute.TcpDataType == TcpDataType.BodyLength).Value;
         }
 
         private static Dictionary<int, TcpProperty> GetTypeProperties(Type type)
@@ -100,11 +107,5 @@ namespace Drenalol.TcpClientIo.Serialization
                 throw TcpException.PropertyCanReadWrite(type.ToString(), nameof(TcpDataType.MetaData), pair.Value.Attribute.Index.ToString());
             }
         }
-
-        public IReadOnlyDictionary<int, TcpProperty> GetRequestProperties() => _requestProperties;
-
-        public IReadOnlyDictionary<int, TcpProperty> GetResponseProperties() => _responseProperties;
-
-        public int GetRequestMetaCount => _requestMetaCount;
     }
 }

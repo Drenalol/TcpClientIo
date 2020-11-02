@@ -1,9 +1,7 @@
 using System;
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
-#endif
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -131,11 +129,7 @@ namespace Drenalol.TcpClientIo.Client
                     tcs = InternalGetOrAddLazyTcs(responseId);
                 }
             }
-#if NETSTANDARD2_1 || NETCOREAPP3_1 || NETCOREAPP3_0
             await using (internalToken.Register(() =>
-#else
-            using (internalToken.Register(() =>
-#endif
             {
                 if (_disposing || hasOwnToken)
                     tcs.TrySetCanceled();
@@ -148,7 +142,6 @@ namespace Drenalol.TcpClientIo.Client
             }
         }
 
-#if NETSTANDARD2_1
         /// <summary>Provides a consuming <see cref="T:System.Collections.Generics.IAsyncEnumerable{T}"/> for <see cref="ITcpBatch{TResponse}"/> in the collection.
         /// Calling MoveNextAsync on the returned enumerable will block if there is no data available, or will
         /// throw an <see cref="System.OperationCanceledException"/> if the <see cref="CancellationToken"/> is canceled.
@@ -250,6 +243,5 @@ namespace Drenalol.TcpClientIo.Client
                 }
             }
         }
-#endif
     }
 }

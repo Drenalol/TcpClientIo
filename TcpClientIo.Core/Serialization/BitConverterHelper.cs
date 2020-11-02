@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Reflection;
 using Drenalol.TcpClientIo.Converters;
@@ -10,40 +11,46 @@ namespace Drenalol.TcpClientIo.Serialization
     public class BitConverterHelper
     {
         private readonly IReadOnlyDictionary<Type, MethodInfo> _builtInConvertersToBytes;
-        private readonly IReadOnlyDictionary<Type, MethodInfo> _builtInConvertersFromBytes;
         private readonly IReadOnlyDictionary<Type, TcpConverter> _customConverters;
 
         public BitConverterHelper(IReadOnlyDictionary<Type, TcpConverter> converters)
         {
             _customConverters = converters;
-            var toBytes = new Dictionary<Type, MethodInfo>();
-            var fromBytes = new Dictionary<Type, MethodInfo>();
-
-            Add(typeof(bool));
-            Add(typeof(char));
-            Add(typeof(double));
-            Add(typeof(short));
-            Add(typeof(int));
-            Add(typeof(long));
-            Add(typeof(float));
-            Add(typeof(ushort));
-            Add(typeof(uint));
-            Add(typeof(ulong));
-
-            _builtInConvertersToBytes = toBytes;
-            _builtInConvertersFromBytes = fromBytes;
-
-            void Add(Type type)
+            _builtInConvertersToBytes = new Dictionary<Type, MethodInfo>
             {
-                toBytes.Add(type, typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {type}));
-                fromBytes.Add(type, typeof(BitConverter).GetMethod($"To{type.Name}", new[] {typeof(byte[]), typeof(int)}));
-            }
+                {typeof(bool), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(bool)})},
+                {typeof(char), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(char)})},
+                {typeof(double), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(double)})},
+                {typeof(short), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(short)})},
+                {typeof(int), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(int)})},
+                {typeof(long), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(long)})},
+                {typeof(float), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(float)})},
+                {typeof(ushort), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(ushort)})},
+                {typeof(uint), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(uint)})},
+                {typeof(ulong), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(ulong)})}
+            };
         }
 
-        public byte[] Reverse(byte[] bytes)
+        private static byte[] Reverse(byte[] bytes)
         {
             ((Span<byte>) bytes).Reverse();
             return bytes;
+        }
+        
+        private static Sequence MergeSpans(ReadOnlySequence<byte> sequences, bool reverse)
+        {
+            if (!reverse && sequences.IsSingleSegment)
+                return Sequence.Create(sequences.FirstSpan, null);
+            
+            var sequencesLength = (int) sequences.Length;
+            var bytes = ArrayPool<byte>.Shared.Rent(sequencesLength);
+            var span = new Span<byte>(bytes, 0, sequencesLength);
+            sequences.CopyTo(span);
+
+            if (reverse)
+                span.Reverse();
+
+            return Sequence.Create(span, () => ArrayPool<byte>.Shared.Return(bytes));
         }
 
         public byte[] ConvertToBytes(object propertyValue, Type propertyType, bool reverse = false)
@@ -78,37 +85,44 @@ namespace Drenalol.TcpClientIo.Serialization
             }
         }
 
-        public object ConvertFromBytes(byte[] propertyValue, Type propertyType, bool reverse = false)
+        public object ConvertFromBytes(ReadOnlySequence<byte> slice, Type propertyType, bool reverse = false)
         {
-            if (propertyValue == null)
-                throw TcpException.PropertyArgumentIsNull(propertyType.ToString());
-
             if (propertyType == typeof(byte[]))
-                return reverse ? Reverse(propertyValue) : propertyValue;
+                return reverse ? Reverse(slice.ToArray()) : slice.ToArray();
 
             if (propertyType == typeof(byte))
-                return propertyValue.Length > 1
-                    ? throw TcpException.ConverterUnknownError(propertyType.ToString(), "value Length more than one byte")
-                    : propertyValue[0];
+                return slice.FirstSpan[0];
+            
+            var (span, returnArray) = MergeSpans(slice, reverse);
 
-            var bytes = reverse ? Reverse(propertyValue) : propertyValue;
-
-            if (_customConverters.TryConvertBack(propertyType, bytes, out var result))
+            if (_customConverters.TryConvertBack(propertyType, span, out var result))
                 return result;
 
-            if (_builtInConvertersFromBytes.TryGetValue(propertyType, out var methodInfo))
+            try
             {
-                try
+                result = propertyType.Name switch
                 {
-                    result = methodInfo.Invoke(null, new object[] {bytes, 0});
-                }
-                catch (Exception exception)
-                {
-                    throw TcpException.ConverterUnknownError(propertyType.ToString(), exception.Message);
-                }
+                    "Boolean" => BitConverter.ToBoolean(span),
+                    "Char" => BitConverter.ToChar(span),
+                    "Double" => BitConverter.ToDouble(span),
+                    "Int16" => BitConverter.ToInt16(span),
+                    "Int32" => BitConverter.ToInt32(span),
+                    "Int64" => BitConverter.ToInt64(span),
+                    "Single" => BitConverter.ToSingle(span),
+                    "UInt16" => BitConverter.ToUInt16(span),
+                    "UInt32" => BitConverter.ToUInt32(span),
+                    "UInt64" => BitConverter.ToUInt64(span),
+                    _ => throw TcpException.ConverterNotFoundType(propertyType.ToString())
+                };
             }
-            else
-                throw TcpException.ConverterNotFoundType(propertyType.ToString());
+            catch (Exception exception)
+            {
+                throw TcpException.ConverterUnknownError(propertyType.ToString(), exception.Message);
+            }
+            finally
+            {
+                returnArray?.Invoke();
+            }
 
             return result;
         }
