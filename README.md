@@ -1,5 +1,5 @@
 # TcpClientIo
-Wrapper of [TcpClient](https://github.com/dotnet/runtime/blob/c7a246c000747ec728ac862b7a503348b103df0e/src/libraries/System.Net.Sockets/src/System/Net/Sockets/TCPClient.cs "Source Code dotnet/corefx/TCPClient.cs") what help focus on **WHAT** you transfer over TCP not **HOW**
+Wrapper of [TcpClient](https://github.com/dotnet/runtime/blob/c7a246c000747ec728ac862b7a503348b103df0e/src/libraries/System.Net.Sockets/src/System/Net/Sockets/TCPClient.cs "Source Code dotnet/corefx/TCPClient.cs") what help focus on **WHAT** (Declarative) you transfer over TCP not **HOW** (Imperative)
 
 - Thread-safe
 - Serialization with attribute schema
@@ -11,7 +11,7 @@ Wrapper of [TcpClient](https://github.com/dotnet/runtime/blob/c7a246c000747ec728
 [![netstandard 2.1](https://img.shields.io/badge/netstandard-2.1-brightgreen.svg?style=for-the-badge&logo=appveyor)](https://docs.microsoft.com/en-us/dotnet/standard/net-standard) 
 ## Documentation
 #### Prerequisites
-Your TCP Server accepts and send messages with application-level header
+Your TCP Server accepts and send messages with application-level header (id, length, etc)
 
 ##### Example byte array
 | byte[] | 7B | 00 | 00 | 00 | 06 | 00 | 00 | 00 | 00 | D0 | 08 | A7 | 79 | 28 | B7 | 08 | A3 | 0B | 59 | 13 | 49 | 27 | 37 | 46 | B6 | D0 | 75 | A2 | EF | 07 | FA | 1F | 48 | 65 | 6C | 6C | 6F | 21 |
@@ -182,19 +182,19 @@ Converters below already included in package, but not added in list of converter
 public class TcpDateTimeConverter : TcpConverter<DateTime>
 {
     public override byte[] Convert(DateTime input) => BitConverter.GetBytes(input.ToBinary());
-    public override DateTime ConvertBack(byte[] input) => DateTime.FromBinary(BitConverter.ToInt64(input));
+    public override DateTime ConvertBack(ReadOnlySpan<byte> input) => DateTime.FromBinary(BitConverter.ToInt64(input));
 }
 
 public class TcpGuidConverter : TcpConverter<Guid>
 {
     public override byte[] Convert(Guid input) => input.ToByteArray();
-    public override Guid ConvertBack(byte[] input) => new Guid(input);
+    public override Guid ConvertBack(ReadOnlySpan<byte> input) => new Guid(input);
 }
 
 public class TcpUtf8StringConverter : TcpConverter<string>
 {
     public override byte[] Convert(string input) => Encoding.UTF8.GetBytes(input);
-    public override string ConvertBack(byte[] input) => Encoding.UTF8.GetString(input);
+    public override string ConvertBack(ReadOnlySpan<byte> input) => Encoding.UTF8.GetString(input);
 }
 ```
 ```c#
