@@ -8,6 +8,6 @@ namespace Drenalol.TcpClientIo.Stuff
         public ushort Length { get; set; }
 
         [TcpData(2, TcpDataType = TcpDataType.Body)]
-        public byte[] Empty { get; set; }
+        public string Empty { get; set; }
     }
 }

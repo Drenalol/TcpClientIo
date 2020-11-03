@@ -22,7 +22,7 @@ namespace Drenalol.TcpClientIo.Converters
 
         public sealed override object ConvertBackTo(ReadOnlySpan<byte> input)
         {
-            if (!input.IsEmpty)
+            if (input != null)
                 return ConvertBack(input);
             
             throw new ArgumentException(nameof(input));

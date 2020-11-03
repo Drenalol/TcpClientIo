@@ -355,7 +355,7 @@ namespace Drenalol.TcpClientIo
         [Test]
         public async Task EmptyBodyTest()
         {
-            var mock = new MockNoIdEmptyBody {Length = 0, Empty = new byte[0]};
+            var mock = new MockNoIdEmptyBody {Length = 0, Empty = ""};
             var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>();
             await client.SendAsync(mock);
             Assert.NotNull(await client.ReceiveAsync(default));
