@@ -1,10 +1,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.IO;
-using System.IO.Pipelines;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Drenalol.TcpClientIo.Attributes;
 using Drenalol.TcpClientIo.Converters;
@@ -102,7 +99,7 @@ namespace Drenalol.TcpClientIo
                 Task.Run(() =>
                 {
                     var serialize = serializer.Serialize(mock);
-                    _ = serializer.DeserializeAsync(PipeReader.Create(new MemoryStream(serialize.Request.ToArray())), CancellationToken.None).Result;
+                    _ = serializer.Deserialize(new ReadOnlySequence<byte>(serialize.Request));
                 });
         }
 

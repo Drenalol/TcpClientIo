@@ -11,13 +11,11 @@ namespace Drenalol.TcpClientIo.Serialization
     {
         private readonly Type _request;
         private readonly Type _response;
-        private Dictionary<int, TcpProperty> _requestProperties;
-        private Dictionary<int, TcpProperty> _responseProperties;
 
-        public IReadOnlyDictionary<int, TcpProperty> RequestProperties => _requestProperties;
-        public IReadOnlyDictionary<int, TcpProperty> ResponseProperties => _responseProperties;
-        public int RequestMetaCount { get; private set; }
-        public int ResponseMetaCount { get; private set; }
+        public IReadOnlyDictionary<int, TcpProperty> RequestProperties { get; private set; }
+        public IReadOnlyDictionary<int, TcpProperty> ResponseProperties { get; private set; }
+        public int RequestMetaLength { get; private set; }
+        public int ResponseMetaLength { get; private set; }
         public TcpProperty ResponseBodyLengthProperty { get; private set; }
 
         public ReflectionHelper()
@@ -31,20 +29,20 @@ namespace Drenalol.TcpClientIo.Serialization
         {
             var requestProperties = GetTypeProperties(_request);
             EnsureTypeHasRequiredAttributes(_request, requestProperties);
-            _requestProperties = requestProperties;
+            RequestProperties = requestProperties;
 
             if (_request != _response)
             {
                 var responseProperties = GetTypeProperties(_response);
                 EnsureTypeHasRequiredAttributes(_request, responseProperties);
-                _responseProperties = responseProperties;
+                ResponseProperties = responseProperties;
             }
             else
-                _responseProperties = requestProperties;
+                ResponseProperties = requestProperties;
 
-            RequestMetaCount = _requestProperties.Keys.Max();
-            ResponseMetaCount = _responseProperties.Keys.Max();
-            ResponseBodyLengthProperty = _responseProperties.SingleOrDefault(p => p.Value.Attribute.TcpDataType == TcpDataType.BodyLength).Value;
+            RequestMetaLength = RequestProperties.Values.Sum(p => p.Attribute.Length);
+            ResponseMetaLength = ResponseProperties.Values.Sum(p => p.Attribute.Length);
+            ResponseBodyLengthProperty = ResponseProperties.SingleOrDefault(p => p.Value.Attribute.TcpDataType == TcpDataType.BodyLength).Value;
         }
 
         private static Dictionary<int, TcpProperty> GetTypeProperties(Type type)

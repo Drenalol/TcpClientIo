@@ -6,7 +6,7 @@ namespace TcpClientIo.Benchmarks
     {
         private static void Main()
         {
-            var summary = BenchmarkRunner.Run<TcpSerializerBenchmark>();
+            BenchmarkRunner.Run<TcpSerializerBenchmark>();
         }
     }
 }

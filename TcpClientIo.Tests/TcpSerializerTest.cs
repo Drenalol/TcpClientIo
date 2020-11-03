@@ -16,7 +16,20 @@ namespace Drenalol.TcpClientIo
     public class TcpSerializerTest
     {
         [Test]
-        public async Task SerializeDeserializeTest()
+        public void SerializeDeserializeTest()
+        {
+            var ethalon = Mock.Default();
+            const int ethalonHeaderLength = 270;
+
+            var serializer = new TcpSerializer<long, Mock, Mock>(new List<TcpConverter> {new TcpUtf8StringConverter()}, i => new byte[i]);
+            var serialize = serializer.Serialize(ethalon);
+            Assert.IsTrue(serialize.Request.Length == ethalon.Size + ethalonHeaderLength);
+            var (_, deserialize) = serializer.Deserialize(new ReadOnlySequence<byte>(serialize.Request));
+            Assert.IsTrue(ethalon.Equals(deserialize));
+        }
+
+        [Test]
+        public async Task SerializeDeserializeFromPipeReaderTest()
         {
             var ethalon = Mock.Default();
             const int ethalonHeaderLength = 270;

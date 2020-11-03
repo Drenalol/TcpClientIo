@@ -1,7 +1,6 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Threading;
@@ -9,6 +8,7 @@ using System.Threading.Tasks;
 using Drenalol.TcpClientIo.Attributes;
 using Drenalol.TcpClientIo.Converters;
 using Drenalol.TcpClientIo.Exceptions;
+using Drenalol.TcpClientIo.Extensions;
 
 namespace Drenalol.TcpClientIo.Serialization
 {
@@ -73,15 +73,15 @@ namespace Drenalol.TcpClientIo.Serialization
 
                 try
                 {
-                    realLength = (int) lengthValue + _reflectionHelper.RequestMetaCount;
+                    realLength = (int) lengthValue + _reflectionHelper.RequestMetaLength;
                 }
                 catch (InvalidCastException)
                 {
-                    realLength = Convert.ToInt32(lengthValue) + _reflectionHelper.RequestMetaCount;
+                    realLength = Convert.ToInt32(lengthValue) + _reflectionHelper.RequestMetaLength;
                 }
             }
             else
-                realLength = _reflectionHelper.RequestMetaCount;
+                realLength = _reflectionHelper.RequestMetaLength;
 
             var rentedArray = _byteArrayFactory(realLength);
 
@@ -109,74 +109,99 @@ namespace Drenalol.TcpClientIo.Serialization
 
         public async Task<(TId, TResponse)> DeserializeAsync(PipeReader pipeReader, CancellationToken token)
         {
+            TResponse response;
+            TId id;
+
+            var bodyLengthProperty = _reflectionHelper.ResponseBodyLengthProperty;
+            var responseMetaLength = _reflectionHelper.ResponseMetaLength;
+            var metaReadResult = await pipeReader.ReadLengthAsync(responseMetaLength, token);
+
+            if (bodyLengthProperty == null)
+            {
+                var responseSlice = metaReadResult.Slice(responseMetaLength);
+
+                (id, response) = Deserialize(responseSlice);
+
+                pipeReader.Consume(responseSlice.GetPosition(responseMetaLength));
+            }
+            else
+            {
+                var bodyLengthattribute = bodyLengthProperty.Attribute;
+                var bodyLengthSequence = metaReadResult.Slice(bodyLengthattribute.Length, bodyLengthattribute.Index);
+                var bodyLengthValue = _bitConverterHelper.ConvertFromBytes(bodyLengthSequence, bodyLengthProperty.PropertyType, bodyLengthattribute.Reverse);
+                var bodyLength = Convert.ToInt32(bodyLengthValue);
+                var totalLength = responseMetaLength + bodyLength;
+
+                ReadOnlySequence<byte> responseSlice;
+                
+                if (metaReadResult.Buffer.Length >= totalLength)
+                    responseSlice = metaReadResult.Slice(totalLength);
+                else
+                {
+                    pipeReader.Examine(metaReadResult.Buffer.Start, metaReadResult.Buffer.GetPosition(responseMetaLength));
+                    responseSlice = (await pipeReader.ReadLengthAsync(totalLength, token)).Slice(totalLength);
+                }
+
+                (id, response) = Deserialize(responseSlice, bodyLengthValue);
+
+                pipeReader.Consume(responseSlice.GetPosition(totalLength));
+            }
+
+            return (id, response);
+        }
+
+        public (TId, TResponse) Deserialize(in ReadOnlySequence<byte> responseSequence, object preKnownBodyLength = null)
+        {
             var response = new TResponse();
+            TId id = default;
+
+            var bodyLength = 0;
             var key = 0;
             var examined = 0;
-            TId id = default;
-            var bodyLength = 0;
             var properties = _reflectionHelper.ResponseProperties;
 
             while (properties.TryGetValue(key, out var property))
             {
-                ReadResult readResult;
-                var isBody = property.Attribute.TcpDataType == TcpDataType.Body;
-                var sliceLength = isBody ? bodyLength : property.Attribute.Length;
-                var isEmptyBody = isBody && sliceLength == 0;
+                object value;
+                int sliceLength;
+                var isBodyLength = property.Attribute.TcpDataType == TcpDataType.BodyLength;
 
-                if (isEmptyBody)
-                    readResult = new ReadResult(ReadOnlySequence<byte>.Empty, false, false);
-                else
-                    while (true)
-                    {
-                        token.ThrowIfCancellationRequested();
-                        readResult = await pipeReader.ReadAsync(token);
-
-                        if (readResult.IsCanceled)
-                            throw new OperationCanceledException();
-
-                        if (readResult.IsCompleted)
-                            throw new EndOfStreamException();
-
-                        if (readResult.Buffer.IsEmpty)
-                            continue;
-
-                        var readResultLength = readResult.Buffer.Length;
-
-                        if (readResultLength < sliceLength)
-                        {
-                            pipeReader.AdvanceTo(readResult.Buffer.Start, readResult.Buffer.GetPosition(readResultLength));
-                            continue;
-                        }
-
-                        break;
-                    }
-
-                var slice = readResult.Buffer.Slice(0, sliceLength);
-                var value = _bitConverterHelper.ConvertFromBytes(slice, property.PropertyType, property.Attribute.Reverse);
-
-                switch (property.Attribute.TcpDataType)
+                if (isBodyLength && preKnownBodyLength != null)
                 {
-                    case TcpDataType.Id:
-                        id = (TId) value;
-                        break;
-                    case TcpDataType.BodyLength:
-                        bodyLength = Convert.ToInt32(value);
-                        break;
+                    value = preKnownBodyLength;
+                    bodyLength = Convert.ToInt32(preKnownBodyLength);
+                    sliceLength = property.Attribute.Length;
+                    SetValue();
+                    continue;
                 }
 
-                if (!isEmptyBody)
-                    pipeReader.AdvanceTo(readResult.Buffer.GetPosition(sliceLength));
+                var isId = property.Attribute.TcpDataType == TcpDataType.Id;
+                var isBody = property.Attribute.TcpDataType == TcpDataType.Body;
+                sliceLength = isBody ? bodyLength : property.Attribute.Length;
 
-                if (property.IsValueType)
-                    response = (TResponse) property.Set(response, value);
-                else
-                    property.Set(response, value);
+                var slice = responseSequence.Slice(key, sliceLength);
+                value = _bitConverterHelper.ConvertFromBytes(slice, property.PropertyType, property.Attribute.Reverse);
 
-                key += sliceLength;
-                examined++;
+                if (isId)
+                    id = (TId) value;
+                else if (isBodyLength)
+                    bodyLength = Convert.ToInt32(value);
+
+                SetValue();
 
                 if (examined == properties.Count)
                     break;
+
+                void SetValue()
+                {
+                    if (property.IsValueType)
+                        response = (TResponse) property.Set(response, value);
+                    else
+                        property.Set(response, value);
+
+                    key += sliceLength;
+                    examined++;
+                }
             }
 
             return (id, response);

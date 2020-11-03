@@ -52,6 +52,12 @@ namespace Drenalol.TcpClientIo
             var (options, loggerFactory) = GetDefaults(logLevel);
             return new TcpClientIo<TId, T, TR>(ipAddress ?? IpAddress, port, options, loggerFactory.CreateLogger<TcpClientIo<TId, T, TR>>());
         }
+        
+        public static TcpClientIo<T, TR> GetClient<T, TR>(IPAddress ipAddress = null, int port = 10000, LogLevel logLevel = LogLevel.Warning) where TR : new()
+        {
+            var (options, loggerFactory) = GetDefaults(logLevel);
+            return new TcpClientIo<T, TR>(ipAddress ?? IpAddress, port, options, loggerFactory.CreateLogger<TcpClientIo<T, TR>>());
+        }
 
         [Test]
         public async Task SingleSendReceiveTest()
@@ -220,6 +226,22 @@ namespace Drenalol.TcpClientIo
             var batch = await client.ReceiveAsync(default);
             var mockNoId = batch.First();
             Assert.IsTrue(mock.Size == mockNoId.Size);
+        }
+        
+        [Test]
+        public async Task NoIdNoBodyTest()
+        {
+            var client = GetClient<MockOnlyData, MockOnlyData>();
+            var mock = new MockOnlyData
+            {
+                Test = 1337,
+                Long = 777788889999
+            };
+            await client.SendAsync(mock);
+            var batch = await client.ReceiveAsync();
+            var mockNoId = batch.First();
+            Assert.IsTrue(mock.Test == mockNoId.Test);
+            Assert.IsTrue(mock.Long == mockNoId.Long);
         }
 
         [Test]
