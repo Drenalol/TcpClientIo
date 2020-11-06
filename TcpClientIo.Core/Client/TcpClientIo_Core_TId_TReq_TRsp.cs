@@ -83,9 +83,9 @@ namespace Drenalol.TcpClientIo.Client
         /// <summary>
         /// Gets an immutable snapshot of responses to receive (id, null) or responses ready to receive (id, <see cref="ITcpBatch{TResponse}"/>).
         /// </summary>
-        public ImmutableDictionary<TId, ITcpBatch<TResponse>> GetWaiters()
+        public ImmutableDictionary<TId, WaiterInfo<ITcpBatch<TResponse>>> GetWaiters()
             => _completeResponses
-                .ToImmutableDictionary(pair => pair.Key, pair => pair.Value.Task.Status == TaskStatus.RanToCompletion ? pair.Value.Task.Result : null);
+                .ToImmutableDictionary(pair => pair.Key, pair => new WaiterInfo<ITcpBatch<TResponse>>(pair.Value.Task));
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TcpClientIo{TRequest,TResponse}"/> class and connects to the specified port on the specified host.
