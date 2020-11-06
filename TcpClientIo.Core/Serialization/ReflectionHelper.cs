@@ -7,7 +7,7 @@ using Drenalol.TcpClientIo.Exceptions;
 
 namespace Drenalol.TcpClientIo.Serialization
 {
-    public class ReflectionHelper<TRequest, TResponse>
+    internal class ReflectionHelper<TRequest, TResponse>
     {
         private readonly Type _request;
         private readonly Type _response;
@@ -87,8 +87,10 @@ namespace Drenalol.TcpClientIo.Serialization
 
             if (bodyLength.Count > 1)
                 throw TcpException.AttributeDuplicate(type.ToString(), nameof(TcpDataType.BodyLength));
+            
             if (body.Count == 1 && bodyLength.Count == 0)
                 throw TcpException.AttributeBodyLengthRequired(type.ToString());
+            
             if (bodyLength.Count == 1 && body.Count == 0)
                 throw TcpException.AttributeBodyRequired(type.ToString());
 

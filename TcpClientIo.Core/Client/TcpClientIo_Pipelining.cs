@@ -23,7 +23,6 @@ namespace Drenalol.TcpClientIo.Client
                         continue;
 
                     var serializedRequest = await _bufferBlockRequests.ReceiveAsync(_baseCancellationToken);
-                    //bytesArray = await _bufferBlockRequests.ReceiveAsync(_baseCancellationToken);
                     var writeResult = await _networkStreamPipeWriter.WriteAsync(serializedRequest.Request, _baseCancellationToken);
                     _arrayPool.Return(serializedRequest.RentedArray, true);
                     

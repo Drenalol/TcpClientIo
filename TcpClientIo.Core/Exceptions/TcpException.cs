@@ -22,7 +22,7 @@ namespace Drenalol.TcpClientIo.Exceptions
             new TcpException($"Set and Get keywords required for Serializtion. Type: {type}, {nameof(TcpDataType)}: {attributeType}, {(attributeType == nameof(TcpDataType.MetaData) ? $"Index: {attributeIndex}" : null)}");
 
         public static TcpException ConverterNotFoundType(string propertyName) =>
-            new TcpException($"Not found converter for {propertyName}");
+            new TcpException($"Converter not found for {propertyName}");
 
         public static TcpException ConverterUnknownError(string propertyName, string errorMessage) =>
             new TcpException($"Error while trying convert data {propertyName}, error: {errorMessage}");

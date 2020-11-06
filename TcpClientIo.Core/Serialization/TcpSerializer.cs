@@ -12,7 +12,7 @@ using Drenalol.TcpClientIo.Extensions;
 
 namespace Drenalol.TcpClientIo.Serialization
 {
-    public class TcpSerializer<TId, TRequest, TResponse> where TResponse : new() where TId : struct
+    internal class TcpSerializer<TId, TRequest, TResponse> where TResponse : new() where TId : struct
     {
         private readonly Func<int, byte[]> _byteArrayFactory;
         private readonly ReflectionHelper<TRequest, TResponse> _reflectionHelper;

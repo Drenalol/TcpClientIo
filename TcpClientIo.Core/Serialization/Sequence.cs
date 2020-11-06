@@ -6,7 +6,7 @@ namespace Drenalol.TcpClientIo.Serialization
     /// Structure containing a span and an Delegate that will need to be invoke when the work with the span is completed.<para></para>
     /// If you invoked before working with the span, data will be lost.
     /// </summary>
-    public readonly ref struct Sequence
+    internal readonly ref struct Sequence
     {
         private readonly ReadOnlySpan<byte> _span;
         private readonly Action _returnRentedArray;
@@ -17,7 +17,7 @@ namespace Drenalol.TcpClientIo.Serialization
             _returnRentedArray = returnRentedArray;
         }
         
-        internal static Sequence Create(ReadOnlySpan<byte> span, Action returnRentedArray) => new Sequence(span, returnRentedArray);
+        public static Sequence Create(ReadOnlySpan<byte> span, Action returnRentedArray) => new Sequence(span, returnRentedArray);
 
         /// <summary>
         /// Deconstruction method

@@ -217,17 +217,17 @@ namespace Drenalol.TcpClientIo
         [Test]
         public async Task NoIdTest()
         {
-            var client = GetClient<long, MockNoId, MockNoId>();
+            var client = GetClient<MockNoId, MockNoId>();
             var mock = new MockNoId
             {
                 Body = "Qwerty!"
             };
             await client.SendAsync(mock);
-            var batch = await client.ReceiveAsync(default);
+            var batch = await client.ReceiveAsync();
             var mockNoId = batch.First();
             Assert.IsTrue(mock.Size == mockNoId.Size);
         }
-        
+
         [Test]
         public async Task NoIdNoBodyTest()
         {

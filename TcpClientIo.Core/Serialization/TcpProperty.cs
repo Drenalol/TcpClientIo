@@ -1,9 +1,10 @@
 using System;
 using System.Reflection;
+using Drenalol.TcpClientIo.Attributes;
 
-namespace Drenalol.TcpClientIo.Attributes
+namespace Drenalol.TcpClientIo.Serialization
 {
-    public class TcpProperty
+    internal class TcpProperty
     {
         private readonly PropertyInfo _propertyInfo;
 

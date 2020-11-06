@@ -8,7 +8,7 @@ using Drenalol.TcpClientIo.Extensions;
 
 namespace Drenalol.TcpClientIo.Serialization
 {
-    public class BitConverterHelper
+    internal class BitConverterHelper
     {
         private readonly IReadOnlyDictionary<Type, MethodInfo> _builtInConvertersToBytes;
         private readonly IReadOnlyDictionary<Type, TcpConverter> _customConverters;
@@ -36,12 +36,12 @@ namespace Drenalol.TcpClientIo.Serialization
             ((Span<byte>) bytes).Reverse();
             return bytes;
         }
-        
+
         private static Sequence MergeSpans(ReadOnlySequence<byte> sequences, bool reverse)
         {
             if (!reverse && sequences.IsSingleSegment)
                 return Sequence.Create(sequences.FirstSpan, null);
-            
+
             var sequencesLength = (int) sequences.Length;
             var bytes = ArrayPool<byte>.Shared.Rent(sequencesLength);
             var span = new Span<byte>(bytes, 0, sequencesLength);
@@ -64,24 +64,21 @@ namespace Drenalol.TcpClientIo.Serialization
                 case byte[] byteArray:
                     return reverse ? Reverse(byteArray) : byteArray;
                 default:
-                    if (_customConverters.TryConvert(propertyType, propertyValue, out var result))
-                        return reverse ? Reverse(result) : result;
-
-                    if (_builtInConvertersToBytes.TryGetValue(propertyType, out var methodInfo))
+                    try
                     {
-                        try
-                        {
-                            result = (byte[]) methodInfo.Invoke(null, new[] {propertyValue});
-
+                        if (_customConverters.TryConvert(propertyType, propertyValue, out var result))
                             return reverse ? Reverse(result) : result;
-                        }
-                        catch (Exception exception)
-                        {
-                            throw TcpException.ConverterUnknownError(propertyType.ToString(), exception.Message);
-                        }
+
+                        if (!_builtInConvertersToBytes.TryGetValue(propertyType, out var methodInfo))
+                            throw TcpException.ConverterNotFoundType(propertyType.ToString());
+
+                        result = (byte[]) methodInfo.Invoke(null, new[] {propertyValue});
+                        return reverse ? Reverse(result) : result;
                     }
-                    else
-                        throw TcpException.ConverterNotFoundType(propertyType.ToString());
+                    catch (Exception exception) when (!(exception is TcpException))
+                    {
+                        throw TcpException.ConverterUnknownError(propertyType.ToString(), exception.Message);
+                    }
             }
         }
 
@@ -92,30 +89,30 @@ namespace Drenalol.TcpClientIo.Serialization
 
             if (propertyType == typeof(byte))
                 return slice.FirstSpan[0];
-            
-            var (span, returnArray) = MergeSpans(slice, reverse);
 
-            if (_customConverters.TryConvertBack(propertyType, span, out var result))
-                return result;
+            var (span, returnArray) = MergeSpans(slice, reverse);
 
             try
             {
-                result = propertyType.Name switch
+                if (_customConverters.TryConvertBack(propertyType, span, out var result))
+                    return result;
+
+                return propertyType.Name switch
                 {
-                    "Boolean" => BitConverter.ToBoolean(span),
-                    "Char" => BitConverter.ToChar(span),
-                    "Double" => BitConverter.ToDouble(span),
-                    "Int16" => BitConverter.ToInt16(span),
-                    "Int32" => BitConverter.ToInt32(span),
-                    "Int64" => BitConverter.ToInt64(span),
-                    "Single" => BitConverter.ToSingle(span),
-                    "UInt16" => BitConverter.ToUInt16(span),
-                    "UInt32" => BitConverter.ToUInt32(span),
-                    "UInt64" => BitConverter.ToUInt64(span),
+                    nameof(Boolean) => BitConverter.ToBoolean(span),
+                    nameof(Char) => BitConverter.ToChar(span),
+                    nameof(Double) => BitConverter.ToDouble(span),
+                    nameof(Int16) => BitConverter.ToInt16(span),
+                    nameof(Int32) => BitConverter.ToInt32(span),
+                    nameof(Int64) => BitConverter.ToInt64(span),
+                    nameof(Single) => BitConverter.ToSingle(span),
+                    nameof(UInt16) => BitConverter.ToUInt16(span),
+                    nameof(UInt32) => BitConverter.ToUInt32(span),
+                    nameof(UInt64) => BitConverter.ToUInt64(span),
                     _ => throw TcpException.ConverterNotFoundType(propertyType.ToString())
                 };
             }
-            catch (Exception exception)
+            catch (Exception exception) when (!(exception is TcpException))
             {
                 throw TcpException.ConverterUnknownError(propertyType.ToString(), exception.Message);
             }
@@ -123,8 +120,6 @@ namespace Drenalol.TcpClientIo.Serialization
             {
                 returnArray?.Invoke();
             }
-
-            return result;
         }
     }
 }
