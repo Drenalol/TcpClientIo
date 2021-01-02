@@ -26,7 +26,12 @@ namespace Drenalol.TcpClientIo.Options
         /// <summary>
         /// Gets or sets a <see cref="TcpConverter"/> collection that will be used during serialization.
         /// </summary>
-        public IReadOnlyCollection<TcpConverter> Converters { get; set; }
+        public IList<TcpConverter> Converters { get; set; }
+
+        public TcpClientIoOptions()
+        {
+            Converters = new List<TcpConverter>();
+        }
 
         /// <summary>
         /// Gets default options
@@ -37,8 +42,17 @@ namespace Drenalol.TcpClientIo.Options
             StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 65536),
             StreamPipeWriterOptions = new StreamPipeWriterOptions(),
             TcpClientSendTimeout = 60000,
-            TcpClientReceiveTimeout = 60000,
-            Converters = new List<TcpConverter>()
+            TcpClientReceiveTimeout = 60000
         };
+
+        /// <summary>
+        /// Register converter
+        /// </summary>
+        /// <param name="tcpConverter"></param>
+        public TcpClientIoOptions RegisterConverter(TcpConverter tcpConverter)
+        {
+            Converters.Add(tcpConverter);
+            return this;
+        }
     }
 }

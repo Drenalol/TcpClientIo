@@ -18,7 +18,7 @@ namespace Drenalol.TcpClientIo.Serialization
         private readonly ReflectionHelper<TRequest, TResponse> _reflectionHelper;
         private readonly BitConverterHelper _bitConverterHelper;
 
-        public TcpSerializer(IReadOnlyCollection<TcpConverter> converters, Func<int, byte[]> byteArrayFactory)
+        public TcpSerializer(ICollection<TcpConverter> converters, Func<int, byte[]> byteArrayFactory)
         {
             _byteArrayFactory = byteArrayFactory;
             _reflectionHelper = new ReflectionHelper<TRequest, TResponse>();
