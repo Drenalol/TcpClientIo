@@ -100,7 +100,7 @@ namespace Drenalol.TcpClientIo.Client
                 {
                     _baseCancellationToken.ThrowIfCancellationRequested();
                     var (responseId, response) = await _serializer.DeserializeAsync(_deserializePipeReader, _baseCancellationToken);
-                    await SetResponseAsync(responseId, response);
+                    await _completeResponses.SetAsync(responseId, _batchRules.Create(response), true);
                 }
             }
             catch (OperationCanceledException canceledException)

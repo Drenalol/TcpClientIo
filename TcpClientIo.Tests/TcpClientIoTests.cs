@@ -90,8 +90,8 @@ namespace Drenalol.TcpClientIo
             await tcpClient.DisposeAsync();
         }
 
-        [TestCase(100, 1, 5)]
-        [TestCase(100, 4, 5)]
+        [TestCase(100000, 1, 5)]
+        [TestCase(100000, 4, 5)]
         public void MultipleConsumersAsyncTest(int requests, int consumers, double timeout)
         {
             var requestsPerConsumer = requests / consumers;
@@ -153,8 +153,8 @@ namespace Drenalol.TcpClientIo
             TestContext.WriteLine($"BytesRead: {Math.Round(bytesRead / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
         }
         
-        [TestCase(100, true)]
-        [TestCase(100, false)]
+        [TestCase(100000, true)]
+        [TestCase(100000, false)]
         public async Task ConsumingAsyncEnumerableTest(int requests, bool expandBatch)
         {
             var sended = 0;

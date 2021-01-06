@@ -13,60 +13,6 @@ namespace Drenalol.TcpClientIo.Client
 {
     public partial class TcpClientIo<TId, TRequest, TResponse>
     {
-        private async Task SetResponseAsync(TId responseId, TResponse response)
-        {
-            TaskCompletionSource<ITcpBatch<TResponse>> tcs;
-            ITcpBatch<TResponse> batch = null;
-
-            // From MSDN: ConcurrentDictionary<TId,TValue> is designed for multi-threaded scenarios.
-            // You do not have to use locks in your code to add or remove items from the collection.
-            // However, it is always possible for one thread to retrieve a value, and another thread
-            // to immediately update the collection by giving the same id a new value.
-            using (await _asyncLock.LockAsync())
-            {
-                if (_completeResponses.TryRemove(responseId, out tcs))
-                {
-                    switch (tcs.Task.Status)
-                    {
-                        case TaskStatus.WaitingForActivation:
-                            AddOrUpdate(tcs);
-                            break;
-                        case TaskStatus.RanToCompletion:
-                            await UpdateAsync();
-                            break;
-                    }
-                }
-                else
-                    AddOrUpdate();
-
-                tcs.TrySetResult(batch);
-                _consumingResetEvent.Set();
-            }
-
-            void AddOrUpdate(TaskCompletionSource<ITcpBatch<TResponse>> innerTcs = null)
-            {
-                batch = _batchRules.Create(response);
-                tcs = innerTcs ?? InternalGetOrAddLazyTcs(responseId);
-                _logger?.LogInformation($"Available new response: Id {responseId}, create new batch (Count: 1)");
-            }
-
-            async Task UpdateAsync()
-            {
-                batch = await tcs.Task;
-                batch.Add(response);
-                tcs = InternalGetOrAddLazyTcs(responseId);
-                _logger?.LogInformation($"Available new response: Id {responseId}, update exists batch (Count: {batch.Count.ToString()})");
-            }
-        }
-
-        private TaskCompletionSource<ITcpBatch<TResponse>> InternalGetOrAddLazyTcs(TId id)
-        {
-            return _completeResponses.GetOrAdd(id, _ => InternalCreateLazyTcs().Value);
-
-            Lazy<TaskCompletionSource<ITcpBatch<TResponse>>> InternalCreateLazyTcs() =>
-                new Lazy<TaskCompletionSource<ITcpBatch<TResponse>>>(() => new TaskCompletionSource<ITcpBatch<TResponse>>());
-        }
-
         /// <summary>
         /// Serialize and sends data asynchronously to a connected <see cref="TcpClientIo{TRequest,TResponse}"/> object.
         /// </summary>
@@ -109,37 +55,7 @@ namespace Drenalol.TcpClientIo.Client
             if (!_disposing && _pipelineReadEnded)
                 throw TcpClientIoException.ConnectionBroken();
 
-            var hasOwnToken = false;
-            CancellationToken internalToken;
-
-            if (token == default)
-                internalToken = _baseCancellationToken;
-            else
-            {
-                internalToken = token;
-                hasOwnToken = true;
-            }
-
-            TaskCompletionSource<ITcpBatch<TResponse>> tcs;
-            // Info about lock read in SetResponseAsync method
-            using (await _asyncLock.LockAsync())
-            {
-                if (!_completeResponses.TryRemove(responseId, out tcs))
-                {
-                    tcs = InternalGetOrAddLazyTcs(responseId);
-                }
-            }
-            await using (internalToken.Register(() =>
-            {
-                if (_disposing || hasOwnToken)
-                    tcs.TrySetCanceled();
-                else if (!_disposing && _pipelineReadEnded)
-                    tcs.TrySetException(TcpClientIoException.ConnectionBroken());
-            }))
-            {
-                var result = await tcs.Task;
-                return result;
-            }
+            return await _completeResponses.WaitAsync(responseId, token);
         }
 
         /// <summary>Provides a consuming <see cref="T:System.Collections.Generics.IAsyncEnumerable{T}"/> for <see cref="ITcpBatch{TResponse}"/> in the collection.
@@ -170,16 +86,10 @@ namespace Drenalol.TcpClientIo.Client
                 try
                 {
                     internalToken.ThrowIfCancellationRequested();
-                    KeyValuePair<TId, TaskCompletionSource<ITcpBatch<TResponse>>>[] completedResponses;
 
-                    // Info about lock read in SetResponseAsync method
-                    using (await _asyncLock.LockAsync(internalToken))
-                    {
-                        completedResponses = _completeResponses
-                            .ToArray() // This trick is cheaper than calling ConcurrentDictionary.Where.
-                            .Where(p => p.Value.Task.Status == TaskStatus.RanToCompletion)
-                            .ToArray();
-                    }
+                    var completedResponses = _completeResponses
+                        .Filter(p => p.Value.Task.Status == TaskStatus.RanToCompletion)
+                        .ToArray();
 
                     if (completedResponses.Length == 0)
                     {
@@ -188,18 +98,15 @@ namespace Drenalol.TcpClientIo.Client
                         continue;
                     }
 
-                    using (await _asyncLock.LockAsync(internalToken))
+                    result = new List<ITcpBatch<TResponse>>();
+
+                    foreach (var (key, tcs) in completedResponses)
                     {
-                        result = new List<ITcpBatch<TResponse>>();
+                        internalToken.ThrowIfCancellationRequested();
 
-                        foreach (var pair in completedResponses)
+                        if (await _completeResponses.TryRemoveAsync(key))
                         {
-                            internalToken.ThrowIfCancellationRequested();
-
-                            if (_completeResponses.TryRemove(pair.Key, out var tcs))
-                            {
-                                result.Add(await tcs.Task);
-                            }
+                            result.Add(await tcs.Task);
                         }
                     }
                 }

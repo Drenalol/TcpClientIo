@@ -21,7 +21,7 @@ namespace Drenalol.TcpClientIo.Emulator
             _config = config;
             _listener = TcpListener.Create(_config.Port);
             _listener.Start();
-            _ = Task.Run(GetConnection);
+            _ = GetConnection();
         }
 
         public static ListenerEmulator Create(CancellationToken token, ListenerEmulatorConfig args)

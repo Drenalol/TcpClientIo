@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO.Pipelines;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -14,6 +15,7 @@ using Drenalol.TcpClientIo.Contracts;
 using Drenalol.TcpClientIo.Exceptions;
 using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Serialization;
+using Drenalol.WaitingDictionary;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
 
@@ -29,7 +31,8 @@ namespace Drenalol.TcpClientIo.Client
     [DebuggerDisplay("Id: {Id,nq}, Requests: {Requests,nq}, Waiters: {Waiters,nq}")]
     public partial class TcpClientIo<TId, TRequest, TResponse> : ITcpClientIo<TId, TRequest, TResponse> where TResponse : new() where TId : struct
     {
-        [DebuggerNonUserCode] private Guid Id { get; }
+        [DebuggerNonUserCode]
+        private Guid Id { get; }
 
         private readonly TcpClientIoOptions _options;
         private readonly TcpBatchRules<TResponse> _batchRules;
@@ -37,8 +40,7 @@ namespace Drenalol.TcpClientIo.Client
         private readonly CancellationToken _baseCancellationToken;
         private readonly TcpClient _tcpClient;
         private readonly BufferBlock<SerializedRequest> _bufferBlockRequests;
-        private readonly ConcurrentDictionary<TId, TaskCompletionSource<ITcpBatch<TResponse>>> _completeResponses;
-        private readonly AsyncLock _asyncLock = new AsyncLock();
+        private readonly WaitingDictionary<TId, ITcpBatch<TResponse>> _completeResponses;
         private readonly TcpSerializer<TId, TRequest, TResponse> _serializer;
         private readonly ArrayPool<byte> _arrayPool;
         private readonly AsyncManualResetEvent _writeResetEvent;
@@ -125,7 +127,17 @@ namespace Drenalol.TcpClientIo.Client
             _baseCancellationTokenSource = new CancellationTokenSource();
             _baseCancellationToken = _baseCancellationTokenSource.Token;
             _bufferBlockRequests = new BufferBlock<SerializedRequest>();
-            _completeResponses = new ConcurrentDictionary<TId, TaskCompletionSource<ITcpBatch<TResponse>>>();
+            var middleware = new MiddlewareBuilder<ITcpBatch<TResponse>>()
+                .RegisterCancellationActionInWait((tcs, hasOwnToken) =>
+                {
+                    if (_disposing || hasOwnToken)
+                        tcs.TrySetCanceled();
+                    else if (!_disposing && _pipelineReadEnded)
+                        tcs.TrySetException(TcpClientIoException.ConnectionBroken());
+                })
+                .RegisterDuplicateActionInSet((batch, newBatch) => _batchRules.Update(batch, newBatch.Single()))
+                .RegisterCompletionActionInSet(() => _consumingResetEvent.Set());
+            _completeResponses = new WaitingDictionary<TId, ITcpBatch<TResponse>>(middleware);
             _arrayPool = ArrayPool<byte>.Create();
             _serializer = new TcpSerializer<TId, TRequest, TResponse>(_options.Converters, length => _arrayPool.Rent(length));
             _writeResetEvent = new AsyncManualResetEvent();
@@ -149,8 +161,8 @@ namespace Drenalol.TcpClientIo.Client
 
         private void SetupTasks()
         {
-            Task.Run(TcpWriteAsync, CancellationToken.None);
-            Task.Run(TcpReadAsync, CancellationToken.None).ContinueWith(antecedent =>
+            _ = TcpWriteAsync();
+            _ = TcpReadAsync().ContinueWith(antecedent =>
             {
                 if (_disposing || !_pipelineReadEnded)
                     return;
@@ -158,7 +170,7 @@ namespace Drenalol.TcpClientIo.Client
                 foreach (var kv in _completeResponses.ToArray())
                     kv.Value.TrySetException(TcpClientIoException.ConnectionBroken());
             }, TaskContinuationOptions.OnlyOnRanToCompletion);
-            Task.Run(DeserializeResponseAsync, CancellationToken.None);
+            _ = DeserializeResponseAsync();
         }
 
         public async ValueTask DisposeAsync()
@@ -168,6 +180,8 @@ namespace Drenalol.TcpClientIo.Client
 
             if (_baseCancellationTokenSource != null && !_baseCancellationTokenSource.IsCancellationRequested)
                 _baseCancellationTokenSource.Cancel();
+            
+            _completeResponses?.Dispose();
 
             using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60)))
             {
@@ -177,7 +191,6 @@ namespace Drenalol.TcpClientIo.Client
             }
 
             _baseCancellationTokenSource?.Dispose();
-            _completeResponses?.Clear();
             _tcpClient?.Dispose();
             _logger?.LogInformation("Dispose ended");
         }
