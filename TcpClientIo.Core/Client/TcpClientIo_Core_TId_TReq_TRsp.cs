@@ -1,6 +1,6 @@
 using System;
 using System.Buffers;
-using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO.Pipelines;
@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Drenalol.TcpClientIo.Batches;
 using Drenalol.TcpClientIo.Contracts;
+using Drenalol.TcpClientIo.Converters;
 using Drenalol.TcpClientIo.Exceptions;
 using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Serialization;
@@ -41,7 +42,8 @@ namespace Drenalol.TcpClientIo.Client
         private readonly TcpClient _tcpClient;
         private readonly BufferBlock<SerializedRequest> _bufferBlockRequests;
         private readonly WaitingDictionary<TId, ITcpBatch<TResponse>> _completeResponses;
-        private readonly TcpSerializer<TId, TRequest, TResponse> _serializer;
+        private readonly TcpSerializer<TRequest> _serializer;
+        private readonly TcpDeserializer<TId, TResponse> _deserializer;
         private readonly ArrayPool<byte> _arrayPool;
         private readonly AsyncManualResetEvent _writeResetEvent;
         private readonly AsyncManualResetEvent _readResetEvent;
@@ -72,8 +74,6 @@ namespace Drenalol.TcpClientIo.Client
 
         /// <summary>
         /// Gets the number of responses to receive or the number of responses ready to receive.
-        /// <para> </para>
-        /// WARNING! This property lock whole internal <see cref="ConcurrentDictionary{TId,TValue}"/>, be careful of frequently use.
         /// </summary>
         public int Waiters => _completeResponses.Count;
 
@@ -139,7 +139,9 @@ namespace Drenalol.TcpClientIo.Client
                 .RegisterCompletionActionInSet(() => _consumingResetEvent.Set());
             _completeResponses = new WaitingDictionary<TId, ITcpBatch<TResponse>>(middleware);
             _arrayPool = ArrayPool<byte>.Create();
-            _serializer = new TcpSerializer<TId, TRequest, TResponse>(_options.Converters, length => _arrayPool.Rent(length));
+            var bitConverterHelper = BitConverterHelper.Create(_options.Converters);
+            _serializer = new TcpSerializer<TRequest>(bitConverterHelper, length => _arrayPool.Rent(length));
+            _deserializer = new TcpDeserializer<TId, TResponse>(bitConverterHelper);
             _writeResetEvent = new AsyncManualResetEvent();
             _readResetEvent = new AsyncManualResetEvent();
             _consumingResetEvent = new AsyncManualResetEvent();
@@ -180,7 +182,7 @@ namespace Drenalol.TcpClientIo.Client
 
             if (_baseCancellationTokenSource != null && !_baseCancellationTokenSource.IsCancellationRequested)
                 _baseCancellationTokenSource.Cancel();
-            
+
             _completeResponses?.Dispose();
 
             using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60)))

@@ -15,16 +15,28 @@ namespace Drenalol.TcpClientIo
 {
     public class TcpSerializerTest
     {
+        private BitConverterHelper _bitConverterHelper;
+        
+        [OneTimeSetUp]
+        public void Ctor()
+        {
+            _bitConverterHelper = BitConverterHelper.Create(new List<TcpConverter>
+            {
+                new TcpUtf8StringConverter()
+            });
+        }
+        
         [Test]
         public void SerializeDeserializeTest()
         {
             var ethalon = Mock.Default();
             const int ethalonHeaderLength = 270;
 
-            var serializer = new TcpSerializer<long, Mock, Mock>(new List<TcpConverter> {new TcpUtf8StringConverter()}, i => new byte[i]);
+            var serializer = new TcpSerializer<Mock>(_bitConverterHelper, i => new byte[i]);
+            var deserializer = new TcpDeserializer<long, Mock>(_bitConverterHelper);
             var serialize = serializer.Serialize(ethalon);
             Assert.IsTrue(serialize.Request.Length == ethalon.Size + ethalonHeaderLength);
-            var (_, deserialize) = serializer.Deserialize(new ReadOnlySequence<byte>(serialize.Request));
+            var (_, deserialize) = deserializer.Deserialize(new ReadOnlySequence<byte>(serialize.Request));
             Assert.IsTrue(ethalon.Equals(deserialize));
         }
 
@@ -34,17 +46,18 @@ namespace Drenalol.TcpClientIo
             var ethalon = Mock.Default();
             const int ethalonHeaderLength = 270;
 
-            var serializer = new TcpSerializer<long, Mock, Mock>(new List<TcpConverter> {new TcpUtf8StringConverter()}, i => new byte[i]);
+            var serializer = new TcpSerializer<Mock>(_bitConverterHelper, i => new byte[i]);
+            var deserializer = new TcpDeserializer<long, Mock>(_bitConverterHelper);
             var serialize = serializer.Serialize(ethalon);
             Assert.IsTrue(serialize.Request.Length == ethalon.Size + ethalonHeaderLength);
-            var (_, deserialize) = await serializer.DeserializeAsync(PipeReader.Create(new MemoryStream(serialize.Request.ToArray())), CancellationToken.None);
+            var (_, deserialize) = await deserializer.DeserializeAsync(PipeReader.Create(new MemoryStream(serialize.Request.ToArray())), CancellationToken.None);
             Assert.IsTrue(ethalon.Equals(deserialize));
         }
 
         [Test]
         public void NotFoundConverterExceptionTest()
         {
-            var serializer = new TcpSerializer<long, Mock, Mock>(new List<TcpConverter>(), i => new byte[i]);
+            var serializer = new TcpSerializer<Mock>(new BitConverterHelper(new Dictionary<Type, TcpConverter>()), i => new byte[i]);
             var mock = Mock.Default();
             Assert.Catch<TcpException>(() => serializer.Serialize(mock));
         }
@@ -72,6 +85,14 @@ namespace Drenalol.TcpClientIo
         {
             var converter = new BitConverterHelper(new Dictionary<Type, TcpConverter>());
             Assert.That(converter.ConvertFromBytes(new ReadOnlySequence<byte>(bytes), type, reverse).GetType() == type, "converter.ConvertFromBytes(bytes, type, reverse).GetType() == type");
+        }
+
+        [Test]
+        public void GenericTypeTest()
+        {
+            var serializer = new TcpSerializer<GenericMock<MockOnlyData>>(_bitConverterHelper, i => new byte[i]);
+            var mock = GenericMock<MockOnlyData>.Default();
+            var serializedRequest = serializer.Serialize(mock);
         }
     }
 }

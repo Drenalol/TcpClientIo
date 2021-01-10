@@ -5,6 +5,7 @@ namespace Drenalol.TcpClientIo.Attributes
         MetaData,
         Id,
         BodyLength,
-        Body
+        Body,
+        Compose
     }
 }

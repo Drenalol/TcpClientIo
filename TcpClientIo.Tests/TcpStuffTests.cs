@@ -62,22 +62,26 @@ namespace Drenalol.TcpClientIo
         [Test]
         public void ReflectionErrorsTest()
         {
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveAny, DoesNotHaveAny>());
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<MetaDataNotHaveSetter, MetaDataNotHaveSetter>());
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveBodyAttribute, DoesNotHaveBodyAttribute>());
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<DoesNotHaveBodyLengthAttribute, DoesNotHaveBodyLengthAttribute>());
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper<KeyDoesNotHaveSetter, KeyDoesNotHaveSetter>());
+            var bit = BitConverterHelper.Create(new List<TcpConverter>());
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveAny), null, bit));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(MetaDataNotHaveSetter), null, bit));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveBodyAttribute), null, bit));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveBodyLengthAttribute), null, bit));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(KeyDoesNotHaveSetter), null, bit));
         }
 
         [TestCase(10000, false)]
         [TestCase(10000, true)]
         public async Task AttributeMockSerializeDeserializeTest(int count, bool useParallel)
         {
-            var serializer = new TcpSerializer<uint, AttributeMockSerialize, AttributeMockSerialize>(new List<TcpConverter>
+            var bitConverterHelper = new BitConverterHelper(new Dictionary<Type, TcpConverter>
             {
-                new TcpUtf8StringConverter(),
-                new TcpDateTimeConverter()
-            }, i => new byte[i]);
+                {typeof(string), new TcpUtf8StringConverter()},
+                {typeof(DateTime), new TcpDateTimeConverter()}
+            });
+            
+            var serializer = new TcpSerializer<AttributeMockSerialize>(bitConverterHelper, i => new byte[i]);
+            var deserializer = new TcpDeserializer<uint, AttributeMockSerialize>(bitConverterHelper);
 
             var mock = new AttributeMockSerialize
             {
@@ -99,7 +103,7 @@ namespace Drenalol.TcpClientIo
                 Task.Run(() =>
                 {
                     var serialize = serializer.Serialize(mock);
-                    _ = serializer.Deserialize(new ReadOnlySequence<byte>(serialize.Request));
+                    _ = deserializer.Deserialize(new ReadOnlySequence<byte>(serialize.Request));
                 });
         }
 

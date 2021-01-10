@@ -14,7 +14,8 @@ namespace TcpClientIo.Benchmarks
     [IterationsColumn]
     public class TcpSerializerBenchmark
     {
-        private TcpSerializer<long, Mock, Mock> _serializer;
+        private TcpDeserializer<long, Mock> _deserializer;
+        private TcpSerializer<Mock> _serializer;
         private ArrayPool<byte> _arrayPool;
         private SerializedRequest _request;
 
@@ -22,7 +23,9 @@ namespace TcpClientIo.Benchmarks
         public void Ctor()
         {
             _arrayPool = ArrayPool<byte>.Create();
-            _serializer = new TcpSerializer<long, Mock, Mock>(new List<TcpConverter> {new TcpUtf8StringConverter()}, l => _arrayPool.Rent(l));
+            var helper = BitConverterHelper.Create(new List<TcpConverter> {new TcpUtf8StringConverter()});
+            _serializer = new TcpSerializer<Mock>(helper, l => _arrayPool.Rent(l));
+            _deserializer = new TcpDeserializer<long, Mock>(helper);
         }
 
         [Benchmark]
@@ -45,7 +48,7 @@ namespace TcpClientIo.Benchmarks
         [Benchmark]
         public (long, Mock) Deserialize()
         {
-            return _serializer.Deserialize(new ReadOnlySequence<byte>(Convert.FromBase64String("OQUAAAAAAAA8AAAAQWRlbGluYQAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+            return _deserializer.Deserialize(new ReadOnlySequence<byte>(Convert.FromBase64String("OQUAAAAAAAA8AAAAQWRlbGluYQAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
                                                                                                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE1hdmluAAAAAAAAAAAAA" +
                                                                                                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYW1hdmluMkB" +
                                                                                                "ldHN5LmNvbQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGZ" +

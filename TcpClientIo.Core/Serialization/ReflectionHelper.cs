@@ -7,54 +7,44 @@ using Drenalol.TcpClientIo.Exceptions;
 
 namespace Drenalol.TcpClientIo.Serialization
 {
-    internal class ReflectionHelper<TRequest, TResponse>
+    internal class ReflectionHelper
     {
-        private readonly Type _request;
-        private readonly Type _response;
+        public IReadOnlyList<TcpProperty> Properties { get; }
+        public int MetaLength { get; }
+        public TcpProperty BodyLengthProperty { get; }
 
-        public IReadOnlyDictionary<int, TcpProperty> RequestProperties { get; private set; }
-        public IReadOnlyDictionary<int, TcpProperty> ResponseProperties { get; private set; }
-        public int RequestMetaLength { get; private set; }
-        public int ResponseMetaLength { get; private set; }
-        public TcpProperty ResponseBodyLengthProperty { get; private set; }
-
-        public ReflectionHelper()
+        public ReflectionHelper(Type model, Func<int, byte[]> byteArrayFactory, BitConverterHelper bitConverterHelper)
         {
-            _request = typeof(TRequest);
-            _response = typeof(TResponse);
-            GetAttributeData();
+            Properties = GetTypeProperties(model, byteArrayFactory, bitConverterHelper);
+            EnsureTypeHasRequiredAttributes(model, Properties);
+            MetaLength = Properties.Sum(p => p.Attribute.Length);
+            BodyLengthProperty = Properties.SingleOrDefault(p => p.Attribute.TcpDataType == TcpDataType.BodyLength);
         }
 
-        private void GetAttributeData()
+        private static List<TcpProperty> GetTypeProperties(Type type, Func<int, byte[]> byteArrayFactory, BitConverterHelper bitConverterHelper)
         {
-            var requestProperties = GetTypeProperties(_request);
-            EnsureTypeHasRequiredAttributes(_request, requestProperties);
-            RequestProperties = requestProperties;
+            var tcpProperties = new List<TcpProperty>();
 
-            if (_request != _response)
+            foreach (var property in type.GetProperties())
             {
-                var responseProperties = GetTypeProperties(_response);
-                EnsureTypeHasRequiredAttributes(_request, responseProperties);
-                ResponseProperties = responseProperties;
+                var attribute = GetTcpDataAttribute(property);
+
+                if (attribute == null)
+                    continue;
+
+                TcpProperty tcpProperty;
+                if (attribute.TcpDataType == TcpDataType.Compose)
+                {
+                    var tcpComposition = new TcpComposition(property.PropertyType, byteArrayFactory, bitConverterHelper);
+                    tcpProperty = new TcpProperty(property, attribute, type, tcpComposition);
+                }
+                else
+                    tcpProperty = new TcpProperty(property, attribute, type);
+
+                tcpProperties.Add(tcpProperty);
             }
-            else
-                ResponseProperties = requestProperties;
 
-            RequestMetaLength = RequestProperties.Values.Sum(p => p.Attribute.Length);
-            ResponseMetaLength = ResponseProperties.Values.Sum(p => p.Attribute.Length);
-            ResponseBodyLengthProperty = ResponseProperties.SingleOrDefault(p => p.Value.Attribute.TcpDataType == TcpDataType.BodyLength).Value;
-        }
-
-        private static Dictionary<int, TcpProperty> GetTypeProperties(Type type)
-        {
-            var tcpProperties =
-                (from property in type.GetProperties()
-                    let attribute = GetTcpDataAttribute(property)
-                    where attribute != null
-                    select new TcpProperty(property, attribute, type))
-                .ToDictionary(key => key.Attribute.Index, property => property);
-
-            TcpDataAttribute GetTcpDataAttribute(ICustomAttributeProvider property)
+            static TcpDataAttribute GetTcpDataAttribute(ICustomAttributeProvider property)
             {
                 return property
                     .GetCustomAttributes(true)
@@ -65,46 +55,46 @@ namespace Drenalol.TcpClientIo.Serialization
             return tcpProperties;
         }
 
-        private static void EnsureTypeHasRequiredAttributes(Type type, Dictionary<int, TcpProperty> properties)
+        private static void EnsureTypeHasRequiredAttributes(Type type, IReadOnlyList<TcpProperty> properties)
         {
-            var key = properties.Where(item => item.Value.Attribute.TcpDataType == TcpDataType.Id).ToList();
+            var key = properties.Where(item => item.Attribute.TcpDataType == TcpDataType.Id).ToList();
 
             if (key.Count > 1)
                 throw TcpException.AttributeDuplicate(type.ToString(), nameof(TcpDataType.Id));
 
-            if (key.Count == 1 && !key.Single().Value.CanReadWrite)
+            if (key.Count == 1 && !key.Single().CanReadWrite)
                 throw TcpException.PropertyCanReadWrite(type.ToString(), nameof(TcpDataType.Id));
 
-            var body = properties.Where(item => item.Value.Attribute.TcpDataType == TcpDataType.Body).ToList();
+            var body = properties.Where(item => item.Attribute.TcpDataType == TcpDataType.Body).ToList();
 
             if (body.Count > 1)
                 throw TcpException.AttributeDuplicate(type.ToString(), nameof(TcpDataType.Body));
 
-            if (body.Count == 1 && !body.Single().Value.CanReadWrite)
+            if (body.Count == 1 && !body.Single().CanReadWrite)
                 throw TcpException.PropertyCanReadWrite(type.ToString(), nameof(TcpDataType.Body));
 
-            var bodyLength = properties.Where(item => item.Value.Attribute.TcpDataType == TcpDataType.BodyLength).ToList();
+            var bodyLength = properties.Where(item => item.Attribute.TcpDataType == TcpDataType.BodyLength).ToList();
 
             if (bodyLength.Count > 1)
                 throw TcpException.AttributeDuplicate(type.ToString(), nameof(TcpDataType.BodyLength));
-            
+
             if (body.Count == 1 && bodyLength.Count == 0)
                 throw TcpException.AttributeBodyLengthRequired(type.ToString());
-            
+
             if (bodyLength.Count == 1 && body.Count == 0)
                 throw TcpException.AttributeBodyRequired(type.ToString());
 
-            if (bodyLength.Count == 1 && body.Count == 1 && !bodyLength.Single().Value.CanReadWrite)
+            if (bodyLength.Count == 1 && body.Count == 1 && !bodyLength.Single().CanReadWrite)
                 throw TcpException.PropertyCanReadWrite(type.ToString(), nameof(TcpDataType.BodyLength));
 
-            var metaData = properties.Where(item => item.Value.Attribute.TcpDataType == TcpDataType.MetaData).ToList();
+            var metaData = properties.Where(item => item.Attribute.TcpDataType == TcpDataType.MetaData).ToList();
 
             if (key.Count == 0 && bodyLength.Count == 0 && body.Count == 0 && metaData.Count == 0)
                 throw TcpException.AttributesRequired(type.ToString());
 
-            foreach (var pair in metaData.Where(pair => !pair.Value.CanReadWrite))
+            foreach (var pair in metaData.Where(pair => !pair.CanReadWrite))
             {
-                throw TcpException.PropertyCanReadWrite(type.ToString(), nameof(TcpDataType.MetaData), pair.Value.Attribute.Index.ToString());
+                throw TcpException.PropertyCanReadWrite(type.ToString(), nameof(TcpDataType.MetaData), pair.Attribute.Index.ToString());
             }
         }
     }

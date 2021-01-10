@@ -31,15 +31,18 @@ namespace Drenalol.TcpClientIo.Exceptions
             new TcpException($"{type} does not have any {nameof(TcpDataAttribute)}");
 
         public static TcpException AttributeBodyLengthRequired(string type) =>
-            new TcpException($"In {type} {nameof(TcpDataType.BodyLength)} could not work without {nameof(TcpDataType.Body)}");
+            new TcpException($"In {type} {nameof(TcpDataType)}.{nameof(TcpDataType.BodyLength)} could not work without {nameof(TcpDataType)}.{nameof(TcpDataType.Body)}");
 
         public static TcpException AttributeBodyRequired(string type) =>
-            new TcpException($"In {type} {nameof(TcpDataType.Body)} could not work without {nameof(TcpDataType.BodyLength)}");
+            new TcpException($"In {type} {nameof(TcpDataType)}.{nameof(TcpDataType.Body)} could not work without {nameof(TcpDataType)}.{nameof(TcpDataType.BodyLength)}");
 
         public static TcpException AttributeDuplicate(string type, string attributeType) =>
             new TcpException($"{type} could not work with multiple {attributeType}");
 
-        public static TcpException SerializerBodyIsNull() =>
-            new TcpException($"{nameof(TcpDataType.Body)} is Null");
+        public static TcpException SerializerBodyPropertyIsNull() =>
+            new TcpException($"{nameof(TcpDataType)}.{nameof(TcpDataType.Body)} is Null");
+
+        public static Exception SerializerComposePropertyIsNull() =>
+            new TcpException($"{nameof(TcpDataType)}.{nameof(TcpDataType.Compose)} is Null");
     }
 }

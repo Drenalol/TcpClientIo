@@ -24,7 +24,7 @@ namespace Drenalol.TcpClientIo.Client
 
                     var serializedRequest = await _bufferBlockRequests.ReceiveAsync(_baseCancellationToken);
                     var writeResult = await _networkStreamPipeWriter.WriteAsync(serializedRequest.Request, _baseCancellationToken);
-                    _arrayPool.Return(serializedRequest.RentedArray, true);
+                    serializedRequest.ReturnRentedArrays(_arrayPool, true);
                     
                     if (writeResult.IsCanceled || writeResult.IsCompleted)
                         break;
@@ -99,7 +99,7 @@ namespace Drenalol.TcpClientIo.Client
                 while (true)
                 {
                     _baseCancellationToken.ThrowIfCancellationRequested();
-                    var (responseId, response) = await _serializer.DeserializeAsync(_deserializePipeReader, _baseCancellationToken);
+                    var (responseId, response) = await _deserializer.DeserializeAsync(_deserializePipeReader, _baseCancellationToken);
                     await _completeResponses.SetAsync(responseId, _batchRules.Create(response), true);
                 }
             }

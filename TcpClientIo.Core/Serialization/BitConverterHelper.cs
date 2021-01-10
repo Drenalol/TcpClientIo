@@ -1,6 +1,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using Drenalol.TcpClientIo.Converters;
 using Drenalol.TcpClientIo.Exceptions;
@@ -30,6 +31,21 @@ namespace Drenalol.TcpClientIo.Serialization
                 {typeof(ulong), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(ulong)})}
             };
         }
+
+        public static BitConverterHelper Create(IEnumerable<TcpConverter> converters)
+            => new BitConverterHelper(
+                converters.Select(converter =>
+                {
+                    var converterType = converter.GetType();
+                    var type = converterType.BaseType;
+
+                    if (type == null)
+                        throw TcpClientIoException.ConverterError(converterType.Name);
+
+                    var genericType = type.GenericTypeArguments.Single();
+                    return new KeyValuePair<Type, TcpConverter>(genericType, converter);
+                }).ToDictionary(pair => pair.Key, pair => pair.Value)
+            );
 
         private static byte[] Reverse(byte[] bytes)
         {
