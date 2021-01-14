@@ -15,6 +15,26 @@ namespace Drenalol.TcpClientIo
     public class TcpStuffTests
     {
         // ReSharper disable once ClassNeverInstantiated.Local
+        private class ComposeAndBodyAttribute<T>
+        {
+            [TcpData(1, TcpDataType = TcpDataType.Compose)]
+            public T T1 { get; set; }
+
+            [TcpData(2, TcpDataType = TcpDataType.Body)]
+            public string T2 { get; set; }
+        }
+        
+        // ReSharper disable once ClassNeverInstantiated.Local
+        private class DuplicateComposeAttribute<T>
+        {
+            [TcpData(1, TcpDataType = TcpDataType.Compose)]
+            public T T1 { get; set; }
+
+            [TcpData(2, TcpDataType = TcpDataType.Compose)]
+            public T T2 { get; set; }
+        }
+
+        // ReSharper disable once ClassNeverInstantiated.Local
         private class DoesNotHaveAny
         {
         }
@@ -60,16 +80,54 @@ namespace Drenalol.TcpClientIo
         }
 
         [Test]
-        public void ReflectionErrorsTest()
+        public void DoesNotHaveAnyErrorTest()
         {
             var bit = BitConverterHelper.Create(new List<TcpConverter>());
             Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveAny), null, bit));
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(MetaDataNotHaveSetter), null, bit));
+        }
+        
+        [Test]
+        public void DoesNotHaveBodyAttributeErrorTest()
+        {
+            var bit = BitConverterHelper.Create(new List<TcpConverter>());
             Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveBodyAttribute), null, bit));
+        }
+        
+        [Test]
+        public void MetaDataNotHaveSetterErrorTest()
+        {
+            var bit = BitConverterHelper.Create(new List<TcpConverter>());
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(MetaDataNotHaveSetter), null, bit));
+        }
+        
+        [Test]
+        public void DoesNotHaveBodyLengthAttributeErrorTest()
+        {
+            var bit = BitConverterHelper.Create(new List<TcpConverter>());
             Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveBodyLengthAttribute), null, bit));
+        }
+        
+        [Test]
+        public void KeyDoesNotHaveSetterErrorTest()
+        {
+            var bit = BitConverterHelper.Create(new List<TcpConverter>());
             Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(KeyDoesNotHaveSetter), null, bit));
         }
-
+        
+        [Test]
+        public void DuplicateComposeAttributeErrorTest()
+        {
+            var bit = BitConverterHelper.Create(new List<TcpConverter>());
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DuplicateComposeAttribute<MockOnlyMetaData>), null, bit));
+        }
+        
+        [Test]
+        public void BodyAndComposeAttributeAtSameTimeTest()
+        {
+            var bit = BitConverterHelper.Create(new List<TcpConverter>());
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(ComposeAndBodyAttribute<MockOnlyMetaData>), null, bit));
+        }
+        
         [TestCase(10000, false)]
         [TestCase(10000, true)]
         public async Task AttributeMockSerializeDeserializeTest(int count, bool useParallel)
@@ -79,7 +137,7 @@ namespace Drenalol.TcpClientIo
                 {typeof(string), new TcpUtf8StringConverter()},
                 {typeof(DateTime), new TcpDateTimeConverter()}
             });
-            
+
             var serializer = new TcpSerializer<AttributeMockSerialize>(bitConverterHelper, i => new byte[i]);
             var deserializer = new TcpDeserializer<uint, AttributeMockSerialize>(bitConverterHelper);
 

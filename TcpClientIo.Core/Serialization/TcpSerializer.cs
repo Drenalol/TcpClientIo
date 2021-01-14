@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using Drenalol.TcpClientIo.Attributes;
 using Drenalol.TcpClientIo.Exceptions;
@@ -21,20 +20,19 @@ namespace Drenalol.TcpClientIo.Serialization
 
         public SerializedRequest Serialize(TData data)
         {
-            var realLength = 0;
+            int realLength;
             var serializedBody = new byte[0];
             var examined = 0;
-            List<byte[]> composeRentedArrays = null;
+            SerializedRequest composeSerializedRequest = null;
 
             var properties = _reflectionHelper.Properties;
-            var bodyProperty = properties.SingleOrDefault(p => p.Attribute.TcpDataType == TcpDataType.Body);
 
-            if (bodyProperty != null)
+            if (_reflectionHelper.BodyProperty != null)
             {
                 var bodyLengthProperty = properties.Single(p => p.Attribute.TcpDataType == TcpDataType.BodyLength);
 
-                var bodyValue = bodyProperty.Get(data);
-                serializedBody = _bitConverterHelper.ConvertToBytes(bodyValue, bodyProperty.PropertyType, bodyProperty.Attribute.Reverse);
+                var bodyValue = _reflectionHelper.BodyProperty.Get(data);
+                serializedBody = _bitConverterHelper.ConvertToBytes(bodyValue, _reflectionHelper.BodyProperty.PropertyType, _reflectionHelper.BodyProperty.Attribute.Reverse);
 
                 if (serializedBody == null)
                     throw TcpException.SerializerBodyPropertyIsNull();
@@ -50,57 +48,57 @@ namespace Drenalol.TcpClientIo.Serialization
 
                 try
                 {
-                    realLength += (int) lengthValue + _reflectionHelper.MetaLength;
+                    realLength = (int) lengthValue + _reflectionHelper.MetaLength;
                 }
                 catch (InvalidCastException)
                 {
-                    realLength += Convert.ToInt32(lengthValue) + _reflectionHelper.MetaLength;
+                    realLength = Convert.ToInt32(lengthValue) + _reflectionHelper.MetaLength;
                 }
             }
-            else
-                realLength += _reflectionHelper.MetaLength;
-
-            byte[] rentedArray = null;
-
-            var composeProperties = properties.Where(p => p.IsCompose).ToArray();
-
-            foreach (var (composePropertyIndex, composeSerializedRequest) in composeProperties.Select(composeProperty =>
+            else if (_reflectionHelper.ComposeProperty != null)
             {
-                var composeData = composeProperty.Get(data);
+                var composeData = _reflectionHelper.ComposeProperty.Get(data);
 
                 if (composeData == null)
                     throw TcpException.SerializerComposePropertyIsNull();
-                
-                var composeSerializedRequest = composeProperty.Composition.Serialize(composeData);
-                (composeRentedArrays ??= new List<byte[]>()).Add(composeSerializedRequest.RentedArray);
-                realLength += composeSerializedRequest.RealLength;
-                return (composeProperty.Attribute.Index, composeSerializedRequest);
-            }))
-            {
-                rentedArray ??= _byteArrayFactory(realLength);
-                Array.Copy(composeSerializedRequest.RentedArray, 0, rentedArray, composePropertyIndex, composeSerializedRequest.RealLength);
+
+                composeSerializedRequest = _reflectionHelper.ComposeProperty.Composition.Serialize(composeData);
+                realLength = composeSerializedRequest.RealLength + _reflectionHelper.MetaLength;
             }
+            else
+                realLength = _reflectionHelper.MetaLength;
 
-            foreach (var property in properties.Where(p => !p.IsCompose))
+            var rentedArray = _byteArrayFactory(realLength);
+
+            foreach (var property in properties)
             {
-                rentedArray ??= _byteArrayFactory(realLength);
-                
-                var value = property.Attribute.TcpDataType == TcpDataType.Body
-                    ? serializedBody
-                    : _bitConverterHelper.ConvertToBytes(property.Get(data), property.PropertyType, property.Attribute.Reverse);
+                if (property.Attribute.TcpDataType == TcpDataType.Compose && composeSerializedRequest != null)
+                    Array.Copy(
+                        composeSerializedRequest.RentedArray,
+                        0,
+                        rentedArray,
+                        property.Attribute.Index,
+                        composeSerializedRequest.RealLength
+                    );
+                else
+                {
+                    var value = property.Attribute.TcpDataType == TcpDataType.Body
+                        ? serializedBody
+                        : _bitConverterHelper.ConvertToBytes(property.Get(data), property.PropertyType, property.Attribute.Reverse);
 
-                var valueLength = value.Length;
+                    var valueLength = value.Length;
 
-                if (property.Attribute.TcpDataType != TcpDataType.Body && valueLength > property.Attribute.Length)
-                    throw TcpException.SerializerLengthOutOfRange(property.PropertyType.ToString(), valueLength.ToString(), property.Attribute.Length.ToString());
+                    if (property.Attribute.TcpDataType != TcpDataType.Body && valueLength > property.Attribute.Length)
+                        throw TcpException.SerializerLengthOutOfRange(property.PropertyType.ToString(), valueLength.ToString(), property.Attribute.Length.ToString());
 
-                value.CopyTo(rentedArray, property.Attribute.Index);
+                    value.CopyTo(rentedArray, property.Attribute.Index);
+                }
 
                 if (++examined == properties.Count)
                     break;
             }
 
-            return new SerializedRequest(rentedArray, realLength, composeRentedArrays);
+            return new SerializedRequest(rentedArray, realLength, composeSerializedRequest);
         }
     }
 }

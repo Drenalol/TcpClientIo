@@ -1,6 +1,5 @@
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 
 namespace Drenalol.TcpClientIo.Serialization
 {
@@ -8,26 +7,21 @@ namespace Drenalol.TcpClientIo.Serialization
     {
         internal readonly int RealLength;
         internal readonly byte[] RentedArray;
-        internal readonly IEnumerable<byte[]> ComposeRentedArrays;
         internal readonly ReadOnlyMemory<byte> Request;
+        internal readonly SerializedRequest LinkedSerializedRequest;
 
-        internal SerializedRequest(byte[] rentedArray, int realLength, IEnumerable<byte[]> composeRentedArrays = null)
+        internal SerializedRequest(byte[] rentedArray, int realLength, SerializedRequest linkedSerializedRequest = null)
         {
             RentedArray = rentedArray;
             RealLength = realLength;
-            ComposeRentedArrays = composeRentedArrays;
+            LinkedSerializedRequest = linkedSerializedRequest;
             Request = new ReadOnlyMemory<byte>(rentedArray, 0, realLength);
         }
 
         internal void ReturnRentedArrays(ArrayPool<byte> pool, bool clearArray)
         {
             pool.Return(RentedArray, clearArray);
-
-            if (ComposeRentedArrays == null)
-                return;
-
-            foreach (var rentedArray in ComposeRentedArrays)
-                pool.Return(rentedArray, clearArray);
+            LinkedSerializedRequest?.ReturnRentedArrays(pool, clearArray);
         }
     }
 }

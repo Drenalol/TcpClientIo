@@ -24,13 +24,14 @@ namespace Drenalol.TcpClientIo.Serialization
             TData data;
             TId id;
 
-            var bodyLengthProperty = _reflectionHelper.BodyLengthProperty;
             var metaLength = _reflectionHelper.MetaLength;
             var metaReadResult = await pipeReader.ReadLengthAsync(metaLength, token);
             
             // TODO From there will be found compose properties and do magic before send it in Deserialize method
 
-            if (bodyLengthProperty == null)
+            //var composeProperties = _reflectionHelper.Properties.Where(p => p.IsCompose);
+
+            if (_reflectionHelper.BodyLengthProperty == null)
             {
                 var sequence = metaReadResult.Slice(metaLength);
                 (id, data) = Deserialize(sequence);
@@ -38,9 +39,9 @@ namespace Drenalol.TcpClientIo.Serialization
             }
             else
             {
-                var bodyLengthAttribute = bodyLengthProperty.Attribute;
+                var bodyLengthAttribute = _reflectionHelper.BodyLengthProperty.Attribute;
                 var bodyLengthSequence = metaReadResult.Slice(bodyLengthAttribute.Length, bodyLengthAttribute.Index);
-                var bodyLengthValue = _bitConverterHelper.ConvertFromBytes(bodyLengthSequence, bodyLengthProperty.PropertyType, bodyLengthAttribute.Reverse);
+                var bodyLengthValue = _bitConverterHelper.ConvertFromBytes(bodyLengthSequence, _reflectionHelper.BodyLengthProperty.PropertyType, bodyLengthAttribute.Reverse);
                 var bodyLength = Convert.ToInt32(bodyLengthValue);
                 var totalLength = metaLength + bodyLength;
                 ReadOnlySequence<byte> sequence;

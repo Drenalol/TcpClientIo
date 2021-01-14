@@ -42,7 +42,10 @@ namespace Drenalol.TcpClientIo.Exceptions
         public static TcpException SerializerBodyPropertyIsNull() =>
             new TcpException($"{nameof(TcpDataType)}.{nameof(TcpDataType.Body)} is Null");
 
-        public static Exception SerializerComposePropertyIsNull() =>
+        public static TcpException SerializerComposePropertyIsNull() =>
             new TcpException($"{nameof(TcpDataType)}.{nameof(TcpDataType.Compose)} is Null");
+
+        public static TcpException AttributeBodyAndComposeViolated(string type) =>
+            new TcpException($"In {type} found {nameof(TcpDataType)}.{nameof(TcpDataType.Body)} and {nameof(TcpDataType)}.{nameof(TcpDataType.Compose)} at the same time");
     }
 }

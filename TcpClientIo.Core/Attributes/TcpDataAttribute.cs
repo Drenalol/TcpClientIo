@@ -38,5 +38,7 @@ namespace Drenalol.TcpClientIo.Attributes
             Length = length;
             TcpDataType = tcpDataType;
         }
+
+        public override string ToString() => $"{Index.ToString()}, {Length.ToString()}, {TcpDataType.ToString()}";
     }
 }

@@ -231,8 +231,8 @@ namespace Drenalol.TcpClientIo
         [Test]
         public async Task NoIdNoBodyTest()
         {
-            var client = GetClient<MockOnlyData, MockOnlyData>();
-            var mock = new MockOnlyData
+            var client = GetClient<MockOnlyMetaData, MockOnlyMetaData>();
+            var mock = new MockOnlyMetaData
             {
                 Test = 1337,
                 Long = 777788889999

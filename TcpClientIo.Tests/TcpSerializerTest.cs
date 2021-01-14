@@ -16,7 +16,7 @@ namespace Drenalol.TcpClientIo
     public class TcpSerializerTest
     {
         private BitConverterHelper _bitConverterHelper;
-        
+
         [OneTimeSetUp]
         public void Ctor()
         {
@@ -25,7 +25,7 @@ namespace Drenalol.TcpClientIo
                 new TcpUtf8StringConverter()
             });
         }
-        
+
         [Test]
         public void SerializeDeserializeTest()
         {
@@ -88,11 +88,13 @@ namespace Drenalol.TcpClientIo
         }
 
         [Test]
-        public void GenericTypeTest()
+        public void SerializeRecursiveComposeTypeTest()
         {
-            var serializer = new TcpSerializer<GenericMock<MockOnlyData>>(_bitConverterHelper, i => new byte[i]);
-            var mock = GenericMock<MockOnlyData>.Default();
+            var pool = ArrayPool<byte>.Create();
+            var serializer = new TcpSerializer<RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<MockOnlyMetaData>>>>>(_bitConverterHelper, i => pool.Rent(i));
+            var mock = new RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<MockOnlyMetaData>>>>();
             var serializedRequest = serializer.Serialize(mock);
+            serializedRequest.ReturnRentedArrays(pool, false);
         }
     }
 }

@@ -10,10 +10,8 @@ namespace Drenalol.TcpClientIo.Serialization
 
         public TcpDataAttribute Attribute { get; }
         public bool IsValueType { get; }
-        public bool IsCompose { get; }
         public TcpComposition Composition { get; }
         public Type PropertyType => _propertyInfo.PropertyType;
-        public bool CanReadWrite => _propertyInfo.CanRead && _propertyInfo.CanWrite;
 
         public TcpProperty(PropertyInfo propertyInfo, TcpDataAttribute attribute, Type accessorType, TcpComposition composition = null)
         {
@@ -21,11 +19,8 @@ namespace Drenalol.TcpClientIo.Serialization
             IsValueType = accessorType.IsValueType;
             _propertyInfo = propertyInfo;
 
-            if (attribute.TcpDataType != TcpDataType.Compose)
-                return;
-
-            Composition = composition ?? throw new ArgumentNullException(nameof(composition));
-            IsCompose = true;
+            if (attribute.TcpDataType == TcpDataType.Compose)
+                Composition = composition ?? throw new ArgumentNullException(nameof(composition));
         }
 
         public object Get(object input) => _propertyInfo.GetValue(input);

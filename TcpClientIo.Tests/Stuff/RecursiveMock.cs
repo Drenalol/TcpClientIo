@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 
 namespace Drenalol.TcpClientIo.Stuff
 {
-    public class GenericMock<T>
+    public class RecursiveMock<T> where T : new()
     {
         [TcpData(0, 8, TcpDataType.Id)]
         [JsonIgnore]
@@ -27,19 +27,15 @@ namespace Drenalol.TcpClientIo.Stuff
 
         public override string ToString() => JsonExt.Serialize(this);
 
-        public static GenericMock<MockOnlyData> Default(long id = 1337) => new GenericMock<MockOnlyData>
+        public RecursiveMock()
         {
-            Id = id,
-            Email = "amavin2@etsy.com",
-            FirstName = "Adelina",
-            LastName = "Mavin",
-            Gender = "Female",
-            IpAddress = "42.241.120.161",
-            Data = new MockOnlyData
-            {
-                Test = 5555,
-                Long = 12312312
-            }
-        };
+            Id = 1337;
+            Email = "amavin2@etsy.com";
+            FirstName = "Adelina";
+            LastName = "Mavin";
+            Gender = "Female";
+            IpAddress = "42.241.120.161";
+            Data = new T();
+        }
     }
 }
