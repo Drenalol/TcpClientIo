@@ -45,8 +45,8 @@ namespace Drenalol.TcpClientIo
             [TcpData(0, 1, TcpDataType = TcpDataType.Id)]
             public int Key { get; set; }
 
-            [TcpData(1, 2, TcpDataType = TcpDataType.BodyLength)]
-            public int BodyLength { get; set; }
+            [TcpData(1, 2, TcpDataType = TcpDataType.Length)]
+            public int Length { get; set; }
         }
 
         // ReSharper disable once ClassNeverInstantiated.Local
@@ -65,8 +65,8 @@ namespace Drenalol.TcpClientIo
             [TcpData(0, 1, TcpDataType = TcpDataType.Id)]
             public int Key { get; }
 
-            [TcpData(1, 2, TcpDataType = TcpDataType.BodyLength)]
-            public int BodyLength { get; set; }
+            [TcpData(1, 2, TcpDataType = TcpDataType.Length)]
+            public int Length { get; set; }
 
             [TcpData(3, 2, TcpDataType = TcpDataType.Body)]
             public int Body { get; set; }

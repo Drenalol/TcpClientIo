@@ -4,7 +4,7 @@ namespace Drenalol.TcpClientIo.Stuff
 {
     public class MockNoId
     {
-        [TcpData(0, 4, TcpDataType.BodyLength)]
+        [TcpData(0, 4, TcpDataType.Length)]
         public int Size { get; set; }
 
         [TcpData(4, TcpDataType = TcpDataType.Body)]

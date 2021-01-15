@@ -9,7 +9,7 @@ namespace Drenalol.TcpClientIo.Stuff
         [TcpData(0, 4, TcpDataType = TcpDataType.Id)]
         public uint Id { get; set; }
 
-        [TcpData(4, 4, TcpDataType = TcpDataType.BodyLength)]
+        [TcpData(4, 4, TcpDataType = TcpDataType.Length)]
         public uint Size { get; set; }
 
         [TcpData(8, 8)]

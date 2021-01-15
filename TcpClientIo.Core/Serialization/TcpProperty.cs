@@ -8,15 +8,16 @@ namespace Drenalol.TcpClientIo.Serialization
     {
         private readonly PropertyInfo _propertyInfo;
 
-        public TcpDataAttribute Attribute { get; }
-        public bool IsValueType { get; }
-        public TcpComposition Composition { get; }
-        public Type PropertyType => _propertyInfo.PropertyType;
+        public readonly TcpDataAttribute Attribute;
+        public readonly bool IsValueType;
+        public readonly TcpComposition Composition;
+        public readonly Type PropertyType;
 
         public TcpProperty(PropertyInfo propertyInfo, TcpDataAttribute attribute, Type accessorType, TcpComposition composition = null)
         {
             Attribute = attribute;
             IsValueType = accessorType.IsValueType;
+            PropertyType = propertyInfo.PropertyType;
             _propertyInfo = propertyInfo;
 
             if (attribute.TcpDataType == TcpDataType.Compose)

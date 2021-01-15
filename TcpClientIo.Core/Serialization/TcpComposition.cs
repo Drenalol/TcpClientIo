@@ -8,23 +8,30 @@ namespace Drenalol.TcpClientIo.Serialization
     {
         private MethodInfo _serializerMethod;
         private MethodInfo _deserializerMethod;
+        private FieldInfo _deserializerField;
         private readonly object _serializer;
         private readonly object _deserializer;
 
-        public TcpComposition(Type composeType, Func<int, byte[]> byteArrayFactory, BitConverterHelper bitConverterHelper)
+        public TcpComposition(Type dataType, Func<int, byte[]> byteArrayFactory, BitConverterHelper bitConverterHelper, Type idType = null)
         {
-            var serializerType = typeof(TcpSerializer<>).MakeGenericType(composeType);
-            var deserializerType = typeof(TcpDeserializer<,>).MakeGenericType(typeof(int), composeType);
+            var serializerType = typeof(TcpSerializer<>).MakeGenericType(dataType);
             _serializerMethod = serializerType.GetMethod(nameof(TcpSerializer<TcpComposition>.Serialize));
-            _deserializerMethod = deserializerType.GetMethod(nameof(TcpDeserializer<int, TcpComposition>.Deserialize));
-
+            
             if (_serializerMethod == null)
                 throw new NullReferenceException(nameof(_serializerMethod));
+            
+            _serializer = Activator.CreateInstance(serializerType, bitConverterHelper, byteArrayFactory);
+            
+            if (idType == null)
+                return;
+            
+            var deserializerType = typeof(TcpDeserializer<,>).MakeGenericType(idType, dataType);
+            _deserializerMethod = deserializerType.GetMethod(nameof(TcpDeserializer<int, TcpComposition>.Deserialize));
+            _deserializerField = typeof(ValueTuple<,>).MakeGenericType(idType, dataType).GetField("Item2");
             
             if (_deserializerMethod == null)
                 throw new NullReferenceException(nameof(_deserializerMethod));
             
-            _serializer = Activator.CreateInstance(serializerType, bitConverterHelper, byteArrayFactory);
             _deserializer = Activator.CreateInstance(deserializerType, bitConverterHelper);
         }
 
@@ -35,7 +42,10 @@ namespace Drenalol.TcpClientIo.Serialization
         public SerializedRequest Serialize(object data)
             => (SerializedRequest) _serializerMethod.Invoke(_serializer, new[] {data});
 
-        public (object, object) Deserialize(in ReadOnlySequence<byte> sequence, object preKnownBodyLength = null)
-            => ((object, object)) _deserializerMethod.Invoke(_deserializer, new[] {sequence, preKnownBodyLength});
+        public object Deserialize(in ReadOnlySequence<byte> sequence, object preKnownLength = null)
+        {
+            var tuple = _deserializerMethod.Invoke(_deserializer, new[] {sequence, preKnownLength});
+            return _deserializerField.GetValue(tuple);
+        }
     }
 }
