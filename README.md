@@ -136,7 +136,7 @@ public class RecursiveMock<T>
     public T Data { get; set; }
 }
 
-// Creating TcpClientIo instance with schema of request/response and uint ID type
+// Creating TcpClientIo instance with schema with generics
 var tcpClient = new TcpClientIo<RecursiveMock<RecursiveMock<RecursiveMock<long>>>, RecursiveMock<RecursiveMock<RecursiveMock<long>>>>(IPAddress.Any, 10000, TcpClientIoOptions.Default);
 
 // Compose RecursiveMock
