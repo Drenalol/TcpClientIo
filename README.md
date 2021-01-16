@@ -42,7 +42,7 @@ Request request = new Request
     
     // The serializer will take the length of the TcpTypeBody and overwrite the value.
     // Serialized to [06, 00, 00, 00] because the Data property has a length = 6
-    BodyLength = 0,
+    Length = 0,
 
     // Will be used custom converter DateTime (about converters, read below)
     // Serialized to [00, D0, 08, A7, 79, 28, B7, 08]
@@ -124,29 +124,56 @@ await foreach (ITcpBatch<uint, Request, Response> batch in tcpClientIo.GetConsum
     }
 }
 ```
+###### Example #4. Compose properties. (Available from 1.4.0)
+```c#
+// RecursiveMock
+public class RecursiveMock<T>
+{
+    [TcpData(0, 4, TcpDataType.Length)]  
+    public int Length { get; set; }
+
+    [TcpData(4, TcpDataType = TcpDataType.Compose)]
+    public T Data { get; set; }
+}
+
+// Creating TcpClientIo instance with schema of request/response and uint ID type
+var tcpClient = new TcpClientIo<RecursiveMock<RecursiveMock<RecursiveMock<long>>>, RecursiveMock<RecursiveMock<RecursiveMock<long>>>>(IPAddress.Any, 10000, TcpClientIoOptions.Default);
+
+// Compose RecursiveMock
+var request = new RecursiveMock<RecursiveMock<RecursiveMock<long>>>();
+
+// Send request asynchronously
+await tcpClient.SendAsync(request, CancellationToken.None);
+
+// Receive response
+var response = await tcpClient.ReceiveAsync(CancellationToken.None);
+
+// Check data
+Assert.NotNull(response.Data); // 1st check RecursiveMock<RecursiveMock>
+Assert.NotNull(response.Data.Data); // 2nd check RecursiveMock<RecursiveMock>
+Assert.IsInstanceOf<long>(response.Data.Data.Data); // 3rd check RecursiveMock<long>
+```
 #### Attribute schema
-Example request with first 32 bytes header, and body
+Properties
+
+`Index` Property position in Byte Array.
+
+`Length` Property length in bytes. (If TcpDataType set to TcpDataType.Body, is ignored and will be overwritten by the serializer.)
+
+`TcpDataType` Sets the serialization rule for this property. Available: `MetaData` (default), `Id`, `Length`, `Body`, `Compose`.
+
+`Reverse` Reverses the sequence of the bytes from serialized property (used for cases where the receiving side uses a different endianness.)
+##### Example: Without generics
+Request with first 32 bytes header, and body
 ```c#
 public class Request
 {
-    // Attribute TcpData parameters:
-    //
-    // Index - Property position in Byte Array.
-    //
-    // Length - Property length in Byte Array.
-    // If TcpDataType set to TcpDataType.Body, is ignored and will be overwritten by the serializer.
-    //
-    // TcpDataType - Sets the serialization rule for this property.
-    //
-    // Reverse - Reverses the sequence of the elements in the serialized Byte Array,
-    // used for cases where the receiving side uses a different endianness.
-
     // TcpDataType.Id not mandatory from 1.0.9
     [TcpData(0, 4, TcpDataType.Id)]
     public uint Id { get; set; }
 
-    // TcpDataType.BodyLength mandatory if TcpDataType.Body set
-    [TcpData(4, 4, TcpDataType.BodyLength)]
+    // TcpDataType.Length mandatory if TcpDataType.Body set
+    [TcpData(4, 4, TcpDataType.Length)]
     public uint BodyLength { get; set; }
 
     [TcpData(8, 8)]
@@ -155,9 +182,23 @@ public class Request
     [TcpData(16, 16)]
     public Guid Guid { get; set; }
 
-    // TcpDataType.Body mandatory if TcpDataType.BodyLength set
+    // TcpDataType.Body mandatory if TcpDataType.Length set
     [TcpData(32, TcpDataType = TcpDataType.Body)]
     public string Data { get; set; }
+}
+```
+##### Example: With generics (Available from 1.4.0)
+```c#
+public class RecursiveMock<T>
+{
+    // TcpDataType.Length mandatory if TcpDataType.Compose set
+    [TcpData(0, 4, TcpDataType.Length)]  
+    public int Length { get; set; }
+    
+    // TcpDataType.Compose mandatory if TcpDataType.Length set
+    // Supports: Class, Sctruct, Primitive Types
+    [TcpData(4, TcpDataType = TcpDataType.Compose)]
+    public T Data { get; set; }
 }
 ```
 #### Built-in converters
