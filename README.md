@@ -158,7 +158,7 @@ Properties
 
 `Index` Property position in Byte Array.
 
-`Length` Property length in bytes. (If TcpDataType set to TcpDataType.Body, is ignored and will be overwritten by the serializer.)
+`Length` Property length in bytes. (If TcpDataType set to TcpDataType.Body or TcpDataType.Compose, is ignored and will be overwritten by the serializer.)
 
 `TcpDataType` Sets the serialization rule for this property. Available: `MetaData` (default), `Id`, `Length`, `Body`, `Compose`.
 
