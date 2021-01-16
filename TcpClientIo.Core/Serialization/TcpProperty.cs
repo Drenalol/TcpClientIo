@@ -20,7 +20,7 @@ namespace Drenalol.TcpClientIo.Serialization
             PropertyType = propertyInfo.PropertyType;
             _propertyInfo = propertyInfo;
 
-            if (attribute.TcpDataType == TcpDataType.Compose)
+            if (attribute.TcpDataType == TcpDataType.Compose && !propertyInfo.PropertyType.IsPrimitive)
                 Composition = composition ?? throw new ArgumentNullException(nameof(composition));
         }
 

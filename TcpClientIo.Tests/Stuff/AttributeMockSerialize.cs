@@ -24,7 +24,7 @@ namespace Drenalol.TcpClientIo.Stuff
         [TcpData(28, 60)]
         public string NotFull { get; set; }
 
-        [TcpData(88, 0, TcpDataType = TcpDataType.Body)]
+        [TcpData(88, TcpDataType = TcpDataType.Body)]
         public byte[] Body { get; set; }
 
         public void BuildBody()

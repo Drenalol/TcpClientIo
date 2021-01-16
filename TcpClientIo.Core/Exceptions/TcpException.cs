@@ -43,10 +43,10 @@ namespace Drenalol.TcpClientIo.Exceptions
             new TcpException($"{type} could not work with multiple {attributeType}");
 
         internal static TcpException SerializerBodyPropertyIsNull() =>
-            new TcpException($"{nameof(TcpDataType)}.{nameof(TcpDataType.Body)} is Null");
+            new TcpException($"Value of {nameof(TcpDataType)}.{nameof(TcpDataType.Body)} is Null");
 
         internal static TcpException SerializerComposePropertyIsNull() =>
-            new TcpException($"{nameof(TcpDataType)}.{nameof(TcpDataType.Compose)} is Null");
+            new TcpException($"Value of {nameof(TcpDataType)}.{nameof(TcpDataType.Compose)} is Null");
 
         internal static TcpException AttributeBodyAndComposeViolated(string type) =>
             new TcpException($"In {type} found {nameof(TcpDataType)}.{nameof(TcpDataType.Body)} and {nameof(TcpDataType)}.{nameof(TcpDataType.Compose)} at the same time");

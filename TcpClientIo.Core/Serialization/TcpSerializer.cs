@@ -27,22 +27,30 @@ namespace Drenalol.TcpClientIo.Serialization
             if (_reflection.BodyProperty != null)
             {
                 var bodyValue = _reflection.BodyProperty.Get(data);
-                serializedBody = _bitConverter.ConvertToBytes(bodyValue, _reflection.BodyProperty.PropertyType, _reflection.BodyProperty.Attribute.Reverse);
-
-                if (serializedBody == null)
+                
+                if (bodyValue == null)
                     throw TcpException.SerializerBodyPropertyIsNull();
-
+                
+                serializedBody = _bitConverter.ConvertToBytes(bodyValue, _reflection.BodyProperty.PropertyType, _reflection.BodyProperty.Attribute.Reverse);
                 realLength = CalculateRealLength(_reflection.LengthProperty, ref data, _reflection.MetaLength, serializedBody.Length);
             }
             else if (_reflection.ComposeProperty != null)
             {
-                var composeData = _reflection.ComposeProperty.Get(data);
+                var composeValue = _reflection.ComposeProperty.Get(data);
 
-                if (composeData == null)
+                if (composeValue == null)
                     throw TcpException.SerializerComposePropertyIsNull();
 
-                composeSerializedRequest = _reflection.ComposeProperty.Composition.Serialize(composeData);
-                realLength = CalculateRealLength(_reflection.LengthProperty, ref data, _reflection.MetaLength, composeSerializedRequest.RealLength);
+                if (_reflection.ComposeProperty.PropertyType.IsPrimitive)
+                {
+                    serializedBody = _bitConverter.ConvertToBytes(composeValue, _reflection.ComposeProperty.PropertyType, _reflection.ComposeProperty.Attribute.Reverse);
+                    realLength = CalculateRealLength(_reflection.LengthProperty, ref data, _reflection.MetaLength, serializedBody.Length);
+                }
+                else
+                {
+                    composeSerializedRequest = _reflection.ComposeProperty.Composition.Serialize(composeValue);
+                    realLength = CalculateRealLength(_reflection.LengthProperty, ref data, _reflection.MetaLength, composeSerializedRequest.RealLength);   
+                }
             }
             else
                 realLength = _reflection.MetaLength;
@@ -51,7 +59,7 @@ namespace Drenalol.TcpClientIo.Serialization
 
             foreach (var property in _reflection.Properties)
             {
-                if (property.Attribute.TcpDataType == TcpDataType.Compose && composeSerializedRequest != null)
+                if (!property.PropertyType.IsPrimitive && property.Attribute.TcpDataType == TcpDataType.Compose && composeSerializedRequest != null)
                     Array.Copy(
                         composeSerializedRequest.RentedArray,
                         0,
@@ -61,13 +69,13 @@ namespace Drenalol.TcpClientIo.Serialization
                     );
                 else
                 {
-                    var value = property.Attribute.TcpDataType == TcpDataType.Body
+                    var value = property.Attribute.TcpDataType == TcpDataType.Body || property.Attribute.TcpDataType == TcpDataType.Compose
                         ? serializedBody ?? throw TcpException.SerializerBodyPropertyIsNull()
                         : _bitConverter.ConvertToBytes(property.Get(data), property.PropertyType, property.Attribute.Reverse);
 
                     var valueLength = value.Length;
 
-                    if (property.Attribute.TcpDataType != TcpDataType.Body && valueLength > property.Attribute.Length)
+                    if (property.Attribute.TcpDataType != TcpDataType.Body && property.Attribute.TcpDataType != TcpDataType.Compose && valueLength > property.Attribute.Length)
                         throw TcpException.SerializerLengthOutOfRange(property.PropertyType.ToString(), valueLength.ToString(), property.Attribute.Length.ToString());
 
                     value.CopyTo(rentedArray, property.Attribute.Index);
@@ -84,7 +92,7 @@ namespace Drenalol.TcpClientIo.Serialization
                 var lengthValue = lengthProperty.PropertyType == typeof(int)
                     ? dataLength
                     : Convert.ChangeType(dataLength, lengthProperty.PropertyType);
-                
+
                 if (lengthProperty.IsValueType)
                     data = (TData) lengthProperty.Set(data, lengthValue);
                 else

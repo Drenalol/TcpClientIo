@@ -1,9 +1,9 @@
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
 using Drenalol.TcpClientIo.Converters;
+using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Serialization;
 using Drenalol.TcpClientIo.Stuff;
 
@@ -23,7 +23,7 @@ namespace TcpClientIo.Benchmarks
         public void Ctor()
         {
             _arrayPool = ArrayPool<byte>.Create();
-            var helper = BitConverterHelper.Create(new List<TcpConverter> {new TcpUtf8StringConverter()});
+            var helper = new BitConverterHelper(TcpClientIoOptions.Default.RegisterConverter(new TcpUtf8StringConverter()));
             _serializer = new TcpSerializer<Mock>(helper, l => _arrayPool.Rent(l));
             _deserializer = new TcpDeserializer<long, Mock>(helper);
         }

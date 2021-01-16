@@ -38,7 +38,8 @@ namespace Drenalol.TcpClientIo.Client
             }
             catch (Exception exception)
             {
-                _logger?.LogCritical($"{nameof(TcpWriteAsync)} Got {exception.GetType()}, {exception.Message}");
+                var exceptionType = exception.GetType();
+                _logger?.LogCritical("TcpWriteAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
                 _internalException = exception;
                 throw;
             }
@@ -80,7 +81,8 @@ namespace Drenalol.TcpClientIo.Client
             }
             catch (Exception exception)
             {
-                _logger?.LogCritical($"{nameof(TcpReadAsync)} Got {exception.GetType()}, {exception}");
+                var exceptionType = exception.GetType();
+                _logger?.LogCritical("TcpReadAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
                 _internalException = exception;
                 throw;
             }
@@ -109,7 +111,8 @@ namespace Drenalol.TcpClientIo.Client
             }
             catch (Exception exception)
             {
-                _logger?.LogCritical($"{nameof(DeserializeResponseAsync)} Got {exception.GetType()}, {exception}");
+                var exceptionType = exception.GetType();
+                _logger?.LogCritical("DeserializeResponseAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
                 _internalException = exception;
                 throw;
             }

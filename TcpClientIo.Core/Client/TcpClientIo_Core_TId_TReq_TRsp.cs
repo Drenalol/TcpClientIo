@@ -1,6 +1,5 @@
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO.Pipelines;
@@ -12,7 +11,6 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Drenalol.TcpClientIo.Batches;
 using Drenalol.TcpClientIo.Contracts;
-using Drenalol.TcpClientIo.Converters;
 using Drenalol.TcpClientIo.Exceptions;
 using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Serialization;
@@ -139,7 +137,7 @@ namespace Drenalol.TcpClientIo.Client
                 .RegisterCompletionActionInSet(() => _consumingResetEvent.Set());
             _completeResponses = new WaitingDictionary<TId, ITcpBatch<TResponse>>(middleware);
             _arrayPool = ArrayPool<byte>.Create();
-            var bitConverterHelper = BitConverterHelper.Create(_options.Converters);
+            var bitConverterHelper = new BitConverterHelper(_options);
             _serializer = new TcpSerializer<TRequest>(bitConverterHelper, length => _arrayPool.Rent(length));
             _deserializer = new TcpDeserializer<TId, TResponse>(bitConverterHelper);
             _writeResetEvent = new AsyncManualResetEvent();

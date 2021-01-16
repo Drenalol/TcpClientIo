@@ -52,7 +52,7 @@ namespace Drenalol.TcpClientIo
             var (options, loggerFactory) = GetDefaults(logLevel);
             return new TcpClientIo<TId, T, TR>(ipAddress ?? IpAddress, port, options, loggerFactory.CreateLogger<TcpClientIo<TId, T, TR>>());
         }
-        
+
         public static TcpClientIo<T, TR> GetClient<T, TR>(IPAddress ipAddress = null, int port = 10000, LogLevel logLevel = LogLevel.Warning) where TR : new()
         {
             var (options, loggerFactory) = GetDefaults(logLevel);
@@ -68,6 +68,33 @@ namespace Drenalol.TcpClientIo
             var batch = await tcpClient.ReceiveAsync(1337L);
             var response = batch.First();
             Assert.IsTrue(request.Equals(response));
+            await tcpClient.DisposeAsync();
+        }
+
+        [Test]
+        public async Task SingleSendReceiveComposePrimitiveTypeTest()
+        {
+            var tcpClient = GetClient<long, RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<int>>>>>, RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<int>>>>>>();
+            var request = RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<int>>>>>.Create(
+                RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<int>>>>.Create(
+                    RecursiveMock<RecursiveMock<RecursiveMock<int>>>.Create(
+                        RecursiveMock<RecursiveMock<int>>.Create(
+                            RecursiveMock<int>.Create(
+                                int.MaxValue
+                            )
+                        )
+                    )
+                )
+            );
+            await tcpClient.SendAsync(request);
+            var batch = await tcpClient.ReceiveAsync(1337L);
+            var response = batch.First();
+            Assert.NotNull(response);
+            Assert.NotNull(response.Data);
+            Assert.NotNull(response.Data.Data);
+            Assert.NotNull(response.Data.Data.Data);
+            Assert.NotNull(response.Data.Data.Data.Data);
+            Assert.AreEqual(response.Data.Data.Data.Data.Data, int.MaxValue);
             await tcpClient.DisposeAsync();
         }
 
@@ -152,7 +179,7 @@ namespace Drenalol.TcpClientIo
             TestContext.WriteLine($"BytesWrite: {Math.Round(bytesWrite / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
             TestContext.WriteLine($"BytesRead: {Math.Round(bytesRead / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
         }
-        
+
         [TestCase(100000, true)]
         [TestCase(100000, false)]
         public async Task ConsumingAsyncEnumerableTest(int requests, bool expandBatch)
@@ -213,7 +240,7 @@ namespace Drenalol.TcpClientIo
                 TestContext.WriteLine($"BytesRead: {Math.Round(tcpClient.BytesRead / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
             }
         }
-        
+
         [Test]
         public async Task NoIdTest()
         {
@@ -288,7 +315,7 @@ namespace Drenalol.TcpClientIo
 
             var havingCount = list.GroupBy(u => u).Where(p => p.Count() > 1).Aggregate("", (acc, next) => $"{next.Key.ToString()}, {acc}");
             TestContext.WriteLine($"Non-UNIQ Sizes: {havingCount}");
-            
+
             await tcpClient.DisposeAsync();
         }
 
@@ -370,7 +397,7 @@ namespace Drenalol.TcpClientIo
             cfg.Port = 10001;
             ListenerEmulator.Create(cts.Token, cfg);
             var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: 10001);
-            
+
             Assert.CatchAsync<TcpClientIoException>(() =>
             {
                 using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -387,9 +414,9 @@ namespace Drenalol.TcpClientIo
             cfg.Port = 10001;
             ListenerEmulator.Create(cts.Token, cfg);
             var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: 10001);
-            
+
             using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            
+
             try
             {
                 await foreach (var _ in client.GetExpandableConsumingAsyncEnumerable(ownToken ? cts2.Token : default))
@@ -410,7 +437,7 @@ namespace Drenalol.TcpClientIo
             cfg.Port = 10001;
             ListenerEmulator.Create(cts.Token, cfg);
             var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: 10001);
-            
+
             cts.Cancel();
             await Task.Delay(5000, CancellationToken.None);
             Assert.CatchAsync<TcpClientIoException>(() => client.SendAsync(new MockNoIdEmptyBody(), CancellationToken.None));

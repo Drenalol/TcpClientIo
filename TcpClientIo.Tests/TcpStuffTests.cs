@@ -1,11 +1,11 @@
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Drenalol.TcpClientIo.Attributes;
 using Drenalol.TcpClientIo.Converters;
 using Drenalol.TcpClientIo.Exceptions;
+using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Serialization;
 using Drenalol.TcpClientIo.Stuff;
 using NUnit.Framework;
@@ -14,6 +14,19 @@ namespace Drenalol.TcpClientIo
 {
     public class TcpStuffTests
     {
+        private BitConverterHelper _bitConverterHelper;
+
+        [OneTimeSetUp]
+        public void Ctor()
+        {
+            _bitConverterHelper = new BitConverterHelper(
+                new TcpClientIoOptions()
+                    .RegisterConverter(new TcpUtf8StringConverter())
+                    .RegisterConverter(new TcpGuidConverter())
+                    .RegisterConverter(new TcpDateTimeConverter())
+                );
+        }
+        
         // ReSharper disable once ClassNeverInstantiated.Local
         private class ComposeAndBodyAttribute<T>
         {
@@ -82,64 +95,51 @@ namespace Drenalol.TcpClientIo
         [Test]
         public void DoesNotHaveAnyErrorTest()
         {
-            var bit = BitConverterHelper.Create(new List<TcpConverter>());
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveAny), null, bit));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveAny), null, _bitConverterHelper));
         }
         
         [Test]
         public void DoesNotHaveBodyAttributeErrorTest()
         {
-            var bit = BitConverterHelper.Create(new List<TcpConverter>());
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveBodyAttribute), null, bit));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveBodyAttribute), null, _bitConverterHelper));
         }
         
         [Test]
         public void MetaDataNotHaveSetterErrorTest()
         {
-            var bit = BitConverterHelper.Create(new List<TcpConverter>());
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(MetaDataNotHaveSetter), null, bit));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(MetaDataNotHaveSetter), null, _bitConverterHelper));
         }
         
         [Test]
         public void DoesNotHaveBodyLengthAttributeErrorTest()
         {
-            var bit = BitConverterHelper.Create(new List<TcpConverter>());
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveBodyLengthAttribute), null, bit));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveBodyLengthAttribute), null, _bitConverterHelper));
         }
         
         [Test]
         public void KeyDoesNotHaveSetterErrorTest()
         {
-            var bit = BitConverterHelper.Create(new List<TcpConverter>());
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(KeyDoesNotHaveSetter), null, bit));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(KeyDoesNotHaveSetter), null, _bitConverterHelper));
         }
         
         [Test]
         public void DuplicateComposeAttributeErrorTest()
         {
-            var bit = BitConverterHelper.Create(new List<TcpConverter>());
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DuplicateComposeAttribute<MockOnlyMetaData>), null, bit));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DuplicateComposeAttribute<MockOnlyMetaData>), null, _bitConverterHelper));
         }
         
         [Test]
         public void BodyAndComposeAttributeAtSameTimeTest()
         {
-            var bit = BitConverterHelper.Create(new List<TcpConverter>());
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(ComposeAndBodyAttribute<MockOnlyMetaData>), null, bit));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(ComposeAndBodyAttribute<MockOnlyMetaData>), null, _bitConverterHelper));
         }
         
         [TestCase(10000, false)]
         [TestCase(10000, true)]
         public async Task AttributeMockSerializeDeserializeTest(int count, bool useParallel)
         {
-            var bitConverterHelper = new BitConverterHelper(new Dictionary<Type, TcpConverter>
-            {
-                {typeof(string), new TcpUtf8StringConverter()},
-                {typeof(DateTime), new TcpDateTimeConverter()}
-            });
-
-            var serializer = new TcpSerializer<AttributeMockSerialize>(bitConverterHelper, i => new byte[i]);
-            var deserializer = new TcpDeserializer<uint, AttributeMockSerialize>(bitConverterHelper);
+            var serializer = new TcpSerializer<AttributeMockSerialize>(_bitConverterHelper, i => new byte[i]);
+            var deserializer = new TcpDeserializer<uint, AttributeMockSerialize>(_bitConverterHelper);
 
             var mock = new AttributeMockSerialize
             {
@@ -169,28 +169,19 @@ namespace Drenalol.TcpClientIo
         [TestCase(false)]
         public void BaseConvertersTest(bool reverse)
         {
-            var dict = new Dictionary<Type, TcpConverter>
-            {
-                {typeof(string), new TcpUtf8StringConverter()},
-                {typeof(DateTime), new TcpDateTimeConverter()},
-                {typeof(Guid), new TcpGuidConverter()}
-            };
-
-            var bitConverterHelper = new BitConverterHelper(dict);
-
             var str = "Hello my friend";
-            var stringResult = bitConverterHelper.ConvertToBytes(str, typeof(string), reverse);
-            var stringResultBack = bitConverterHelper.ConvertFromBytes(new ReadOnlySequence<byte>(stringResult), typeof(string), reverse);
+            var stringResult = _bitConverterHelper.ConvertToBytes(str, typeof(string), reverse);
+            var stringResultBack = _bitConverterHelper.ConvertFromBytes(new ReadOnlySequence<byte>(stringResult), typeof(string), reverse);
             Assert.AreEqual(str, stringResultBack);
 
             var datetime = DateTime.Now;
-            var dateTimeResult = bitConverterHelper.ConvertToBytes(datetime, typeof(DateTime), reverse);
-            var dateTimeResultBack = bitConverterHelper.ConvertFromBytes(new ReadOnlySequence<byte>(dateTimeResult), typeof(DateTime), reverse);
+            var dateTimeResult = _bitConverterHelper.ConvertToBytes(datetime, typeof(DateTime), reverse);
+            var dateTimeResultBack = _bitConverterHelper.ConvertFromBytes(new ReadOnlySequence<byte>(dateTimeResult), typeof(DateTime), reverse);
             Assert.AreEqual(datetime, dateTimeResultBack);
 
             var guid = Guid.NewGuid();
-            var guidResult = bitConverterHelper.ConvertToBytes(guid, typeof(Guid), reverse);
-            var guidResultBack = bitConverterHelper.ConvertFromBytes(new ReadOnlySequence<byte>(guidResult), typeof(Guid), reverse);
+            var guidResult = _bitConverterHelper.ConvertToBytes(guid, typeof(Guid), reverse);
+            var guidResultBack = _bitConverterHelper.ConvertFromBytes(new ReadOnlySequence<byte>(guidResult), typeof(Guid), reverse);
             Assert.AreEqual(guid, guidResultBack);
         }
     }

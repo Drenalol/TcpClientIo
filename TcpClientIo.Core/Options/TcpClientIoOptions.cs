@@ -20,8 +20,20 @@ namespace Drenalol.TcpClientIo.Options
         /// </summary>
         public StreamPipeWriterOptions StreamPipeWriterOptions { get; set; }
 
+        /// <summary>
+        /// Gets or sets the amount of time a <see cref="TcpClient"/> will wait for a send operation to complete successfully.
+        /// </summary>
         public int TcpClientSendTimeout { get; set; }
+
+        /// <summary>
+        /// Gets or sets the amount of time a <see cref="TcpClient"/> will wait to receive data once a read operation is initiated.
+        /// </summary>
         public int TcpClientReceiveTimeout { get; set; }
+        
+        /// <summary>
+        /// Gets or sets a value about sorting in reverse order for all byte arrays of primitive values.
+        /// </summary>
+        public bool PrimitiveValueReverse { get; set; }
 
         /// <summary>
         /// Gets or sets a <see cref="TcpConverter"/> collection that will be used during serialization.

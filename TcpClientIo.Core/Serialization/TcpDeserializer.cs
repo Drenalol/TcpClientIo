@@ -37,8 +37,8 @@ namespace Drenalol.TcpClientIo.Serialization
                 var lengthAttribute = _reflection.LengthProperty.Attribute;
                 var lengthSequence = metaReadResult.Slice(lengthAttribute.Length, lengthAttribute.Index);
                 var lengthValue = _bitConverter.ConvertFromBytes(lengthSequence, _reflection.LengthProperty.PropertyType, lengthAttribute.Reverse);
-                var length = Convert.ToInt32(lengthValue);
-                var totalLength = _reflection.MetaLength + length;
+                var totalLength = _reflection.MetaLength + (lengthValue is int length ? length : Convert.ToInt32(lengthValue));
+
                 ReadOnlySequence<byte> sequence;
 
                 if (metaReadResult.Buffer.Length >= totalLength)
@@ -74,7 +74,7 @@ namespace Drenalol.TcpClientIo.Serialization
                 if (property.Attribute.TcpDataType == TcpDataType.Length && preKnownLength != null)
                 {
                     value = preKnownLength;
-                    length = Convert.ToInt32(preKnownLength);
+                    length = preKnownLength is int lengthValue ? lengthValue : Convert.ToInt32(preKnownLength);
                     sliceLength = property.Attribute.Length;
                     SetValue();
                     continue;
@@ -92,14 +92,14 @@ namespace Drenalol.TcpClientIo.Serialization
 
                 var slice = sequence.Slice(propertyIndex, sliceLength);
 
-                value = property.Attribute.TcpDataType == TcpDataType.Compose
+                value = property.Attribute.TcpDataType == TcpDataType.Compose && !property.PropertyType.IsPrimitive
                     ? property.Composition.Deserialize(slice)
                     : _bitConverter.ConvertFromBytes(slice, property.PropertyType, property.Attribute.Reverse);
 
                 if (property.Attribute.TcpDataType == TcpDataType.Id)
                     id = (TId) value;
                 else if (property.Attribute.TcpDataType == TcpDataType.Length)
-                    length = Convert.ToInt32(value);
+                    length = value is int lengthValue ? lengthValue : Convert.ToInt32(value);
 
                 SetValue();
 

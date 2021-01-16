@@ -6,15 +6,15 @@ namespace Drenalol.TcpClientIo.Serialization
 {
     internal class TcpComposition
     {
-        private MethodInfo _serializerMethod;
-        private MethodInfo _deserializerMethod;
-        private FieldInfo _deserializerField;
+        private readonly MethodInfo _serializerMethod;
+        private readonly MethodInfo _deserializerMethod;
+        private readonly FieldInfo _deserializerField;
         private readonly object _serializer;
         private readonly object _deserializer;
 
-        public TcpComposition(Type dataType, Func<int, byte[]> byteArrayFactory, BitConverterHelper bitConverterHelper, Type idType = null)
+        public TcpComposition(Type typeData, Func<int, byte[]> byteArrayFactory, BitConverterHelper bitConverterHelper, Type typeId = null)
         {
-            var serializerType = typeof(TcpSerializer<>).MakeGenericType(dataType);
+            var serializerType = typeof(TcpSerializer<>).MakeGenericType(typeData);
             _serializerMethod = serializerType.GetMethod(nameof(TcpSerializer<TcpComposition>.Serialize));
             
             if (_serializerMethod == null)
@@ -22,21 +22,17 @@ namespace Drenalol.TcpClientIo.Serialization
             
             _serializer = Activator.CreateInstance(serializerType, bitConverterHelper, byteArrayFactory);
             
-            if (idType == null)
+            if (typeId == null)
                 return;
             
-            var deserializerType = typeof(TcpDeserializer<,>).MakeGenericType(idType, dataType);
-            _deserializerMethod = deserializerType.GetMethod(nameof(TcpDeserializer<int, TcpComposition>.Deserialize));
-            _deserializerField = typeof(ValueTuple<,>).MakeGenericType(idType, dataType).GetField("Item2");
+            var deserializerType = typeof(TcpDeserializer<,>).MakeGenericType(typeId, typeData);
+            _deserializerMethod = deserializerType.GetMethod(nameof(TcpDeserializer<int, int>.Deserialize));
+            _deserializerField = typeof(ValueTuple<,>).MakeGenericType(typeId, typeData).GetField("Item2");
             
             if (_deserializerMethod == null)
                 throw new NullReferenceException(nameof(_deserializerMethod));
             
             _deserializer = Activator.CreateInstance(deserializerType, bitConverterHelper);
-        }
-
-        public TcpComposition()
-        {
         }
 
         public SerializedRequest Serialize(object data)
