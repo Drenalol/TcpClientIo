@@ -10,6 +10,6 @@ namespace Drenalol.TcpClientIo.Exceptions
 
         public static TcpClientIoException ConverterError(string converterName) => new TcpClientIoException($"Converter {converterName} does not have generic type");
         
-        public static TcpClientIoException ConnectionBroken() => new TcpClientIoException("Connection was broken");
+        public static readonly TcpClientIoException ConnectionBroken = new TcpClientIoException("Connection was broken");
     }
 }

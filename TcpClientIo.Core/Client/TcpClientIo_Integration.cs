@@ -28,7 +28,7 @@ namespace Drenalol.TcpClientIo.Client
                     throw new ObjectDisposedException(nameof(_tcpClient));
 
                 if (!_disposing && _pipelineWriteEnded)
-                    throw TcpClientIoException.ConnectionBroken();
+                    throw TcpClientIoException.ConnectionBroken;
 
                 var serializedRequest = _serializer.Serialize(request);
                 return await _bufferBlockRequests.SendAsync(serializedRequest, token == default ? _baseCancellationToken : token);
@@ -53,7 +53,7 @@ namespace Drenalol.TcpClientIo.Client
                 throw new ObjectDisposedException(nameof(_tcpClient));
 
             if (!_disposing && _pipelineReadEnded)
-                throw TcpClientIoException.ConnectionBroken();
+                throw TcpClientIoException.ConnectionBroken;
 
             return await _completeResponses.WaitAsync(responseId, token);
         }
@@ -68,7 +68,7 @@ namespace Drenalol.TcpClientIo.Client
         /// <exception cref="TcpClientIoException"></exception>
         public async IAsyncEnumerable<ITcpBatch<TResponse>> GetConsumingAsyncEnumerable([EnumeratorCancellation] CancellationToken token = default)
         {
-            CancellationTokenSource internalCts = null;
+            CancellationTokenSource? internalCts = null;
             CancellationToken internalToken;
 
             if (token != default)
@@ -113,7 +113,7 @@ namespace Drenalol.TcpClientIo.Client
                 catch (OperationCanceledException)
                 {
                     if (!_disposing && _pipelineReadEnded)
-                        throw TcpClientIoException.ConnectionBroken();
+                        throw TcpClientIoException.ConnectionBroken;
 
                     throw;
                 }

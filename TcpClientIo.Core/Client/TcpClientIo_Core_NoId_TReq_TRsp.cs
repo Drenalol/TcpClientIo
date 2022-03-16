@@ -26,7 +26,7 @@ namespace Drenalol.TcpClientIo.Client
         /// <param name="port"></param>
         /// <param name="tcpClientIoOptions"></param>
         /// <param name="logger"></param>
-        public TcpClientIo(IPAddress address, int port, TcpClientIoOptions tcpClientIoOptions = null, ILogger<TcpClientIo<TRequest, TResponse>> logger = null) : base(address, port, tcpClientIoOptions, logger)
+        public TcpClientIo(IPAddress address, int port, TcpClientIoOptions? tcpClientIoOptions = null, ILogger<TcpClientIo<TRequest, TResponse>>? logger = null) : base(address, port, tcpClientIoOptions, logger)
         {
         }
 
@@ -36,7 +36,7 @@ namespace Drenalol.TcpClientIo.Client
         /// <param name="tcpClient"></param>
         /// <param name="tcpClientIoOptions"></param>
         /// <param name="logger"></param>
-        public TcpClientIo(TcpClient tcpClient, TcpClientIoOptions tcpClientIoOptions = null, ILogger<TcpClientIo<TRequest, TResponse>> logger = null) : base(tcpClient, tcpClientIoOptions, logger)
+        public TcpClientIo(TcpClient tcpClient, TcpClientIoOptions? tcpClientIoOptions = null, ILogger<TcpClientIo<TRequest, TResponse>>? logger = null) : base(tcpClient, tcpClientIoOptions, logger)
         {
         }
 

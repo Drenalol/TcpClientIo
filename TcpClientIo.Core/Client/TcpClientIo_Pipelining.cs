@@ -122,7 +122,7 @@ namespace Drenalol.TcpClientIo.Client
             }
         }
 
-        private void StopDeserializeWriterReader(Exception exception)
+        private void StopDeserializeWriterReader(Exception? exception)
         {
             Debug.WriteLine("Completion Deserializer PipeWriter and PipeReader started");
             _deserializePipeWriter.CancelPendingFlush();
@@ -143,7 +143,7 @@ namespace Drenalol.TcpClientIo.Client
             Debug.WriteLine("Completion Deserializer PipeWriter and PipeReader ended");
         }
 
-        private void StopReader(Exception exception)
+        private void StopReader(Exception? exception)
         {
             Debug.WriteLine("Completion NetworkStream PipeReader started");
 
@@ -171,7 +171,7 @@ namespace Drenalol.TcpClientIo.Client
             Debug.WriteLine("Completion NetworkStream PipeReader ended");
         }
 
-        private void StopWriter(Exception exception)
+        private void StopWriter(Exception? exception)
         {
             Debug.WriteLine("Completion NetworkStream PipeWriter started");
             _networkStreamPipeWriter.CancelPendingFlush();
