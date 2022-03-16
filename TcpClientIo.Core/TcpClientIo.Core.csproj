@@ -6,7 +6,7 @@
         <Authors>Bogdan Yanysh</Authors>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageId>TcpClientIo</PackageId>
-        <PackageVersion>1.4.0</PackageVersion>
+        <PackageVersion>1.4.1</PackageVersion>
         <PackageTags>TcpClient;TcpListener;Tcp;Serialization;Pipelines;Dataflow;Async;Threadsafe</PackageTags>
         <Description>Wrapper of TcpClient what help focus on WHAT you transfer over TCP not HOW (Async, Thread-safe, TcpSerialization with attribute schema, Big/Little endian, Cancellation support)</Description>
         <PackageProjectUrl>https://github.com/Drenalol/TcpClientIo</PackageProjectUrl>
@@ -14,6 +14,7 @@
         <RepositoryType>git</RepositoryType>
         <Title>TcpClientIo</Title>
         <Copyright>© 2020 Bogdan Yanysh</Copyright>
+        <Nullable>enable</Nullable>
     </PropertyGroup>
     
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
