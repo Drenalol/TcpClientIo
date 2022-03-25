@@ -172,7 +172,8 @@ namespace Drenalol.TcpClientIo.Client
                 await _writeResetEvent.WaitAsync(token);
                 await _readResetEvent.WaitAsync(token);
             }
-            
+
+            _completeResponses.Dispose();
             _baseCancellationTokenSource.Dispose();
             _tcpClient.Dispose();
             _logger?.LogInformation("Dispose ended");
