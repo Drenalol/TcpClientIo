@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Drenalol.TcpClientIo.Batches;
+using Drenalol.TcpClientIo.Exceptions;
 using Microsoft.Extensions.Logging;
 
 namespace Drenalol.TcpClientIo.Client
@@ -147,14 +148,11 @@ namespace Drenalol.TcpClientIo.Client
         {
             Debug.WriteLine("Completion NetworkStream PipeReader started");
 
-            if (_disposing)
+            foreach (var completedResponse in _completeResponses.Where(tcs => tcs.Value.Task.Status == TaskStatus.WaitingForActivation))
             {
-                foreach (var completedResponse in _completeResponses.Where(tcs => tcs.Value.Task.Status == TaskStatus.WaitingForActivation))
-                {
-                    var innerException = exception ?? new OperationCanceledException();
-                    Debug.WriteLine($"Set force {innerException.GetType()} in {nameof(TaskCompletionSource<ITcpBatch<TResponse>>)} in {nameof(TaskStatus.WaitingForActivation)}");
-                    completedResponse.Value.TrySetException(innerException);
-                }
+                var innerException = exception ?? TcpClientIoException.ConnectionBroken;
+                Debug.WriteLine($"Set force {innerException.GetType()} in {nameof(TaskCompletionSource<ITcpBatch<TResponse>>)} in {nameof(TaskStatus.WaitingForActivation)}");
+                completedResponse.Value.TrySetException(innerException);
             }
 
             _networkStreamPipeReader.CancelPendingRead();

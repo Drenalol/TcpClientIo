@@ -388,21 +388,34 @@ namespace Drenalol.TcpClientIo
             Assert.NotNull(await client.ReceiveAsync(default));
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void ReceiveAndDisconnectTest(bool ownToken)
+        [Test]
+        public void ReceiveAndListenerDisconnectTest()
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
             var cfg = ListenerEmulatorConfig.Default;
-            cfg.Port = 10001;
+            cfg.Port = TestContext.CurrentContext.Random.Next(10001, 12001);
             ListenerEmulator.Create(cts.Token, cfg);
-            var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: 10001);
+            var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: cfg.Port);
 
-            Assert.CatchAsync<TcpClientIoException>(() =>
-            {
-                using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                return client.ReceiveAsync(0, ownToken ? cts2.Token : default);
-            });
+            Assert.CatchAsync<TcpClientIoException>(async () => await client.ReceiveAsync(0, CancellationToken.None));
+        }
+        
+        [Test]
+        public void ReceiveAndCancelTaskTest()
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var cfg = ListenerEmulatorConfig.Default;
+            cfg.Port = TestContext.CurrentContext.Random.Next(10001, 12001);
+            ListenerEmulator.Create(cts.Token, cfg);
+            var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: cfg.Port);
+
+            Assert.CatchAsync<TaskCanceledException>(
+                async () =>
+                {
+                    using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                    await client.ReceiveAsync(0, cts2.Token);
+                }
+            );
         }
 
         [TestCase(true)]
