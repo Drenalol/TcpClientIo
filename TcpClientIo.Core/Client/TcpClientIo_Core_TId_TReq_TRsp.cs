@@ -1,6 +1,5 @@
 using System;
 using System.Buffers;
-using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Linq;
@@ -81,13 +80,6 @@ namespace Drenalol.TcpClientIo.Client
         public int Requests => _bufferBlockRequests.Count;
 
         /// <summary>
-        /// Gets an immutable snapshot of responses to receive (id, null) or responses ready to receive (id, <see cref="ITcpBatch{TResponse}"/>).
-        /// </summary>
-        public ImmutableDictionary<TId, WaiterInfo<ITcpBatch<TResponse>>> GetWaiters()
-            => _completeResponses
-                .ToImmutableDictionary(pair => pair.Key, pair => new WaiterInfo<ITcpBatch<TResponse>>(pair.Value.Task));
-
-        /// <summary>
         /// Initializes a new instance of the <see cref="TcpClientIo{TRequest,TResponse}"/> class and connects to the specified port on the specified host.
         /// </summary>
         /// <param name="address"></param>
@@ -166,7 +158,7 @@ namespace Drenalol.TcpClientIo.Client
             _ = DeserializeResponseAsync();
         }
 
-        public async ValueTask DisposeAsync()
+        public void Dispose()
         {
             _logger?.LogInformation("Dispose started");
             _disposing = true;
@@ -175,17 +167,15 @@ namespace Drenalol.TcpClientIo.Client
                 _baseCancellationTokenSource.Cancel();
 
             _completeResponses.Dispose();
-
-            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60)))
-            {
-                var token = cts.Token;
-                await _writeResetEvent.WaitAsync(token);
-                await _readResetEvent.WaitAsync(token);
-            }
-
             _baseCancellationTokenSource.Dispose();
             _tcpClient.Dispose();
             _logger?.LogInformation("Dispose ended");
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            Dispose();
+            return default;
         }
     }
 }

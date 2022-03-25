@@ -3,7 +3,7 @@ using System.IO.Pipelines;
 
 namespace Drenalol.TcpClientIo.Contracts
 {
-    public interface ITcpClientIo : IAsyncDisposable, IDuplexPipe
+    public interface ITcpClientIo : IDisposable, IAsyncDisposable, IDuplexPipe
     {
         long BytesWrite { get; }
         long BytesRead { get; }
