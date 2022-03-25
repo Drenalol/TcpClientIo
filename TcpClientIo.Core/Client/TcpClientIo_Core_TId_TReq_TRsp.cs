@@ -158,24 +158,24 @@ namespace Drenalol.TcpClientIo.Client
             _ = DeserializeResponseAsync();
         }
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
             _logger?.LogInformation("Dispose started");
             _disposing = true;
 
             if (_baseCancellationTokenSource is { IsCancellationRequested: false })
                 _baseCancellationTokenSource.Cancel();
-
-            _completeResponses.Dispose();
+            
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+            {
+                var token = cts.Token;
+                await _writeResetEvent.WaitAsync(token);
+                await _readResetEvent.WaitAsync(token);
+            }
+            
             _baseCancellationTokenSource.Dispose();
             _tcpClient.Dispose();
             _logger?.LogInformation("Dispose ended");
-        }
-
-        public ValueTask DisposeAsync()
-        {
-            Dispose();
-            return default;
         }
     }
 }
