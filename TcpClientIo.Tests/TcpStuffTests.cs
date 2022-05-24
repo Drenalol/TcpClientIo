@@ -9,6 +9,7 @@ using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Serialization;
 using Drenalol.TcpClientIo.Stuff;
 using NUnit.Framework;
+// ReSharper disable ObjectCreationAsStatement
 
 namespace Drenalol.TcpClientIo
 {
@@ -25,26 +26,6 @@ namespace Drenalol.TcpClientIo
                     .RegisterConverter(new TcpGuidConverter())
                     .RegisterConverter(new TcpDateTimeConverter())
                 );
-        }
-        
-        // ReSharper disable once ClassNeverInstantiated.Local
-        private class ComposeAndBodyAttribute<T>
-        {
-            [TcpData(1, TcpDataType = TcpDataType.Compose)]
-            public T T1 { get; set; }
-
-            [TcpData(2, TcpDataType = TcpDataType.Body)]
-            public string T2 { get; set; }
-        }
-        
-        // ReSharper disable once ClassNeverInstantiated.Local
-        private class DuplicateComposeAttribute<T>
-        {
-            [TcpData(1, TcpDataType = TcpDataType.Compose)]
-            public T T1 { get; set; }
-
-            [TcpData(2, TcpDataType = TcpDataType.Compose)]
-            public T T2 { get; set; }
         }
 
         // ReSharper disable once ClassNeverInstantiated.Local
@@ -95,51 +76,39 @@ namespace Drenalol.TcpClientIo
         [Test]
         public void DoesNotHaveAnyErrorTest()
         {
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveAny), null, _bitConverterHelper));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveAny)));
         }
         
         [Test]
         public void DoesNotHaveBodyAttributeErrorTest()
         {
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveBodyAttribute), null, _bitConverterHelper));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveBodyAttribute)));
         }
         
         [Test]
         public void MetaDataNotHaveSetterErrorTest()
         {
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(MetaDataNotHaveSetter), null, _bitConverterHelper));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(MetaDataNotHaveSetter)));
         }
         
         [Test]
         public void DoesNotHaveBodyLengthAttributeErrorTest()
         {
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveBodyLengthAttribute), null, _bitConverterHelper));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DoesNotHaveBodyLengthAttribute)));
         }
         
         [Test]
         public void KeyDoesNotHaveSetterErrorTest()
         {
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(KeyDoesNotHaveSetter), null, _bitConverterHelper));
+            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(KeyDoesNotHaveSetter)));
         }
-        
-        [Test]
-        public void DuplicateComposeAttributeErrorTest()
-        {
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(DuplicateComposeAttribute<MockOnlyMetaData>), null, _bitConverterHelper));
-        }
-        
-        [Test]
-        public void BodyAndComposeAttributeAtSameTimeTest()
-        {
-            Assert.Catch(typeof(TcpException), () => new ReflectionHelper(typeof(ComposeAndBodyAttribute<MockOnlyMetaData>), null, _bitConverterHelper));
-        }
-        
+
         [TestCase(10000, false)]
         [TestCase(10000, true)]
         public async Task AttributeMockSerializeDeserializeTest(int count, bool useParallel)
         {
             var serializer = new TcpSerializer<AttributeMockSerialize>(_bitConverterHelper, i => new byte[i]);
-            var deserializer = new TcpDeserializer<uint, AttributeMockSerialize>(_bitConverterHelper);
+            var deserializer = new TcpDeserializer<uint, AttributeMockSerialize>(_bitConverterHelper, null!);
 
             var mock = new AttributeMockSerialize
             {

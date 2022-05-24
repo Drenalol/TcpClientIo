@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Drenalol.TcpClientIo.Client
 {
-    public partial class TcpClientIo<TId, TRequest, TResponse>
+    public partial class TcpClientIo<TId, TInput, TOutput>
     {
         private async Task TcpWriteAsync()
         {
@@ -25,7 +25,7 @@ namespace Drenalol.TcpClientIo.Client
 
                     var serializedRequest = await _bufferBlockRequests.ReceiveAsync(_baseCancellationToken);
                     var writeResult = await _networkStreamPipeWriter.WriteAsync(serializedRequest.Request, _baseCancellationToken);
-                    serializedRequest.ReturnRentedArrays(_arrayPool, true);
+                    _arrayPool.Return(serializedRequest.RentedArray, true);
                     
                     if (writeResult.IsCanceled || writeResult.IsCompleted)
                         break;
@@ -56,10 +56,12 @@ namespace Drenalol.TcpClientIo.Client
         {
             try
             {
+                var networkStreamPipeReaderExecutor = CreatePipeReaderExecutor(_options.PipeReaderOptions, _networkStreamPipeReader);
+                
                 while (true)
                 {
                     _baseCancellationToken.ThrowIfCancellationRequested();
-                    var readResult = await _networkStreamPipeReader.ReadAsync(_baseCancellationToken);
+                    var readResult = await networkStreamPipeReaderExecutor.ReadAsync(_baseCancellationToken);
 
                     if (readResult.IsCanceled || readResult.IsCompleted)
                         break;
@@ -73,7 +75,7 @@ namespace Drenalol.TcpClientIo.Client
                         Interlocked.Add(ref _bytesRead, buffer.Length);
                     }
                     
-                    _networkStreamPipeReader.AdvanceTo(readResult.Buffer.End);
+                    networkStreamPipeReaderExecutor.Consume(readResult.Buffer.End);
                 }
             }
             catch (OperationCanceledException canceledException)
@@ -82,8 +84,7 @@ namespace Drenalol.TcpClientIo.Client
             }
             catch (Exception exception)
             {
-                var exceptionType = exception.GetType();
-                _logger?.LogCritical("TcpReadAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
+                _logger?.LogCritical(exception, "TcpReadAsync catch: {Message}", exception.Message);
                 _internalException = exception;
                 throw;
             }
@@ -102,7 +103,7 @@ namespace Drenalol.TcpClientIo.Client
                 while (true)
                 {
                     _baseCancellationToken.ThrowIfCancellationRequested();
-                    var (responseId, response) = await _deserializer.DeserializeAsync(_deserializePipeReader, _baseCancellationToken);
+                    var (responseId, response) = await _deserializer.DeserializePipeAsync(_baseCancellationToken);
                     await _completeResponses.SetAsync(responseId, _batchRules.Create(response), true);
                 }
             }
@@ -151,7 +152,7 @@ namespace Drenalol.TcpClientIo.Client
             foreach (var completedResponse in _completeResponses.Where(tcs => tcs.Value.Task.Status == TaskStatus.WaitingForActivation))
             {
                 var innerException = exception ?? TcpClientIoException.ConnectionBroken;
-                Debug.WriteLine($"Set force {innerException.GetType()} in {nameof(TaskCompletionSource<ITcpBatch<TResponse>>)} in {nameof(TaskStatus.WaitingForActivation)}");
+                Debug.WriteLine($"Set force {innerException.GetType()} in {nameof(TaskCompletionSource<ITcpBatch<TOutput>>)} in {nameof(TaskStatus.WaitingForActivation)}");
                 completedResponse.Value.TrySetException(innerException);
             }
 

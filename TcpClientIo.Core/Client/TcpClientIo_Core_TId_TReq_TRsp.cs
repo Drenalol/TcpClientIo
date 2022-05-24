@@ -11,6 +11,7 @@ using System.Threading.Tasks.Dataflow;
 using Drenalol.TcpClientIo.Batches;
 using Drenalol.TcpClientIo.Contracts;
 using Drenalol.TcpClientIo.Exceptions;
+using Drenalol.TcpClientIo.Extensions;
 using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Serialization;
 using Drenalol.WaitingDictionary;
@@ -24,30 +25,30 @@ namespace Drenalol.TcpClientIo.Client
     /// <para>With Identifier version.</para>
     /// </summary>
     /// <typeparam name="TId">Identifier Type in Requests/Responses</typeparam>
-    /// <typeparam name="TRequest">Request Type</typeparam>
-    /// <typeparam name="TResponse">Response Type</typeparam>
+    /// <typeparam name="TInput">Request Type</typeparam>
+    /// <typeparam name="TOutput">Response Type</typeparam>
     [DebuggerDisplay("Id: {Id,nq}, Requests: {Requests,nq}, Waiters: {Waiters,nq}")]
-    public partial class TcpClientIo<TId, TRequest, TResponse> : ITcpClientIo<TId, TRequest, TResponse> where TResponse : new() where TId : struct
+    public partial class TcpClientIo<TId, TInput, TOutput> : ITcpClientIo<TId, TInput, TOutput> where TOutput : new() where TId : struct
     {
         [DebuggerNonUserCode]
         private Guid Id { get; }
 
         private readonly TcpClientIoOptions _options;
-        private readonly TcpBatchRules<TResponse> _batchRules;
+        private readonly TcpBatchRules<TOutput> _batchRules;
         private readonly CancellationTokenSource _baseCancellationTokenSource;
         private readonly CancellationToken _baseCancellationToken;
         private readonly TcpClient _tcpClient = null!;
         private readonly BufferBlock<SerializedRequest> _bufferBlockRequests;
-        private readonly WaitingDictionary<TId, ITcpBatch<TResponse>> _completeResponses;
-        private readonly TcpSerializer<TRequest> _serializer;
-        private readonly TcpDeserializer<TId, TResponse> _deserializer;
+        private readonly WaitingDictionary<TId, ITcpBatch<TOutput>> _completeResponses;
+        private readonly TcpSerializer<TInput> _serializer;
+        private readonly TcpDeserializer<TId, TOutput> _deserializer;
         private readonly ArrayPool<byte> _arrayPool;
         private readonly AsyncManualResetEvent _writeResetEvent;
         private readonly AsyncManualResetEvent _readResetEvent;
         private readonly AsyncManualResetEvent _consumingResetEvent;
         private readonly PipeReader _deserializePipeReader;
         private readonly PipeWriter _deserializePipeWriter;
-        private readonly ILogger<TcpClientIo<TId, TRequest, TResponse>>? _logger;
+        private readonly ILogger<TcpClientIo<TId, TInput, TOutput>>? _logger;
         private Exception? _internalException;
         private PipeReader _networkStreamPipeReader = null!;
         private PipeWriter _networkStreamPipeWriter = null!;
@@ -86,7 +87,7 @@ namespace Drenalol.TcpClientIo.Client
         /// <param name="port"></param>
         /// <param name="tcpClientIoOptions"></param>
         /// <param name="logger"></param>
-        public TcpClientIo(IPAddress address, int port, TcpClientIoOptions? tcpClientIoOptions = null, ILogger<TcpClientIo<TId, TRequest, TResponse>>? logger = null) : this(tcpClientIoOptions, logger)
+        public TcpClientIo(IPAddress address, int port, TcpClientIoOptions? tcpClientIoOptions = null, ILogger<TcpClientIo<TId, TInput, TOutput>>? logger = null) : this(tcpClientIoOptions, logger)
         {
             _tcpClient = new TcpClient();
             _tcpClient.Connect(address, port);
@@ -100,24 +101,24 @@ namespace Drenalol.TcpClientIo.Client
         /// <param name="tcpClient"></param>
         /// <param name="tcpClientIoOptions"></param>
         /// <param name="logger"></param>
-        public TcpClientIo(TcpClient tcpClient, TcpClientIoOptions? tcpClientIoOptions = null, ILogger<TcpClientIo<TId, TRequest, TResponse>>? logger = null) : this(tcpClientIoOptions, logger)
+        public TcpClientIo(TcpClient tcpClient, TcpClientIoOptions? tcpClientIoOptions = null, ILogger<TcpClientIo<TId, TInput, TOutput>>? logger = null) : this(tcpClientIoOptions, logger)
         {
             _tcpClient = tcpClient;
             SetupTcpClient();
             SetupTasks();
         }
 
-        private TcpClientIo(TcpClientIoOptions? tcpClientIoOptions, ILogger<TcpClientIo<TId, TRequest, TResponse>>? logger)
+        private TcpClientIo(TcpClientIoOptions? tcpClientIoOptions, ILogger<TcpClientIo<TId, TInput, TOutput>>? logger)
         {
-            var pipe = new Pipe();
+            var pipe = new Pipe(new PipeOptions(pauseWriterThreshold: long.MaxValue));
             Id = Guid.NewGuid();
             _logger = logger;
             _options = tcpClientIoOptions ?? TcpClientIoOptions.Default;
-            _batchRules = TcpBatchRules<TResponse>.Default;
+            _batchRules = TcpBatchRules<TOutput>.Default;
             _baseCancellationTokenSource = new CancellationTokenSource();
             _baseCancellationToken = _baseCancellationTokenSource.Token;
             _bufferBlockRequests = new BufferBlock<SerializedRequest>();
-            var middleware = new MiddlewareBuilder<ITcpBatch<TResponse>>()
+            var middleware = new MiddlewareBuilder<ITcpBatch<TOutput>>()
                 .RegisterCancellationActionInWait((tcs, hasOwnToken) =>
                 {
                     if (_disposing || hasOwnToken)
@@ -127,16 +128,16 @@ namespace Drenalol.TcpClientIo.Client
                 })
                 .RegisterDuplicateActionInSet((batch, newBatch) => _batchRules.Update(batch, newBatch.Single()))
                 .RegisterCompletionActionInSet(() => _consumingResetEvent?.Set());
-            _completeResponses = new WaitingDictionary<TId, ITcpBatch<TResponse>>(middleware);
+            _completeResponses = new WaitingDictionary<TId, ITcpBatch<TOutput>>(middleware);
             _arrayPool = ArrayPool<byte>.Create();
             var bitConverterHelper = new BitConverterHelper(_options);
-            _serializer = new TcpSerializer<TRequest>(bitConverterHelper, length => _arrayPool.Rent(length));
-            _deserializer = new TcpDeserializer<TId, TResponse>(bitConverterHelper);
+            _serializer = new TcpSerializer<TInput>(bitConverterHelper, length => _arrayPool.Rent(length));
             _writeResetEvent = new AsyncManualResetEvent();
             _readResetEvent = new AsyncManualResetEvent();
             _consumingResetEvent = new AsyncManualResetEvent();
             _deserializePipeReader = pipe.Reader;
             _deserializePipeWriter = pipe.Writer;
+            _deserializer = new TcpDeserializer<TId, TOutput>(bitConverterHelper, CreatePipeReaderExecutor(_options.PipeReaderOptions, _deserializePipeReader));
         }
 
         private void SetupTcpClient()
@@ -150,6 +151,14 @@ namespace Drenalol.TcpClientIo.Client
             _networkStreamPipeReader = PipeReader.Create(_tcpClient.GetStream(), _options.StreamPipeReaderOptions);
             _networkStreamPipeWriter = PipeWriter.Create(_tcpClient.GetStream(), _options.StreamPipeWriterOptions);
         }
+
+        private PipeReaderExecutor CreatePipeReaderExecutor(PipeReaderOptions pipeReaderOptions, PipeReader pipeReader) =>
+            pipeReaderOptions switch
+            {
+                PipeReaderOptions.Default => new PipeReaderExecutor(pipeReader),
+                PipeReaderOptions.Logged => new LoggedPipeReaderExecutor(pipeReader, _logger),
+                _ => throw new ArgumentOutOfRangeException(nameof(pipeReaderOptions), pipeReaderOptions, null)
+            };
 
         private void SetupTasks()
         {

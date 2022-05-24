@@ -20,12 +20,6 @@ namespace Drenalol.TcpClientIo.Attributes
         /// <summary>
         /// 
         /// </summary>
-        [Obsolete("Use TcpDataType.Length instead", true)]
-        BodyLength,
-
-        /// <summary>
-        /// 
-        /// </summary>
         Length,
 
         /// <summary>
@@ -36,6 +30,7 @@ namespace Drenalol.TcpClientIo.Attributes
         /// <summary>
         /// 
         /// </summary>
+        [Obsolete("Will be refactored in the future", true)]
         Compose
     }
 }

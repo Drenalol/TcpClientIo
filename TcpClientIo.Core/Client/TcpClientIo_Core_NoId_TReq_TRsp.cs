@@ -14,10 +14,10 @@ namespace Drenalol.TcpClientIo.Client
     /// Wrapper of TcpClient what help focus on WHAT you transfer over TCP, not HOW.
     /// <para>No Identifier version.</para>
     /// </summary>
-    /// <typeparam name="TRequest"></typeparam>
-    /// <typeparam name="TResponse"></typeparam>
+    /// <typeparam name="TInput"></typeparam>
+    /// <typeparam name="TOutput"></typeparam>
     [DebuggerDisplay("Id: {Id,nq}, Requests: {Requests,nq}, Waiters: {Waiters,nq}")]
-    public class TcpClientIo<TRequest, TResponse> : TcpClientIo<int, TRequest, TResponse> where TResponse : new()
+    public class TcpClientIo<TInput, TOutput> : TcpClientIo<int, TInput, TOutput> where TOutput : new()
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="TcpClientIo{TId, TRequestResponse}"/> class and connects to the specified port on the specified host.
@@ -26,7 +26,7 @@ namespace Drenalol.TcpClientIo.Client
         /// <param name="port"></param>
         /// <param name="tcpClientIoOptions"></param>
         /// <param name="logger"></param>
-        public TcpClientIo(IPAddress address, int port, TcpClientIoOptions? tcpClientIoOptions = null, ILogger<TcpClientIo<TRequest, TResponse>>? logger = null) : base(address, port, tcpClientIoOptions, logger)
+        public TcpClientIo(IPAddress address, int port, TcpClientIoOptions? tcpClientIoOptions = null, ILogger<TcpClientIo<TInput, TOutput>>? logger = null) : base(address, port, tcpClientIoOptions, logger)
         {
         }
 
@@ -36,7 +36,7 @@ namespace Drenalol.TcpClientIo.Client
         /// <param name="tcpClient"></param>
         /// <param name="tcpClientIoOptions"></param>
         /// <param name="logger"></param>
-        public TcpClientIo(TcpClient tcpClient, TcpClientIoOptions? tcpClientIoOptions = null, ILogger<TcpClientIo<TRequest, TResponse>>? logger = null) : base(tcpClient, tcpClientIoOptions, logger)
+        public TcpClientIo(TcpClient tcpClient, TcpClientIoOptions? tcpClientIoOptions = null, ILogger<TcpClientIo<TInput, TOutput>>? logger = null) : base(tcpClient, tcpClientIoOptions, logger)
         {
         }
 
@@ -46,6 +46,6 @@ namespace Drenalol.TcpClientIo.Client
         /// <param name="token"></param>
         /// <returns><see cref="ITcpBatch{TResponse}"/></returns>
         /// <exception cref="TcpClientIoException"></exception>
-        public Task<ITcpBatch<TResponse>> ReceiveAsync(CancellationToken token = default) => ReceiveAsync(default, token);
+        public Task<ITcpBatch<TOutput>> ReceiveAsync(CancellationToken token = default) => ReceiveAsync(default, token);
     }
 }

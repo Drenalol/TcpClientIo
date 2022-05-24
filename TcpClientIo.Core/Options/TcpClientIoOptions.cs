@@ -5,6 +5,12 @@ using Drenalol.TcpClientIo.Converters;
 
 namespace Drenalol.TcpClientIo.Options
 {
+    public enum PipeReaderOptions
+    {
+        Default,
+        Logged
+    }
+    
     /// <summary>
     /// Options for the TcpClientIo.Core
     /// </summary>
@@ -13,12 +19,12 @@ namespace Drenalol.TcpClientIo.Options
         /// <summary>
         /// Represents a set of options for controlling the creation of the <see cref="PipeReader"/> for the <see cref="NetworkStream"/>.
         /// </summary>
-        public StreamPipeReaderOptions StreamPipeReaderOptions { get; set; }
+        public StreamPipeReaderOptions StreamPipeReaderOptions { get; set; } = null!;
 
         /// <summary>
         /// Represents a set of options for controlling the creation of the <see cref="PipeWriter"/> for the <see cref="NetworkStream"/>.
         /// </summary>
-        public StreamPipeWriterOptions StreamPipeWriterOptions { get; set; }
+        public StreamPipeWriterOptions StreamPipeWriterOptions { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the amount of time a <see cref="TcpClient"/> will wait for a send operation to complete successfully.
@@ -39,11 +45,13 @@ namespace Drenalol.TcpClientIo.Options
         /// Gets or sets a <see cref="TcpConverter"/> collection that will be used during serialization.
         /// </summary>
         public IList<TcpConverter> Converters { get; set; }
+        
+        /// <summary>
+        /// Gets or sets a <see cref="PipeReaderOptions"/> that will be used in PipeReaderExecutor
+        /// </summary>
+        public PipeReaderOptions PipeReaderOptions { get; set; }
 
-        public TcpClientIoOptions()
-        {
-            Converters = new List<TcpConverter>();
-        }
+        public TcpClientIoOptions() => Converters = new List<TcpConverter>();
 
         /// <summary>
         /// Gets default options

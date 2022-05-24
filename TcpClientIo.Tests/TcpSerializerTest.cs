@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Drenalol.TcpClientIo.Converters;
 using Drenalol.TcpClientIo.Exceptions;
+using Drenalol.TcpClientIo.Extensions;
 using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Serialization;
 using Drenalol.TcpClientIo.Stuff;
@@ -31,7 +32,7 @@ namespace Drenalol.TcpClientIo
             const int ethalonHeaderLength = 270;
 
             var serializer = new TcpSerializer<Mock>(_bitConverterHelper, i => new byte[i]);
-            var deserializer = new TcpDeserializer<long, Mock>(_bitConverterHelper);
+            var deserializer = new TcpDeserializer<long, Mock>(_bitConverterHelper, null!);
             var serialize = serializer.Serialize(ethalon);
             Assert.IsTrue(serialize.Request.Length == ethalon.Size + ethalonHeaderLength);
             var (_, deserialize) = deserializer.Deserialize(new ReadOnlySequence<byte>(serialize.Request));
@@ -45,10 +46,10 @@ namespace Drenalol.TcpClientIo
             const int ethalonHeaderLength = 270;
 
             var serializer = new TcpSerializer<Mock>(_bitConverterHelper, i => new byte[i]);
-            var deserializer = new TcpDeserializer<long, Mock>(_bitConverterHelper);
             var serialize = serializer.Serialize(ethalon);
+            var deserializer = new TcpDeserializer<long, Mock>(_bitConverterHelper, new PipeReaderExecutor(PipeReader.Create(new MemoryStream(serialize.Request.ToArray()))));
             Assert.IsTrue(serialize.Request.Length == ethalon.Size + ethalonHeaderLength);
-            var (_, deserialize) = await deserializer.DeserializeAsync(PipeReader.Create(new MemoryStream(serialize.Request.ToArray())), CancellationToken.None);
+            var (_, deserialize) = await deserializer.DeserializePipeAsync(CancellationToken.None);
             Assert.IsTrue(ethalon.Equals(deserialize));
         }
 
@@ -86,97 +87,18 @@ namespace Drenalol.TcpClientIo
         }
 
         [Test]
-        public void SerializeRecursiveComposeTypeTest()
-        {
-            var pool = ArrayPool<byte>.Create();
-            var serializer = new TcpSerializer<RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<MockOnlyMetaData>>>>>(_bitConverterHelper, i => pool.Rent(i));
-            var mock = RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<MockOnlyMetaData>>>>.Create(
-                RecursiveMock<RecursiveMock<RecursiveMock<MockOnlyMetaData>>>.Create(
-                    RecursiveMock<RecursiveMock<MockOnlyMetaData>>.Create(
-                        RecursiveMock<MockOnlyMetaData>.Create(
-                            new MockOnlyMetaData()
-                        )
-                    )
-                )
-            );
-            var serializedRequest = serializer.Serialize(mock);
-            serializedRequest.ReturnRentedArrays(pool, false);
-        }
-
-        [Test]
-        public void SerializeRecursiveStructComposeTypeTest()
-        {
-            var pool = ArrayPool<byte>.Create();
-            var serializer = new TcpSerializer<RecursiveMockStruct<RecursiveMockStruct<RecursiveMockStruct<RecursiveMockStruct<MockOnlyMetaData>>>>>(_bitConverterHelper, i => pool.Rent(i));
-            var mock = RecursiveMockStruct<RecursiveMockStruct<RecursiveMockStruct<RecursiveMockStruct<MockOnlyMetaData>>>>.Create(
-                RecursiveMockStruct<RecursiveMockStruct<RecursiveMockStruct<MockOnlyMetaData>>>.Create(
-                    RecursiveMockStruct<RecursiveMockStruct<MockOnlyMetaData>>.Create(
-                        RecursiveMockStruct<MockOnlyMetaData>.Create(
-                            new MockOnlyMetaData()
-                        )
-                    )
-                )
-            );
-            var serializedRequest = serializer.Serialize(mock);
-            serializedRequest.ReturnRentedArrays(pool, false);
-        }
-
-        [Test]
-        public async Task SerializeDeserializeRecursiveComposeTypeTest()
-        {
-            var pool = ArrayPool<byte>.Create();
-            var serializer = new TcpSerializer<RecursiveMock<RecursiveMock<RecursiveMock<MockOnlyMetaData>>>>(_bitConverterHelper, i => pool.Rent(i));
-            var deserializer = new TcpDeserializer<long, RecursiveMock<RecursiveMock<RecursiveMock<MockOnlyMetaData>>>>(_bitConverterHelper);
-            var mock = RecursiveMock<RecursiveMock<RecursiveMock<MockOnlyMetaData>>>.Create(
-                RecursiveMock<RecursiveMock<MockOnlyMetaData>>.Create(
-                    RecursiveMock<MockOnlyMetaData>.Create(
-                        new MockOnlyMetaData()
-                    )
-                )
-            );
-            var serialize = serializer.Serialize(mock);
-            var pipe = PipeReader.Create(new MemoryStream(serialize.Request.ToArray()));
-            var (id, data) = await deserializer.DeserializeAsync(pipe, CancellationToken.None);
-            Assert.NotNull(id);
-            Assert.NotNull(data);
-        }
-
-        [Test]
-        public async Task SerializeDeserializeRecursiveComposeValueTypeTest()
-        {
-            var pool = ArrayPool<byte>.Create();
-            var serializer = new TcpSerializer<RecursiveMock<int>>(_bitConverterHelper, i => pool.Rent(i));
-            var deserializer = new TcpDeserializer<long, RecursiveMock<int>>(_bitConverterHelper);
-            var mock = RecursiveMock<int>.Create(1337);
-            var serialize = serializer.Serialize(mock);
-            var pipe = PipeReader.Create(new MemoryStream(serialize.Request.ToArray()));
-            var (id, data) = await deserializer.DeserializeAsync(pipe, CancellationToken.None);
-            Assert.NotNull(id);
-            Assert.NotNull(data);
-        }
-
-        [Test]
         public async Task SerializeDeserializeSpeedTest()
         {
             var pool = ArrayPool<byte>.Create();
-            var serializer = new TcpSerializer<RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<int>>>>>>(_bitConverterHelper, i => pool.Rent(i));
-            var deserializer = new TcpDeserializer<long, RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<int>>>>>>(_bitConverterHelper);
-            var mock = RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<int>>>>>.Create(
-                RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<int>>>>.Create(
-                    RecursiveMock<RecursiveMock<RecursiveMock<int>>>.Create(
-                        RecursiveMock<RecursiveMock<int>>.Create(
-                            RecursiveMock<int>.Create(int.MaxValue
-                            )
-                        )
-                    )
-                )
-            );
+            var serializer = new TcpSerializer<Mock>(_bitConverterHelper, i => pool.Rent(i));
+            var mock = Mock.Default();
             var sw = Stopwatch.StartNew();
 
-            SerializedRequest serialize = null;
+            var pipe = new Pipe(new PipeOptions(pauseWriterThreshold: long.MaxValue));
             for (var i = 0; i < 10000; i++)
             {
-                serialize = serializer.Serialize(mock);
+                var serialize = serializer.Serialize(mock);
+                await pipe.Writer.WriteAsync(serialize.Request);
             }
 
             sw.Stop();
@@ -184,11 +106,12 @@ namespace Drenalol.TcpClientIo
             TestContext.WriteLine($"Serialize: {sw.Elapsed.ToString()}");
             sw.Reset();
             
+            var deserializer = new TcpDeserializer<long, Mock>(_bitConverterHelper, new PipeReaderExecutor(pipe.Reader));
+            
             for (var i = 0; i < 10000; i++)
             {
-                var pipe = PipeReader.Create(new MemoryStream(serialize.Request.ToArray()));
                 sw.Start();
-                var (id, data) = await deserializer.DeserializeAsync(pipe, CancellationToken.None);
+                var (id, data) = await deserializer.DeserializePipeAsync(CancellationToken.None);
                 sw.Stop();
                 Assert.NotNull(id);
                 Assert.NotNull(data);

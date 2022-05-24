@@ -36,10 +36,12 @@ namespace Drenalol.TcpClientIo
 
             options.StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 10240000);
             options.StreamPipeWriterOptions = new StreamPipeWriterOptions();
+            options.PipeReaderOptions = PipeReaderOptions.Logged;
 
             var loggerFactory = LoggerFactory.Create(lb =>
             {
-                lb.AddFilter("Drenalol.Client.TcpClientIo.Core", logLevel);
+                //lb.AddFilter("Drenalol.Client.TcpClientIo.Core", logLevel);
+                lb.SetMinimumLevel(logLevel);
                 lb.AddDebug();
                 lb.AddConsole();
             });
@@ -62,39 +64,12 @@ namespace Drenalol.TcpClientIo
         [Test]
         public async Task SingleSendReceiveTest()
         {
-            var tcpClient = GetClient<long, Mock, Mock>();
+            var tcpClient = GetClient<long, Mock, Mock>(logLevel: LogLevel.Debug);
             var request = Mock.Default();
             await tcpClient.SendAsync(request);
             var batch = await tcpClient.ReceiveAsync(1337L);
             var response = batch.First();
             Assert.IsTrue(request.Equals(response));
-            await tcpClient.DisposeAsync();
-        }
-
-        [Test]
-        public async Task SingleSendReceiveComposePrimitiveTypeTest()
-        {
-            var tcpClient = GetClient<long, RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<int>>>>>, RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<int>>>>>>();
-            var request = RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<int>>>>>.Create(
-                RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<int>>>>.Create(
-                    RecursiveMock<RecursiveMock<RecursiveMock<int>>>.Create(
-                        RecursiveMock<RecursiveMock<int>>.Create(
-                            RecursiveMock<int>.Create(
-                                int.MaxValue
-                            )
-                        )
-                    )
-                )
-            );
-            await tcpClient.SendAsync(request);
-            var batch = await tcpClient.ReceiveAsync(1337L);
-            var response = batch.First();
-            Assert.NotNull(response);
-            Assert.NotNull(response.Data);
-            Assert.NotNull(response.Data.Data);
-            Assert.NotNull(response.Data.Data.Data);
-            Assert.NotNull(response.Data.Data.Data.Data);
-            Assert.AreEqual(response.Data.Data.Data.Data.Data, int.MaxValue);
             await tcpClient.DisposeAsync();
         }
 

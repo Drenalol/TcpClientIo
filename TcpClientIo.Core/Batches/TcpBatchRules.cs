@@ -10,12 +10,12 @@ namespace Drenalol.TcpClientIo.Batches
         /// <summary>
         /// Creating rule of <see cref="ITcpBatch{TResponse}"/>
         /// </summary>
-        public Func<TResponse, ITcpBatch<TResponse>> Create { get; set; }
+        public Func<TResponse, ITcpBatch<TResponse>> Create { get; set; } = null!;
 
         /// <summary>
         /// Update rule of <see cref="ITcpBatch{TResponse}"/> 
         /// </summary>
-        public Func<ITcpBatch<TResponse>, TResponse, ITcpBatch<TResponse>> Update { get; set; }
+        public Func<ITcpBatch<TResponse>, TResponse, ITcpBatch<TResponse>> Update { get; set; } = null!;
 
         /// <summary>
         /// Default rules for Create and Update

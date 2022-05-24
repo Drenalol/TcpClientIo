@@ -9,22 +9,22 @@ namespace Drenalol.TcpClientIo.Serialization
     internal readonly ref struct Sequence
     {
         private readonly ReadOnlySpan<byte> _span;
-        private readonly Action _returnRentedArray;
+        private readonly Action? _returnRentedArray;
         
-        private Sequence(ReadOnlySpan<byte> span, Action returnRentedArray)
+        private Sequence(ReadOnlySpan<byte> span, Action? returnRentedArray)
         {
             _span = span;
             _returnRentedArray = returnRentedArray;
         }
         
-        public static Sequence Create(ReadOnlySpan<byte> span, Action returnRentedArray) => new Sequence(span, returnRentedArray);
+        public static Sequence Create(ReadOnlySpan<byte> span, Action? returnRentedArray) => new Sequence(span, returnRentedArray);
 
         /// <summary>
         /// Deconstruction method
         /// </summary>
         /// <param name="span"></param>
         /// <param name="returnRentedArray"></param>
-        public void Deconstruct(out ReadOnlySpan<byte> span, out Action returnRentedArray)
+        public void Deconstruct(out ReadOnlySpan<byte> span, out Action? returnRentedArray)
         {
             span = _span;
             returnRentedArray = _returnRentedArray;
