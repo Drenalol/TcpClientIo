@@ -5,12 +5,19 @@ using Drenalol.TcpClientIo.Converters;
 
 namespace Drenalol.TcpClientIo.Options
 {
-    public enum PipeReaderOptions
+    public enum PipeExecutor
     {
+        /// <summary>
+        /// Default implementation
+        /// </summary>
         Default,
-        Logged
+
+        /// <summary>
+        /// With logging
+        /// </summary>
+        Logging
     }
-    
+
     /// <summary>
     /// Options for the TcpClientIo.Core
     /// </summary>
@@ -35,7 +42,7 @@ namespace Drenalol.TcpClientIo.Options
         /// Gets or sets the amount of time a <see cref="TcpClient"/> will wait to receive data once a read operation is initiated.
         /// </summary>
         public int TcpClientReceiveTimeout { get; set; }
-        
+
         /// <summary>
         /// Gets or sets a value about sorting in reverse order for all byte arrays of primitive values.
         /// </summary>
@@ -45,11 +52,11 @@ namespace Drenalol.TcpClientIo.Options
         /// Gets or sets a <see cref="TcpConverter"/> collection that will be used during serialization.
         /// </summary>
         public IList<TcpConverter> Converters { get; set; }
-        
+
         /// <summary>
-        /// Gets or sets a <see cref="PipeReaderOptions"/> that will be used in PipeReaderExecutor
+        /// Gets or sets a <see cref="PipeExecutorOptions"/> that will be used in wrappers of <see cref="PipeReader"/> or <see cref="PipeWriter"/>
         /// </summary>
-        public PipeReaderOptions PipeReaderOptions { get; set; }
+        public PipeExecutor PipeExecutorOptions { get; set; }
 
         public TcpClientIoOptions() => Converters = new List<TcpConverter>();
 
@@ -57,13 +64,14 @@ namespace Drenalol.TcpClientIo.Options
         /// Gets default options
         /// <returns><see cref="TcpClientIoOptions"/></returns>
         /// </summary>
-        public static TcpClientIoOptions Default => new TcpClientIoOptions
-        {
-            StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 65536),
-            StreamPipeWriterOptions = new StreamPipeWriterOptions(),
-            TcpClientSendTimeout = 60000,
-            TcpClientReceiveTimeout = 60000
-        };
+        public static TcpClientIoOptions Default =>
+            new TcpClientIoOptions
+            {
+                StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 65536),
+                StreamPipeWriterOptions = new StreamPipeWriterOptions(),
+                TcpClientSendTimeout = 60000,
+                TcpClientReceiveTimeout = 60000
+            };
 
         /// <summary>
         /// Register converter

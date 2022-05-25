@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Drenalol.TcpClientIo.Batches;
 using Drenalol.TcpClientIo.Exceptions;
 using Drenalol.TcpClientIo.Options;
-using Microsoft.Extensions.Logging;
+using Serilog;
 
 namespace Drenalol.TcpClientIo.Client
 {
@@ -26,7 +26,7 @@ namespace Drenalol.TcpClientIo.Client
         /// <param name="port"></param>
         /// <param name="tcpClientIoOptions"></param>
         /// <param name="logger"></param>
-        public TcpClientIo(IPAddress address, int port, TcpClientIoOptions? tcpClientIoOptions = null, ILogger<TcpClientIo<TInput, TOutput>>? logger = null) : base(address, port, tcpClientIoOptions, logger)
+        public TcpClientIo(IPAddress address, int port, TcpClientIoOptions? tcpClientIoOptions = null, ILogger? logger = null) : base(address, port, tcpClientIoOptions, logger)
         {
         }
 
@@ -36,7 +36,7 @@ namespace Drenalol.TcpClientIo.Client
         /// <param name="tcpClient"></param>
         /// <param name="tcpClientIoOptions"></param>
         /// <param name="logger"></param>
-        public TcpClientIo(TcpClient tcpClient, TcpClientIoOptions? tcpClientIoOptions = null, ILogger<TcpClientIo<TInput, TOutput>>? logger = null) : base(tcpClient, tcpClientIoOptions, logger)
+        public TcpClientIo(TcpClient tcpClient, TcpClientIoOptions? tcpClientIoOptions = null, ILogger? logger = null) : base(tcpClient, tcpClientIoOptions, logger)
         {
         }
 

@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Drenalol.TcpClientIo.Attributes;
 using Drenalol.TcpClientIo.Extensions;
+using Drenalol.TcpClientIo.Serialization.Pipelines;
 
 namespace Drenalol.TcpClientIo.Serialization
 {

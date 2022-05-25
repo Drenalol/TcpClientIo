@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Drenalol.TcpClientIo.Batches;
 using Drenalol.TcpClientIo.Exceptions;
-using Microsoft.Extensions.Logging;
 
 namespace Drenalol.TcpClientIo.Client
 {
@@ -16,6 +15,8 @@ namespace Drenalol.TcpClientIo.Client
         {
             try
             {
+                var networkStreamPipeWriterExecutor = CreatePipeWriterExecutor(_options.PipeExecutorOptions, _networkStreamPipeWriter);
+                
                 while (true)
                 {
                     _baseCancellationToken.ThrowIfCancellationRequested();
@@ -24,7 +25,7 @@ namespace Drenalol.TcpClientIo.Client
                         continue;
 
                     var serializedRequest = await _bufferBlockRequests.ReceiveAsync(_baseCancellationToken);
-                    var writeResult = await _networkStreamPipeWriter.WriteAsync(serializedRequest.Request, _baseCancellationToken);
+                    var writeResult = await networkStreamPipeWriterExecutor.WriteAsync(serializedRequest.Request, _baseCancellationToken);
                     _arrayPool.Return(serializedRequest.RentedArray, true);
                     
                     if (writeResult.IsCanceled || writeResult.IsCompleted)
@@ -40,7 +41,7 @@ namespace Drenalol.TcpClientIo.Client
             catch (Exception exception)
             {
                 var exceptionType = exception.GetType();
-                _logger?.LogCritical("TcpWriteAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
+                _logger?.Fatal("TcpWriteAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
                 _internalException = exception;
                 throw;
             }
@@ -56,7 +57,7 @@ namespace Drenalol.TcpClientIo.Client
         {
             try
             {
-                var networkStreamPipeReaderExecutor = CreatePipeReaderExecutor(_options.PipeReaderOptions, _networkStreamPipeReader);
+                var networkStreamPipeReaderExecutor = CreatePipeReaderExecutor(_options.PipeExecutorOptions, _networkStreamPipeReader);
                 
                 while (true)
                 {
@@ -84,7 +85,7 @@ namespace Drenalol.TcpClientIo.Client
             }
             catch (Exception exception)
             {
-                _logger?.LogCritical(exception, "TcpReadAsync catch: {Message}", exception.Message);
+                _logger?.Fatal(exception, "TcpReadAsync catch: {Message}", exception.Message);
                 _internalException = exception;
                 throw;
             }
@@ -114,7 +115,7 @@ namespace Drenalol.TcpClientIo.Client
             catch (Exception exception)
             {
                 var exceptionType = exception.GetType();
-                _logger?.LogCritical("DeserializeResponseAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
+                _logger?.Fatal("DeserializeResponseAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
                 _internalException = exception;
                 throw;
             }

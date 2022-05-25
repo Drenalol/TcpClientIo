@@ -14,9 +14,10 @@ using Drenalol.TcpClientIo.Exceptions;
 using Drenalol.TcpClientIo.Extensions;
 using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Serialization;
+using Drenalol.TcpClientIo.Serialization.Pipelines;
 using Drenalol.WaitingDictionary;
-using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
+using Serilog;
 
 namespace Drenalol.TcpClientIo.Client
 {
@@ -48,7 +49,7 @@ namespace Drenalol.TcpClientIo.Client
         private readonly AsyncManualResetEvent _consumingResetEvent;
         private readonly PipeReader _deserializePipeReader;
         private readonly PipeWriter _deserializePipeWriter;
-        private readonly ILogger<TcpClientIo<TId, TInput, TOutput>>? _logger;
+        private readonly ILogger? _logger;
         private Exception? _internalException;
         private PipeReader _networkStreamPipeReader = null!;
         private PipeWriter _networkStreamPipeWriter = null!;
@@ -87,7 +88,12 @@ namespace Drenalol.TcpClientIo.Client
         /// <param name="port"></param>
         /// <param name="tcpClientIoOptions"></param>
         /// <param name="logger"></param>
-        public TcpClientIo(IPAddress address, int port, TcpClientIoOptions? tcpClientIoOptions = null, ILogger<TcpClientIo<TId, TInput, TOutput>>? logger = null) : this(tcpClientIoOptions, logger)
+        public TcpClientIo(
+            IPAddress address,
+            int port,
+            TcpClientIoOptions? tcpClientIoOptions = null,
+            ILogger? logger = null
+        ) : this(tcpClientIoOptions, logger)
         {
             _tcpClient = new TcpClient();
             _tcpClient.Connect(address, port);
@@ -101,14 +107,14 @@ namespace Drenalol.TcpClientIo.Client
         /// <param name="tcpClient"></param>
         /// <param name="tcpClientIoOptions"></param>
         /// <param name="logger"></param>
-        public TcpClientIo(TcpClient tcpClient, TcpClientIoOptions? tcpClientIoOptions = null, ILogger<TcpClientIo<TId, TInput, TOutput>>? logger = null) : this(tcpClientIoOptions, logger)
+        public TcpClientIo(TcpClient tcpClient, TcpClientIoOptions? tcpClientIoOptions = null, ILogger? logger = null) : this(tcpClientIoOptions, logger)
         {
             _tcpClient = tcpClient;
             SetupTcpClient();
             SetupTasks();
         }
 
-        private TcpClientIo(TcpClientIoOptions? tcpClientIoOptions, ILogger<TcpClientIo<TId, TInput, TOutput>>? logger)
+        private TcpClientIo(TcpClientIoOptions? tcpClientIoOptions, ILogger? logger)
         {
             var pipe = new Pipe(new PipeOptions(pauseWriterThreshold: long.MaxValue));
             Id = Guid.NewGuid();
@@ -118,17 +124,7 @@ namespace Drenalol.TcpClientIo.Client
             _baseCancellationTokenSource = new CancellationTokenSource();
             _baseCancellationToken = _baseCancellationTokenSource.Token;
             _bufferBlockRequests = new BufferBlock<SerializedRequest>();
-            var middleware = new MiddlewareBuilder<ITcpBatch<TOutput>>()
-                .RegisterCancellationActionInWait((tcs, hasOwnToken) =>
-                {
-                    if (_disposing || hasOwnToken)
-                        tcs.TrySetCanceled();
-                    else if (!_disposing && _pipelineReadEnded)
-                        tcs.TrySetException(TcpClientIoException.ConnectionBroken);
-                })
-                .RegisterDuplicateActionInSet((batch, newBatch) => _batchRules.Update(batch, newBatch.Single()))
-                .RegisterCompletionActionInSet(() => _consumingResetEvent?.Set());
-            _completeResponses = new WaitingDictionary<TId, ITcpBatch<TOutput>>(middleware);
+            _completeResponses = new WaitingDictionary<TId, ITcpBatch<TOutput>>(SetupMiddlewareBuilder());
             _arrayPool = ArrayPool<byte>.Create();
             var bitConverterHelper = new BitConverterHelper(_options);
             _serializer = new TcpSerializer<TInput>(bitConverterHelper, length => _arrayPool.Rent(length));
@@ -137,7 +133,7 @@ namespace Drenalol.TcpClientIo.Client
             _consumingResetEvent = new AsyncManualResetEvent();
             _deserializePipeReader = pipe.Reader;
             _deserializePipeWriter = pipe.Writer;
-            _deserializer = new TcpDeserializer<TId, TOutput>(bitConverterHelper, CreatePipeReaderExecutor(_options.PipeReaderOptions, _deserializePipeReader));
+            _deserializer = new TcpDeserializer<TId, TOutput>(bitConverterHelper, CreatePipeReaderExecutor(_options.PipeExecutorOptions, _deserializePipeReader));
         }
 
         private void SetupTcpClient()
@@ -145,20 +141,42 @@ namespace Drenalol.TcpClientIo.Client
             if (!_tcpClient.Connected)
                 throw new SocketException(10057);
 
-            _logger?.LogInformation("Connected to {Endpoint}", (IPEndPoint)_tcpClient.Client.RemoteEndPoint);
+            _logger?.Information("Connected to {Endpoint}", (IPEndPoint)_tcpClient.Client.RemoteEndPoint);
             _tcpClient.SendTimeout = _options.TcpClientSendTimeout;
             _tcpClient.ReceiveTimeout = _options.TcpClientReceiveTimeout;
             _networkStreamPipeReader = PipeReader.Create(_tcpClient.GetStream(), _options.StreamPipeReaderOptions);
             _networkStreamPipeWriter = PipeWriter.Create(_tcpClient.GetStream(), _options.StreamPipeWriterOptions);
         }
 
-        private PipeReaderExecutor CreatePipeReaderExecutor(PipeReaderOptions pipeReaderOptions, PipeReader pipeReader) =>
+        private PipeReaderExecutor CreatePipeReaderExecutor(PipeExecutor pipeReaderOptions, PipeReader pipeReader) =>
             pipeReaderOptions switch
             {
-                PipeReaderOptions.Default => new PipeReaderExecutor(pipeReader),
-                PipeReaderOptions.Logged => new LoggedPipeReaderExecutor(pipeReader, _logger),
+                PipeExecutor.Default => new PipeReaderExecutor(pipeReader),
+                PipeExecutor.Logging => new LoggingPipeReaderExecutor(pipeReader, _logger),
                 _ => throw new ArgumentOutOfRangeException(nameof(pipeReaderOptions), pipeReaderOptions, null)
             };
+
+        private PipeWriterExecutor CreatePipeWriterExecutor(PipeExecutor pipeReaderOptions, PipeWriter pipeWriter) =>
+            pipeReaderOptions switch
+            {
+                PipeExecutor.Default => new PipeWriterExecutor(pipeWriter),
+                PipeExecutor.Logging => new LoggingPipeWriterExecutor(pipeWriter, _logger),
+                _ => throw new ArgumentOutOfRangeException(nameof(pipeReaderOptions), pipeReaderOptions, null)
+            };
+
+        private MiddlewareBuilder<ITcpBatch<TOutput>> SetupMiddlewareBuilder() =>
+            new MiddlewareBuilder<ITcpBatch<TOutput>>() { }
+                .RegisterCancellationActionInWait(
+                    (tcs, hasOwnToken) =>
+                    {
+                        if (_disposing || hasOwnToken)
+                            tcs.TrySetCanceled();
+                        else if (!_disposing && _pipelineReadEnded)
+                            tcs.TrySetException(TcpClientIoException.ConnectionBroken);
+                    }
+                )
+                .RegisterDuplicateActionInSet((batch, newBatch) => _batchRules.Update(batch, newBatch.Single()))
+                .RegisterCompletionActionInSet(() => _consumingResetEvent?.Set());
 
         private void SetupTasks()
         {
@@ -169,12 +187,12 @@ namespace Drenalol.TcpClientIo.Client
 
         public async ValueTask DisposeAsync()
         {
-            _logger?.LogInformation("Dispose started");
+            _logger?.Information("Dispose started");
             _disposing = true;
 
             if (_baseCancellationTokenSource is { IsCancellationRequested: false })
                 _baseCancellationTokenSource.Cancel();
-            
+
             using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
             {
                 var token = cts.Token;
@@ -185,7 +203,7 @@ namespace Drenalol.TcpClientIo.Client
             _completeResponses.Dispose();
             _baseCancellationTokenSource.Dispose();
             _tcpClient.Dispose();
-            _logger?.LogInformation("Dispose ended");
+            _logger?.Information("Dispose ended");
         }
     }
 }

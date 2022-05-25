@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Drenalol.TcpClientIo.Batches;
 using Drenalol.TcpClientIo.Exceptions;
-using Microsoft.Extensions.Logging;
 
 namespace Drenalol.TcpClientIo.Client
 {
@@ -35,7 +34,7 @@ namespace Drenalol.TcpClientIo.Client
             }
             catch (Exception e)
             {
-                _logger?.LogError(e, "SendAsync catch: {Message}", e.Message);
+                _logger?.Error(e, "SendAsync catch: {Message}", e.Message);
                 throw;
             }
         }
@@ -119,7 +118,7 @@ namespace Drenalol.TcpClientIo.Client
                 }
                 catch (Exception exception)
                 {
-                    _logger?.LogCritical(exception, "GetConsumingAsyncEnumerable catch: {Message}", exception.Message);
+                    _logger?.Error(exception, "GetConsumingAsyncEnumerable catch: {Message}", exception.Message);
                     throw;
                 }
 

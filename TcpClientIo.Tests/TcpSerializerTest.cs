@@ -10,6 +10,7 @@ using Drenalol.TcpClientIo.Exceptions;
 using Drenalol.TcpClientIo.Extensions;
 using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Serialization;
+using Drenalol.TcpClientIo.Serialization.Pipelines;
 using Drenalol.TcpClientIo.Stuff;
 using NUnit.Framework;
 
