@@ -12,7 +12,7 @@ namespace Drenalol.TcpClientIo.Serialization.Pipelines
 
         public PipeReaderExecutor(PipeReader reader) => _reader = reader;
 
-        public virtual async Task<ReadResult> ReadLengthAsync(long length, CancellationToken cancellationToken = default)
+        public async Task<ReadResult> ReadLengthAsync(long length, CancellationToken cancellationToken = default)
         {
             if (length < 1)
                 throw new ArgumentOutOfRangeException(nameof(length));

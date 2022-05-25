@@ -133,7 +133,7 @@ namespace Drenalol.TcpClientIo.Client
             _consumingResetEvent = new AsyncManualResetEvent();
             _deserializePipeReader = pipe.Reader;
             _deserializePipeWriter = pipe.Writer;
-            _deserializer = new TcpDeserializer<TId, TOutput>(bitConverterHelper, CreatePipeReaderExecutor(_options.PipeExecutorOptions, _deserializePipeReader));
+            _deserializer = new TcpDeserializer<TId, TOutput>(bitConverterHelper, CreatePipeReaderExecutor(_options.PipeExecutorOptions, _deserializePipeReader, "Serializer"));
         }
 
         private void SetupTcpClient()
@@ -148,19 +148,19 @@ namespace Drenalol.TcpClientIo.Client
             _networkStreamPipeWriter = PipeWriter.Create(_tcpClient.GetStream(), _options.StreamPipeWriterOptions);
         }
 
-        private PipeReaderExecutor CreatePipeReaderExecutor(PipeExecutor pipeReaderOptions, PipeReader pipeReader) =>
+        private PipeReaderExecutor CreatePipeReaderExecutor(PipeExecutor pipeReaderOptions, PipeReader pipeReader, string? type = null) =>
             pipeReaderOptions switch
             {
                 PipeExecutor.Default => new PipeReaderExecutor(pipeReader),
-                PipeExecutor.Logging => new LoggingPipeReaderExecutor(pipeReader, _logger),
+                PipeExecutor.Logging => new LoggingPipeReaderExecutor(pipeReader, type, _logger),
                 _ => throw new ArgumentOutOfRangeException(nameof(pipeReaderOptions), pipeReaderOptions, null)
             };
 
-        private PipeWriterExecutor CreatePipeWriterExecutor(PipeExecutor pipeReaderOptions, PipeWriter pipeWriter) =>
+        private PipeWriterExecutor CreatePipeWriterExecutor(PipeExecutor pipeReaderOptions, PipeWriter pipeWriter, string? type = null) =>
             pipeReaderOptions switch
             {
                 PipeExecutor.Default => new PipeWriterExecutor(pipeWriter),
-                PipeExecutor.Logging => new LoggingPipeWriterExecutor(pipeWriter, _logger),
+                PipeExecutor.Logging => new LoggingPipeWriterExecutor(pipeWriter, type, _logger),
                 _ => throw new ArgumentOutOfRangeException(nameof(pipeReaderOptions), pipeReaderOptions, null)
             };
 

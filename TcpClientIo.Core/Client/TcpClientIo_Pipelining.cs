@@ -15,7 +15,7 @@ namespace Drenalol.TcpClientIo.Client
         {
             try
             {
-                var networkStreamPipeWriterExecutor = CreatePipeWriterExecutor(_options.PipeExecutorOptions, _networkStreamPipeWriter);
+                var networkStreamPipeWriterExecutor = CreatePipeWriterExecutor(_options.PipeExecutorOptions, _networkStreamPipeWriter, "NetworkStream");
                 
                 while (true)
                 {
@@ -57,7 +57,8 @@ namespace Drenalol.TcpClientIo.Client
         {
             try
             {
-                var networkStreamPipeReaderExecutor = CreatePipeReaderExecutor(_options.PipeExecutorOptions, _networkStreamPipeReader);
+                var networkStreamPipeReaderExecutor = CreatePipeReaderExecutor(_options.PipeExecutorOptions, _networkStreamPipeReader, "NetworkStream");
+                var deserializePipeWriterExecutor = CreatePipeWriterExecutor(_options.PipeExecutorOptions, _deserializePipeWriter, "Serializer");
                 
                 while (true)
                 {
@@ -72,7 +73,7 @@ namespace Drenalol.TcpClientIo.Client
 
                     foreach (var buffer in readResult.Buffer)
                     {
-                        await _deserializePipeWriter.WriteAsync(buffer, _baseCancellationToken);
+                        await deserializePipeWriterExecutor.WriteAsync(buffer, _baseCancellationToken);
                         Interlocked.Add(ref _bytesRead, buffer.Length);
                     }
                     
