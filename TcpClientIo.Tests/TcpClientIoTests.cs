@@ -13,8 +13,9 @@ using Drenalol.TcpClientIo.Emulator;
 using Drenalol.TcpClientIo.Exceptions;
 using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Stuff;
-using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Serilog;
+using Serilog.Events;
 
 namespace Drenalol.TcpClientIo
 {
@@ -23,7 +24,7 @@ namespace Drenalol.TcpClientIo
     {
         public static readonly IPAddress IpAddress = IPAddress.Any;
 
-        private static (TcpClientIoOptions, ILoggerFactory) GetDefaults(LogLevel logLevel)
+        private static (TcpClientIoOptions, LoggerConfiguration) GetDefaults(LogEventLevel logLevel)
         {
             var options = TcpClientIoOptions.Default;
 
@@ -36,65 +37,38 @@ namespace Drenalol.TcpClientIo
 
             options.StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 10240000);
             options.StreamPipeWriterOptions = new StreamPipeWriterOptions();
+            options.PipeExecutorOptions = PipeExecutor.Logging;
 
-            var loggerFactory = LoggerFactory.Create(lb =>
-            {
-                lb.AddFilter("Drenalol.Client.TcpClientIo.Core", logLevel);
-                lb.AddDebug();
-                lb.AddConsole();
-            });
+            var loggerFactory = new LoggerConfiguration()
+                .WriteTo.Debug()
+                .WriteTo.TextWriter(TestContext.Out)
+                .MinimumLevel.Is(logLevel)
+                .Enrich.FromLogContext();
 
             return (options, loggerFactory);
         }
 
-        public static TcpClientIo<TId, T, TR> GetClient<TId, T, TR>(IPAddress ipAddress = null, int port = 10000, LogLevel logLevel = LogLevel.Warning) where TR : new() where TId : struct
+        public static TcpClientIo<TId, T, TR> GetClient<TId, T, TR>(IPAddress ipAddress = null, int port = 10000, LogEventLevel logLevel = LogEventLevel.Warning) where TR : new() where TId : struct
         {
             var (options, loggerFactory) = GetDefaults(logLevel);
-            return new TcpClientIo<TId, T, TR>(ipAddress ?? IpAddress, port, options, loggerFactory.CreateLogger<TcpClientIo<TId, T, TR>>());
+            return new TcpClientIo<TId, T, TR>(ipAddress ?? IpAddress, port, options, loggerFactory.CreateLogger());
         }
 
-        public static TcpClientIo<T, TR> GetClient<T, TR>(IPAddress ipAddress = null, int port = 10000, LogLevel logLevel = LogLevel.Warning) where TR : new()
+        public static TcpClientIo<T, TR> GetClient<T, TR>(IPAddress ipAddress = null, int port = 10000, LogEventLevel logLevel = LogEventLevel.Warning) where TR : new()
         {
             var (options, loggerFactory) = GetDefaults(logLevel);
-            return new TcpClientIo<T, TR>(ipAddress ?? IpAddress, port, options, loggerFactory.CreateLogger<TcpClientIo<T, TR>>());
+            return new TcpClientIo<T, TR>(ipAddress ?? IpAddress, port, options, loggerFactory.CreateLogger());
         }
 
         [Test]
         public async Task SingleSendReceiveTest()
         {
-            var tcpClient = GetClient<long, Mock, Mock>();
+            var tcpClient = GetClient<long, Mock, Mock>(logLevel: LogEventLevel.Debug);
             var request = Mock.Default();
             await tcpClient.SendAsync(request);
             var batch = await tcpClient.ReceiveAsync(1337L);
             var response = batch.First();
             Assert.IsTrue(request.Equals(response));
-            await tcpClient.DisposeAsync();
-        }
-
-        [Test]
-        public async Task SingleSendReceiveComposePrimitiveTypeTest()
-        {
-            var tcpClient = GetClient<long, RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<int>>>>>, RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<int>>>>>>();
-            var request = RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<int>>>>>.Create(
-                RecursiveMock<RecursiveMock<RecursiveMock<RecursiveMock<int>>>>.Create(
-                    RecursiveMock<RecursiveMock<RecursiveMock<int>>>.Create(
-                        RecursiveMock<RecursiveMock<int>>.Create(
-                            RecursiveMock<int>.Create(
-                                int.MaxValue
-                            )
-                        )
-                    )
-                )
-            );
-            await tcpClient.SendAsync(request);
-            var batch = await tcpClient.ReceiveAsync(1337L);
-            var response = batch.First();
-            Assert.NotNull(response);
-            Assert.NotNull(response.Data);
-            Assert.NotNull(response.Data.Data);
-            Assert.NotNull(response.Data.Data.Data);
-            Assert.NotNull(response.Data.Data.Data.Data);
-            Assert.AreEqual(response.Data.Data.Data.Data.Data, int.MaxValue);
             await tcpClient.DisposeAsync();
         }
 

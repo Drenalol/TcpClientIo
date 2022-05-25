@@ -1,10 +1,10 @@
 using System;
 using System.Buffers;
-using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
 using Drenalol.TcpClientIo.Attributes;
 using Drenalol.TcpClientIo.Extensions;
+using Drenalol.TcpClientIo.Serialization.Pipelines;
 
 namespace Drenalol.TcpClientIo.Serialization
 {
@@ -12,25 +12,27 @@ namespace Drenalol.TcpClientIo.Serialization
     {
         private readonly ReflectionHelper _reflection;
         private readonly BitConverterHelper _bitConverter;
+        private readonly PipeReaderExecutor _pipeReaderExecutor;
 
-        public TcpDeserializer(BitConverterHelper bitConverterHelper)
+        public TcpDeserializer(BitConverterHelper bitConverterHelper, PipeReaderExecutor pipeReaderExecutor)
         {
             _bitConverter = bitConverterHelper;
-            _reflection = new ReflectionHelper(typeof(TData), null, bitConverterHelper, typeof(TId));
+            _pipeReaderExecutor = pipeReaderExecutor;
+            _reflection = new ReflectionHelper(typeof(TData));
         }
 
-        public async Task<(TId, TData)> DeserializeAsync(PipeReader pipeReader, CancellationToken token)
+        public async Task<(TId, TData)> DeserializePipeAsync(CancellationToken token)
         {
             TData data;
             TId id;
 
-            var metaReadResult = await pipeReader.ReadLengthAsync(_reflection.MetaLength, token);
+            var metaReadResult = await _pipeReaderExecutor.ReadLengthAsync(_reflection.MetaLength, token);
 
             if (_reflection.LengthProperty == null)
             {
                 var sequence = metaReadResult.Slice(_reflection.MetaLength);
                 (id, data) = Deserialize(sequence);
-                pipeReader.Consume(sequence.GetPosition(_reflection.MetaLength));
+                _pipeReaderExecutor.Consume(sequence.GetPosition(_reflection.MetaLength));
             }
             else
             {
@@ -45,19 +47,19 @@ namespace Drenalol.TcpClientIo.Serialization
                     sequence = metaReadResult.Slice(totalLength);
                 else
                 {
-                    pipeReader.Examine(metaReadResult.Buffer.Start, metaReadResult.Buffer.GetPosition(_reflection.MetaLength));
-                    var totalReadResult = await pipeReader.ReadLengthAsync(totalLength, token);
+                    _pipeReaderExecutor.Examine(metaReadResult.Buffer.Start, metaReadResult.Buffer.GetPosition(_reflection.MetaLength));
+                    var totalReadResult = await _pipeReaderExecutor.ReadLengthAsync(totalLength, token);
                     sequence = totalReadResult.Slice(totalLength);
                 }
 
                 (id, data) = Deserialize(sequence, lengthValue);
-                pipeReader.Consume(sequence.GetPosition(totalLength));
+                _pipeReaderExecutor.Consume(sequence.GetPosition(totalLength));
             }
 
             return (id, data);
         }
 
-        public (TId, TData) Deserialize(in ReadOnlySequence<byte> sequence, object preKnownLength = null)
+        public (TId, TData) Deserialize(in ReadOnlySequence<byte> sequence, object? preKnownLength = null)
         {
             var data = new TData();
             TId id = default;
@@ -86,15 +88,12 @@ namespace Drenalol.TcpClientIo.Serialization
                     TcpDataType.Id => property.Attribute.Length,
                     TcpDataType.Length => property.Attribute.Length,
                     TcpDataType.Body => length,
-                    TcpDataType.Compose => length,
                     _ => throw new ArgumentOutOfRangeException()
                 };
 
                 var slice = sequence.Slice(propertyIndex, sliceLength);
 
-                value = property.Attribute.TcpDataType == TcpDataType.Compose && !property.PropertyType.IsPrimitive
-                    ? property.Composition.Deserialize(slice)
-                    : _bitConverter.ConvertFromBytes(slice, property.PropertyType, property.Attribute.Reverse);
+                value = _bitConverter.ConvertFromBytes(slice, property.PropertyType, property.Attribute.Reverse);
 
                 if (property.Attribute.TcpDataType == TcpDataType.Id)
                     id = (TId) value;

@@ -7,20 +7,19 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Drenalol.TcpClientIo.Batches;
 using Drenalol.TcpClientIo.Exceptions;
-using Microsoft.Extensions.Logging;
 
 namespace Drenalol.TcpClientIo.Client
 {
-    public partial class TcpClientIo<TId, TRequest, TResponse>
+    public partial class TcpClientIo<TId, TInput, TOutput>
     {
         /// <summary>
         /// Serialize and sends data asynchronously to a connected <see cref="TcpClientIo{TRequest,TResponse}"/> object.
         /// </summary>
-        /// <param name="request"></param>
+        /// <param name="input"></param>
         /// <param name="token"></param>
         /// <returns><see cref="bool"/></returns>
         /// <exception cref="TcpClientIoException"></exception>
-        public async Task<bool> SendAsync(TRequest request, CancellationToken token = default)
+        public async Task<bool> SendAsync(TInput input, CancellationToken token = default)
         {
             try
             {
@@ -30,12 +29,12 @@ namespace Drenalol.TcpClientIo.Client
                 if (!_disposing && _pipelineWriteEnded)
                     throw TcpClientIoException.ConnectionBroken;
 
-                var serializedRequest = _serializer.Serialize(request);
+                var serializedRequest = _serializer.Serialize(input);
                 return await _bufferBlockRequests.SendAsync(serializedRequest, token == default ? _baseCancellationToken : token);
             }
             catch (Exception e)
             {
-                _logger?.LogError($"{nameof(SendAsync)} Got {e.GetType()}: {e.Message}");
+                _logger?.Error(e, "SendAsync catch: {Message}", e.Message);
                 throw;
             }
         }
@@ -47,7 +46,7 @@ namespace Drenalol.TcpClientIo.Client
         /// <param name="token"></param>
         /// <returns><see cref="ITcpBatch{TResponse}"/></returns>
         /// <exception cref="TcpClientIoException"></exception>
-        public async Task<ITcpBatch<TResponse>> ReceiveAsync(TId responseId, CancellationToken token = default)
+        public async Task<ITcpBatch<TOutput>> ReceiveAsync(TId responseId, CancellationToken token = default)
         {
             if (_disposing)
                 throw new ObjectDisposedException(nameof(_tcpClient));
@@ -66,7 +65,7 @@ namespace Drenalol.TcpClientIo.Client
         /// <returns></returns>
         /// <exception cref="OperationCanceledException">If the <see cref="CancellationToken"/> is canceled.</exception>
         /// <exception cref="TcpClientIoException"></exception>
-        public async IAsyncEnumerable<ITcpBatch<TResponse>> GetConsumingAsyncEnumerable([EnumeratorCancellation] CancellationToken token = default)
+        public async IAsyncEnumerable<ITcpBatch<TOutput>> GetConsumingAsyncEnumerable([EnumeratorCancellation] CancellationToken token = default)
         {
             CancellationTokenSource? internalCts = null;
             CancellationToken internalToken;
@@ -81,7 +80,7 @@ namespace Drenalol.TcpClientIo.Client
 
             while (!internalToken.IsCancellationRequested)
             {
-                IList<ITcpBatch<TResponse>> result;
+                IList<ITcpBatch<TOutput>> result;
 
                 try
                 {
@@ -98,7 +97,7 @@ namespace Drenalol.TcpClientIo.Client
                         continue;
                     }
 
-                    result = new List<ITcpBatch<TResponse>>();
+                    result = new List<ITcpBatch<TOutput>>();
 
                     foreach (var (key, tcs) in completedResponses)
                     {
@@ -119,7 +118,7 @@ namespace Drenalol.TcpClientIo.Client
                 }
                 catch (Exception exception)
                 {
-                    _logger?.LogCritical($"{nameof(GetConsumingAsyncEnumerable)} Got {exception.GetType()}, {exception}");
+                    _logger?.Error(exception, "GetConsumingAsyncEnumerable catch: {Message}", exception.Message);
                     throw;
                 }
 
@@ -140,7 +139,7 @@ namespace Drenalol.TcpClientIo.Client
         /// <returns></returns>
         /// <exception cref="OperationCanceledException">If the <see cref="CancellationToken"/> is canceled.</exception>
         /// <exception cref="TcpClientIoException"></exception>
-        public async IAsyncEnumerable<TResponse> GetExpandableConsumingAsyncEnumerable([EnumeratorCancellation] CancellationToken token = default)
+        public async IAsyncEnumerable<TOutput> GetExpandableConsumingAsyncEnumerable([EnumeratorCancellation] CancellationToken token = default)
         {
             await foreach (var batch in GetConsumingAsyncEnumerable(token))
             {

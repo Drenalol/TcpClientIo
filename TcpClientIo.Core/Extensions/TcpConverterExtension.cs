@@ -14,7 +14,7 @@ namespace Drenalol.TcpClientIo.Extensions
                 return true;
             }
 
-            result = null;
+            result = null!;
             return false;
         }
 
@@ -26,7 +26,7 @@ namespace Drenalol.TcpClientIo.Extensions
                 return true;
             }
 
-            result = default;
+            result = default!;
             return false;
         }
     }

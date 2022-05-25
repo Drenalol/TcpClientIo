@@ -21,7 +21,7 @@ namespace Drenalol.TcpClientIo.Exceptions
         internal static TcpException PropertyArgumentIsNull(string propertyName) =>
             new TcpException($"NULL value cannot be converted ({propertyName})");
 
-        internal static TcpException PropertyCanReadWrite(string type, string attributeType, string attributeIndex = null) =>
+        internal static TcpException PropertyCanReadWrite(string type, string attributeType, string? attributeIndex = null) =>
             new TcpException($"Set and Get keywords required for Serializtion. Type: {type}, {nameof(TcpDataType)}: {attributeType}, {(attributeType == nameof(TcpDataType.MetaData) ? $"Index: {attributeIndex}" : null)}");
 
         internal static TcpException ConverterNotFoundType(string propertyName) =>
@@ -37,18 +37,12 @@ namespace Drenalol.TcpClientIo.Exceptions
             new TcpException($"In {type} {nameof(TcpDataType)}.{attribute} could not work without {nameof(TcpDataType)}.{nameof(TcpDataType.Length)}");
 
         internal static TcpException AttributeRequiredWithLength(string type) =>
-            new TcpException($"In {type} {nameof(TcpDataType)}.{nameof(TcpDataType.Length)} could not work without {nameof(TcpDataType)}.{nameof(TcpDataType.Body)} or {nameof(TcpDataType)}.{nameof(TcpDataType.Compose)}");
+            new TcpException($"In {type} {nameof(TcpDataType)}.{nameof(TcpDataType.Length)} could not work without {nameof(TcpDataType)}.{nameof(TcpDataType.Body)}");
 
         internal static TcpException AttributeDuplicate(string type, string attributeType) =>
             new TcpException($"{type} could not work with multiple {attributeType}");
 
         internal static TcpException SerializerBodyPropertyIsNull() =>
             new TcpException($"Value of {nameof(TcpDataType)}.{nameof(TcpDataType.Body)} is Null");
-
-        internal static TcpException SerializerComposePropertyIsNull() =>
-            new TcpException($"Value of {nameof(TcpDataType)}.{nameof(TcpDataType.Compose)} is Null");
-
-        internal static TcpException AttributeBodyAndComposeViolated(string type) =>
-            new TcpException($"In {type} found {nameof(TcpDataType)}.{nameof(TcpDataType.Body)} and {nameof(TcpDataType)}.{nameof(TcpDataType.Compose)} at the same time");
     }
 }

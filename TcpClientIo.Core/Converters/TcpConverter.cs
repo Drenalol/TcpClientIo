@@ -12,7 +12,7 @@ namespace Drenalol.TcpClientIo.Converters
     {
         public sealed override byte[] ConvertTo(object input)
         {
-            if (input != null && input is T genericInput)
+            if (input is T genericInput)
                 return Convert(genericInput);
 
             throw new ArgumentException(nameof(input));
@@ -22,8 +22,8 @@ namespace Drenalol.TcpClientIo.Converters
 
         public sealed override object ConvertBackTo(ReadOnlySpan<byte> input)
         {
-            if (input != null)
-                return ConvertBack(input);
+            if (input != default)
+                return ConvertBack(input)!;
             
             throw new ArgumentException(nameof(input));
         }

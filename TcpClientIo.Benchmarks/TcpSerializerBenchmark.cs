@@ -25,7 +25,7 @@ namespace TcpClientIo.Benchmarks
             _arrayPool = ArrayPool<byte>.Create();
             var helper = new BitConverterHelper(TcpClientIoOptions.Default.RegisterConverter(new TcpUtf8StringConverter()));
             _serializer = new TcpSerializer<Mock>(helper, l => _arrayPool.Rent(l));
-            _deserializer = new TcpDeserializer<long, Mock>(helper);
+            _deserializer = new TcpDeserializer<long, Mock>(helper, null!);
         }
 
         [Benchmark]

@@ -11,45 +11,25 @@ namespace Drenalol.TcpClientIo.Serialization
     {
         public IReadOnlyList<TcpProperty> Properties { get; }
         public int MetaLength { get; }
-        public TcpProperty BodyProperty { get; }
-        public TcpProperty LengthProperty { get; }
-        public TcpProperty ComposeProperty { get; }
+        public TcpProperty? BodyProperty { get; }
+        public TcpProperty? LengthProperty { get; }
 
-        public ReflectionHelper(Type typeData, Func<int, byte[]> byteArrayFactory, BitConverterHelper bitConverterHelper, Type typeId = null)
+        public ReflectionHelper(Type typeData)
         {
             EnsureTypeHasRequiredAttributes(typeData);
-            Properties = GetTypeProperties(typeData, byteArrayFactory, bitConverterHelper, typeId);
+            Properties = GetTypeProperties(typeData);
             MetaLength = Properties.Sum(p => p.Attribute.Length);
             LengthProperty = Properties.SingleOrDefault(p => p.Attribute.TcpDataType == TcpDataType.Length);
             BodyProperty = Properties.SingleOrDefault(p => p.Attribute.TcpDataType == TcpDataType.Body);
-            ComposeProperty = Properties.SingleOrDefault(p => p.Attribute.TcpDataType == TcpDataType.Compose);
         }
 
-        private static List<TcpProperty> GetTypeProperties(Type typeData, Func<int, byte[]> byteArrayFactory, BitConverterHelper bitConverterHelper, Type typeId = null)
-        {
-            var tcpProperties = new List<TcpProperty>();
-
-            foreach (var property in typeData.GetProperties())
-            {
-                var attribute = GetTcpDataAttribute(property);
-
-                if (attribute == null)
-                    continue;
-
-                TcpProperty tcpProperty;
-                if (attribute.TcpDataType == TcpDataType.Compose && !property.PropertyType.IsPrimitive)
-                {
-                    var tcpComposition = new TcpComposition(property.PropertyType, byteArrayFactory, bitConverterHelper, typeId);
-                    tcpProperty = new TcpProperty(property, attribute, typeData, tcpComposition);
-                }
-                else
-                    tcpProperty = new TcpProperty(property, attribute, typeData);
-
-                tcpProperties.Add(tcpProperty);
-            }
-
-            return tcpProperties;
-        }
+        private static List<TcpProperty> GetTypeProperties(Type typeData) =>
+            typeData
+                .GetProperties()
+                .Select(property => (Property: property, Attribute: GetTcpDataAttribute(property)))
+                .Where(tuple => tuple.Attribute != null)
+                .Select(tuple => new TcpProperty(tuple.Property, tuple.Attribute, typeData))
+                .ToList();
 
         private static void EnsureTypeHasRequiredAttributes(Type typeData)
         {
@@ -68,16 +48,8 @@ namespace Drenalol.TcpClientIo.Serialization
             if (body.Count > 1)
                 throw TcpException.AttributeDuplicate(typeData.ToString(), nameof(TcpDataType.Body));
 
-            if (body.Count == 1 && !CanReadWrite(body.Single()))
+            if (body.Count == 1 && !CanReadWrite(body[0]))
                 throw TcpException.PropertyCanReadWrite(typeData.ToString(), nameof(TcpDataType.Body));
-
-            var compose = properties.Where(item => GetTcpDataAttribute(item).TcpDataType == TcpDataType.Compose).ToList();
-
-            if (compose.Count > 1)
-                throw TcpException.AttributeDuplicate(typeData.ToString(), nameof(TcpDataType.Compose));
-
-            if (body.Count == 1 && compose.Count == 1)
-                throw TcpException.AttributeBodyAndComposeViolated(typeData.ToString());
 
             var length = properties.Where(item => GetTcpDataAttribute(item).TcpDataType == TcpDataType.Length).ToList();
 
@@ -89,15 +61,6 @@ namespace Drenalol.TcpClientIo.Serialization
                 // ReSharper disable once ConvertIfStatementToSwitchStatement
                 if (length.Count == 0)
                     throw TcpException.AttributeLengthRequired(typeData.ToString(), nameof(TcpDataType.Body));
-
-                if (length.Count == 1 && !CanReadWrite(length.Single()))
-                    throw TcpException.PropertyCanReadWrite(typeData.ToString(), nameof(TcpDataType.Length));
-            }
-            else if (compose.Count == 1)
-            {
-                // ReSharper disable once ConvertIfStatementToSwitchStatement
-                if (length.Count == 0)
-                    throw TcpException.AttributeLengthRequired(typeData.ToString(), nameof(TcpDataType.Compose));
 
                 if (length.Count == 1 && !CanReadWrite(length.Single()))
                     throw TcpException.PropertyCanReadWrite(typeData.ToString(), nameof(TcpDataType.Length));
@@ -116,10 +79,6 @@ namespace Drenalol.TcpClientIo.Serialization
             static bool CanReadWrite(PropertyInfo property) => property.CanRead && property.CanWrite;
         }
 
-        private static TcpDataAttribute GetTcpDataAttribute(ICustomAttributeProvider property)
-            => property
-                .GetCustomAttributes(true)
-                .OfType<TcpDataAttribute>()
-                .SingleOrDefault();
+        private static TcpDataAttribute GetTcpDataAttribute(MemberInfo property) => property.GetCustomAttribute<TcpDataAttribute>(true);
     }
 }
