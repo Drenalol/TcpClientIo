@@ -20,7 +20,7 @@ namespace Drenalol.TcpClientIo.Serialization
             _propertyInfo = propertyInfo;
         }
 
-        public object Get(object input) => _propertyInfo.GetValue(input);
+        public object? Get(object input) => _propertyInfo.GetValue(input);
 
         public object Set(object input, object value)
         {

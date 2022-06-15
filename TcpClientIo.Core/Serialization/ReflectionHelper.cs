@@ -28,14 +28,14 @@ namespace Drenalol.TcpClientIo.Serialization
                 .GetProperties()
                 .Select(property => (Property: property, Attribute: GetTcpDataAttribute(property)))
                 .Where(tuple => tuple.Attribute != null)
-                .Select(tuple => new TcpProperty(tuple.Property, tuple.Attribute, typeData))
+                .Select(tuple => new TcpProperty(tuple.Property, tuple.Attribute!, typeData))
                 .ToList();
 
         private static void EnsureTypeHasRequiredAttributes(Type typeData)
         {
             var properties = typeData.GetProperties();
 
-            var key = properties.Where(item => GetTcpDataAttribute(item).TcpDataType == TcpDataType.Id).ToList();
+            var key = properties.Where(item => GetTcpDataAttribute(item)?.TcpDataType == TcpDataType.Id).ToList();
 
             if (key.Count > 1)
                 throw TcpException.AttributeDuplicate(typeData.ToString(), nameof(TcpDataType.Id));
@@ -43,7 +43,7 @@ namespace Drenalol.TcpClientIo.Serialization
             if (key.Count == 1 && !CanReadWrite(key.Single()))
                 throw TcpException.PropertyCanReadWrite(typeData.ToString(), nameof(TcpDataType.Id));
 
-            var body = properties.Where(item => GetTcpDataAttribute(item).TcpDataType == TcpDataType.Body).ToList();
+            var body = properties.Where(item => GetTcpDataAttribute(item)?.TcpDataType == TcpDataType.Body).ToList();
 
             if (body.Count > 1)
                 throw TcpException.AttributeDuplicate(typeData.ToString(), nameof(TcpDataType.Body));
@@ -51,7 +51,7 @@ namespace Drenalol.TcpClientIo.Serialization
             if (body.Count == 1 && !CanReadWrite(body[0]))
                 throw TcpException.PropertyCanReadWrite(typeData.ToString(), nameof(TcpDataType.Body));
 
-            var length = properties.Where(item => GetTcpDataAttribute(item).TcpDataType == TcpDataType.Length).ToList();
+            var length = properties.Where(item => GetTcpDataAttribute(item)?.TcpDataType == TcpDataType.Length).ToList();
 
             if (length.Count > 1)
                 throw TcpException.AttributeDuplicate(typeData.ToString(), nameof(TcpDataType.Length));
@@ -68,17 +68,17 @@ namespace Drenalol.TcpClientIo.Serialization
             else if (length.Count == 1)
                 throw TcpException.AttributeRequiredWithLength(typeData.ToString());
             
-            var metaData = properties.Where(item => GetTcpDataAttribute(item).TcpDataType == TcpDataType.MetaData).ToList();
+            var metaData = properties.Where(item => GetTcpDataAttribute(item)?.TcpDataType == TcpDataType.MetaData).ToList();
 
             if (key.Count == 0 && length.Count == 0 && body.Count == 0 && metaData.Count == 0)
                 throw TcpException.AttributesRequired(typeData.ToString());
 
             foreach (var item in metaData.Where(item => !CanReadWrite(item)))
-                throw TcpException.PropertyCanReadWrite(typeData.ToString(), nameof(TcpDataType.MetaData), GetTcpDataAttribute(item).Index.ToString());
+                throw TcpException.PropertyCanReadWrite(typeData.ToString(), nameof(TcpDataType.MetaData), GetTcpDataAttribute(item)?.Index.ToString());
 
             static bool CanReadWrite(PropertyInfo property) => property.CanRead && property.CanWrite;
         }
 
-        private static TcpDataAttribute GetTcpDataAttribute(MemberInfo property) => property.GetCustomAttribute<TcpDataAttribute>(true);
+        private static TcpDataAttribute? GetTcpDataAttribute(MemberInfo property) => property.GetCustomAttribute<TcpDataAttribute>(true);
     }
 }

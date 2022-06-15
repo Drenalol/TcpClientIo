@@ -4,7 +4,7 @@ using Drenalol.TcpClientIo.Exceptions;
 
 namespace Drenalol.TcpClientIo.Serialization
 {
-    internal class TcpSerializer<TData>
+    internal class TcpSerializer<TData> where TData : notnull
     {
         private readonly Func<int, byte[]> _byteArrayFactory;
         private readonly ReflectionHelper _reflection;

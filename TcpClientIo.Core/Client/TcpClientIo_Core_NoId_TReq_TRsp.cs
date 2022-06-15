@@ -17,7 +17,7 @@ namespace Drenalol.TcpClientIo.Client
     /// <typeparam name="TInput"></typeparam>
     /// <typeparam name="TOutput"></typeparam>
     [DebuggerDisplay("Id: {Id,nq}, Requests: {Requests,nq}, Waiters: {Waiters,nq}")]
-    public class TcpClientIo<TInput, TOutput> : TcpClientIo<int, TInput, TOutput> where TOutput : new()
+    public class TcpClientIo<TInput, TOutput> : TcpClientIo<int, TInput, TOutput> where TOutput : new() where TInput : notnull
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="TcpClientIo{TId, TRequestResponse}"/> class and connects to the specified port on the specified host.
