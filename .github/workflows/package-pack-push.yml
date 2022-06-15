@@ -13,7 +13,7 @@ jobs:
     - name: Setup .NET Core
       uses: actions/setup-dotnet@master
       with:
-        dotnet-version: 5.0.x
+        dotnet-version: 6.0.x
     - name: Pack
       run: dotnet pack --configuration Release -o "./packages" TcpClientIo.Core
     - name: Publish NuGet
