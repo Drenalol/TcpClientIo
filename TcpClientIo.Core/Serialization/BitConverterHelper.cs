@@ -19,36 +19,40 @@ namespace Drenalol.TcpClientIo.Serialization
         public BitConverterHelper(TcpClientIoOptions options)
         {
             _options = options;
-            _customConverters = options.Converters.Select(converter =>
-            {
-                var converterType = converter.GetType();
-                var type = converterType.BaseType;
+            _customConverters = options.Converters.Select(
+                converter =>
+                {
+                    var converterType = converter.GetType();
+                    var type = converterType.BaseType;
 
-                if (type == null)
-                    throw TcpClientIoException.ConverterError(converterType.Name);
+                    if (type == null)
+                        throw TcpClientIoException.ConverterError(converterType.Name);
 
-                var genericType = type.GenericTypeArguments.Single();
-                return new KeyValuePair<Type, TcpConverter>(genericType, converter);
-            }).ToDictionary(pair => pair.Key, pair => pair.Value);
-            
+                    var genericType = type.GenericTypeArguments.Single();
+                    return new KeyValuePair<Type, TcpConverter>(genericType, converter);
+                }
+            ).ToDictionary(pair => pair.Key, pair => pair.Value);
+
             _builtInConvertersToBytes = new Dictionary<Type, MethodInfo>
             {
-                {typeof(bool), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(bool)})},
-                {typeof(char), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(char)})},
-                {typeof(double), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(double)})},
-                {typeof(short), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(short)})},
-                {typeof(int), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(int)})},
-                {typeof(long), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(long)})},
-                {typeof(float), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(float)})},
-                {typeof(ushort), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(ushort)})},
-                {typeof(uint), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(uint)})},
-                {typeof(ulong), typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] {typeof(ulong)})}
+                { typeof(bool), GetMethod(typeof(bool)) },
+                { typeof(char), GetMethod(typeof(char)) },
+                { typeof(double), GetMethod(typeof(double)) },
+                { typeof(short), GetMethod(typeof(short)) },
+                { typeof(int), GetMethod(typeof(int)) },
+                { typeof(long), GetMethod(typeof(long)) },
+                { typeof(float), GetMethod(typeof(float)) },
+                { typeof(ushort), GetMethod(typeof(ushort)) },
+                { typeof(uint), GetMethod(typeof(uint)) },
+                { typeof(ulong), GetMethod(typeof(ulong)) }
             };
+
+            MethodInfo GetMethod(Type type) => typeof(BitConverter).GetMethod(nameof(BitConverter.GetBytes), new[] { type }) ?? throw new MissingMethodException();
         }
 
         private static byte[] Reverse(byte[] bytes)
         {
-            ((Span<byte>) bytes).Reverse();
+            ((Span<byte>)bytes).Reverse();
             return bytes;
         }
 
@@ -57,7 +61,7 @@ namespace Drenalol.TcpClientIo.Serialization
             if (!reverse && sequences.IsSingleSegment)
                 return Sequence.Create(sequences.FirstSpan, null);
 
-            var sequencesLength = (int) sequences.Length;
+            var sequencesLength = (int)sequences.Length;
             var bytes = ArrayPool<byte>.Shared.Rent(sequencesLength);
             var span = new Span<byte>(bytes, 0, sequencesLength);
             sequences.CopyTo(span);
@@ -68,14 +72,14 @@ namespace Drenalol.TcpClientIo.Serialization
             return Sequence.Create(span, () => ArrayPool<byte>.Shared.Return(bytes));
         }
 
-        public byte[] ConvertToBytes(object propertyValue, Type propertyType, bool? reverse = null)
+        public byte[] ConvertToBytes(object? propertyValue, Type propertyType, bool? reverse = null)
         {
             switch (propertyValue)
             {
                 case null:
                     throw TcpException.PropertyArgumentIsNull(propertyType.ToString());
                 case byte @byte:
-                    return new[] {@byte};
+                    return new[] { @byte };
                 case byte[] byteArray:
                     return reverse.GetValueOrDefault() ? Reverse(byteArray) : byteArray;
                 default:
@@ -87,7 +91,7 @@ namespace Drenalol.TcpClientIo.Serialization
                         if (!_builtInConvertersToBytes.TryGetValue(propertyType, out var methodInfo))
                             throw TcpException.ConverterNotFoundType(propertyType.ToString());
 
-                        result = (byte[]) methodInfo.Invoke(null, new[] {propertyValue});
+                        result = (byte[])methodInfo.Invoke(null, new[] { propertyValue })!;
                         return reverse ?? _options.PrimitiveValueReverse ? Reverse(result) : result;
                     }
                     catch (Exception exception) when (!(exception is TcpException))

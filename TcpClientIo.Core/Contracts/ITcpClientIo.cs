@@ -9,5 +9,6 @@ namespace Drenalol.TcpClientIo.Contracts
         long BytesRead { get; }
         int Waiters { get; }
         int Requests { get; }
+        bool IsBroken { get; }
     }
 }

@@ -14,13 +14,20 @@ namespace Drenalol.TcpClientIo.Serialization.Pipelines
         public LoggingPipeWriterExecutor(PipeWriter pipeWriter, string? type, ILogger? logger) : base(pipeWriter)
         {
             _type = type ?? throw new ArgumentNullException(nameof(type));
-            _logger = logger?.ForContext(GetType()) ?? throw new ArgumentNullException(nameof(logger), "Logger is not configured");
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger), "Logger is not configured");
         }
 
         public override async ValueTask<FlushResult> WriteAsync(ReadOnlyMemory<byte> source, CancellationToken cancellationToken = default)
         {
             var flushResult = await base.WriteAsync(source, cancellationToken);
-            _logger.Debug("[{Type:l}] Send: Length: {Length}, IsCanceled: {IsCanceled}, IsCompleted: {IsCompleted}", _type, source.Length, flushResult.IsCanceled, flushResult.IsCompleted);
+            
+            _logger.Information(
+                "[{Type:l}] Send: Length: {Length}, IsCanceled: {IsCanceled}, IsCompleted: {IsCompleted}",
+                _type,
+                source.Length,
+                flushResult.IsCanceled,
+                flushResult.IsCompleted
+            );
 
             return flushResult;
         }
