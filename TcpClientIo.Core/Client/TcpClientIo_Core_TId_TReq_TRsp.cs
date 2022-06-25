@@ -84,7 +84,7 @@ namespace Drenalol.TcpClientIo.Client
         /// <summary>
         /// Gets the status of connection.
         /// </summary>
-        public bool IsBroken => _pipelineReadEnded || _pipelineWriteEnded;
+        public bool IsBroken => _pipelineReadEnded || _pipelineWriteEnded || !_tcpClient.Connected;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TcpClientIo{TRequest,TResponse}"/> class and connects to the specified port on the specified host.
