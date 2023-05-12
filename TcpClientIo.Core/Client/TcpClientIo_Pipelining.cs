@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO.Pipelines;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,16 +23,24 @@ namespace Drenalol.TcpClientIo.Client
                     _baseCancellationToken.ThrowIfCancellationRequested();
 
                     if (!await _bufferBlockRequests.OutputAvailableAsync(_baseCancellationToken))
-                        continue;
+                        break;
 
-                    var serializedRequest = await _bufferBlockRequests.ReceiveAsync(_baseCancellationToken);
-                    var writeResult = await networkStreamPipeWriterExecutor.WriteAsync(serializedRequest.Request, _baseCancellationToken);
-                    _arrayPool.Return(serializedRequest.RentedArray, true);
-                    
+                    var request = await _bufferBlockRequests.ReceiveAsync(_baseCancellationToken);
+
+                    FlushResult writeResult;
+
+                    try
+                    {
+                        writeResult = await networkStreamPipeWriterExecutor.WriteAsync(request.Raw, _baseCancellationToken);
+                    }
+                    finally
+                    {
+                        Interlocked.Add(ref _bytesWrite, request.Raw.Length);
+                        request.ReturnRentedArray(_arrayPool, true);
+                    }
+
                     if (writeResult.IsCanceled || writeResult.IsCompleted)
                         break;
-                    
-                    Interlocked.Add(ref _bytesWrite, serializedRequest.Request.Length);
                 }
             }
             catch (OperationCanceledException canceledException)
@@ -128,7 +137,7 @@ namespace Drenalol.TcpClientIo.Client
 
         private void StopDeserializeWriterReader(Exception? exception)
         {
-            Debug.WriteLine("Completion Deserializer PipeWriter and PipeReader started");
+            Diag("Completion Deserializer PipeWriter and PipeReader started");
             _deserializePipeWriter.CancelPendingFlush();
             _deserializePipeReader.CancelPendingRead();
 
@@ -140,21 +149,21 @@ namespace Drenalol.TcpClientIo.Client
             
             if (!_baseCancellationTokenSource.IsCancellationRequested)
             {
-                Debug.WriteLine("Cancelling _baseCancellationTokenSource from StopDeserializeWriterReader");
+                Diag("Cancelling _baseCancellationTokenSource from StopDeserializeWriterReader");
                 _baseCancellationTokenSource.Cancel();
             }
 
-            Debug.WriteLine("Completion Deserializer PipeWriter and PipeReader ended");
+            Diag("Completion Deserializer PipeWriter and PipeReader ended");
         }
 
         private void StopReader(Exception? exception)
         {
-            Debug.WriteLine("Completion NetworkStream PipeReader started");
+            Diag("Completion NetworkStream PipeReader started");
 
             foreach (var completedResponse in _completeResponses.Where(tcs => tcs.Value.Task.Status == TaskStatus.WaitingForActivation))
             {
                 var innerException = exception ?? TcpClientIoException.ConnectionBroken;
-                Debug.WriteLine($"Set force {innerException.GetType()} in {nameof(TaskCompletionSource<ITcpBatch<TOutput>>)} in {nameof(TaskStatus.WaitingForActivation)}");
+                Diag($"Set force {innerException.GetType()} in {nameof(TaskCompletionSource<ITcpBatch<TOutput>>)} in {nameof(TaskStatus.WaitingForActivation)}");
                 completedResponse.Value.TrySetException(innerException);
             }
 
@@ -165,30 +174,38 @@ namespace Drenalol.TcpClientIo.Client
             
             if (!_baseCancellationTokenSource.IsCancellationRequested)
             {
-                Debug.WriteLine("Cancelling _baseCancellationTokenSource from StopReader");
+                Diag("Cancelling _baseCancellationTokenSource from StopReader");
                 _baseCancellationTokenSource.Cancel();
             }
 
-            Debug.WriteLine("Completion NetworkStream PipeReader ended");
+            Diag("Completion NetworkStream PipeReader ended");
         }
 
         private void StopWriter(Exception? exception)
         {
-            Debug.WriteLine("Completion NetworkStream PipeWriter started");
+            Diag("Completion NetworkStream PipeWriter started");
             _networkStreamPipeWriter.CancelPendingFlush();
 
             if (_tcpClient.Client.Connected)
                 _networkStreamPipeWriter.Complete(exception);
             
-            _bufferBlockRequests.Complete();
+            if (_bufferBlockRequests.TryReceiveAll(out var requests))
+            {
+                _bufferBlockRequests.Complete();
+
+                foreach (var request in requests) 
+                    request.ReturnRentedArray(_arrayPool, clearArray: true);
+            }
+            else
+                _bufferBlockRequests.Complete();
 
             if (!_baseCancellationTokenSource.IsCancellationRequested)
             {
-                Debug.WriteLine("Cancelling _baseCancellationTokenSource from StopWriter");
+                Diag("Cancelling _baseCancellationTokenSource from StopWriter");
                 _baseCancellationTokenSource.Cancel();
             }
 
-            Debug.WriteLine("Completion NetworkStream PipeWriter ended");
+            Diag("Completion NetworkStream PipeWriter ended");
         }
     }
 }

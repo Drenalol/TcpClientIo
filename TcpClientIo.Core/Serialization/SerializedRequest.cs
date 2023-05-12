@@ -5,15 +5,15 @@ namespace Drenalol.TcpClientIo.Serialization
 {
     public class SerializedRequest
     {
-        internal readonly byte[] RentedArray;
-        internal readonly ReadOnlyMemory<byte> Request;
+        private readonly byte[] _rentedArray;
+        internal readonly ReadOnlyMemory<byte> Raw;
 
         internal SerializedRequest(byte[] rentedArray, int realLength)
         {
-            RentedArray = rentedArray;
-            Request = new ReadOnlyMemory<byte>(rentedArray, 0, realLength);
+            _rentedArray = rentedArray;
+            Raw = new ReadOnlyMemory<byte>(rentedArray, 0, realLength);
         }
 
-        internal void ReturnRentedArray(ArrayPool<byte> pool, bool clearArray) => pool.Return(RentedArray, clearArray);
+        internal void ReturnRentedArray(ArrayPool<byte> pool, bool clearArray = false) => pool.Return(_rentedArray, clearArray);
     }
 }

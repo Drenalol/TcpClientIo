@@ -11,6 +11,7 @@ using Drenalol.TcpClientIo.Contracts;
 using Drenalol.TcpClientIo.Converters;
 using Drenalol.TcpClientIo.Emulator;
 using Drenalol.TcpClientIo.Exceptions;
+using Drenalol.TcpClientIo.Extensions;
 using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Stuff;
 using NUnit.Framework;
@@ -91,6 +92,28 @@ namespace Drenalol.TcpClientIo
 
             await tcpClient.DisposeAsync();
             Assert.True(tcpClient.IsBroken);
+        }
+        
+        [Test]
+        public async Task MockBodyInSequenceTest()
+        {
+            var tcpClient = GetClient<int, MockMemoryBody, MockMemoryBody>();
+
+            var bytes = new byte[] { 123, 124 };
+            var mock = new MockMemoryBody
+            {
+                Id = 1,
+                TestByte = 123,
+                TestByteArray = bytes,
+                Body = bytes.ToSequence()
+            };
+
+            await tcpClient.SendAsync(mock);
+            var response = (await tcpClient.ReceiveAsync(1)).Single();
+
+            await tcpClient.DisposeAsync();
+            Assert.True(tcpClient.IsBroken);
+            Assert.True(mock == response);
         }
 
         [TestCase(1000, 1, 5)]

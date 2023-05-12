@@ -1,12 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFrameworks>net5.0;net6.0</TargetFrameworks>
+        <TargetFramework>net6.0</TargetFramework>
+        <LangVersion>10</LangVersion>
         <RootNamespace>Drenalol.TcpClientIo</RootNamespace>
         <Authors>Bogdan Yanysh</Authors>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageId>TcpClientIo</PackageId>
-        <Version>1.5.2</Version>
-        <PackageVersion>1.5.2</PackageVersion>
+        <Version>1.5.3</Version>
+        <PackageVersion>1.5.3</PackageVersion>
         <PackageTags>TcpClient;TcpListener;Tcp;Serialization;Pipelines;Dataflow;Async;Threadsafe</PackageTags>
         <Description>Wrapper of TcpClient what help focus on WHAT you transfer over TCP not HOW (Async, Thread-safe, TcpSerialization with attribute schema, Big/Little endian, Cancellation support)</Description>
         <PackageProjectUrl>https://github.com/Drenalol/TcpClientIo</PackageProjectUrl>
@@ -22,6 +23,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Nito.Disposables" Version="2.4.0" />
         <PackageReference Include="Serilog" Version="2.11.0" />
         <PackageReference Include="WaitingDictionary" Version="1.0.6" />
     </ItemGroup>

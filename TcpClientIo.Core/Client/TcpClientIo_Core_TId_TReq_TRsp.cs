@@ -190,6 +190,14 @@ namespace Drenalol.TcpClientIo.Client
             _ = DeserializeResponseAsync();
         }
 
+        private void Diag(string message)
+        {
+            if (_logger != null)
+                _logger.Debug("{Message}", message);
+            else
+                Debug.WriteLine(message);
+        }
+
         public async ValueTask DisposeAsync()
         {
             _disposing = true;
