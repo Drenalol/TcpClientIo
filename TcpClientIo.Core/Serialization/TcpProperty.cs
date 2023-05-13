@@ -7,7 +7,6 @@ namespace Drenalol.TcpClientIo.Serialization
     internal class TcpProperty
     {
         private readonly PropertyInfo _propertyInfo;
-
         public readonly TcpDataAttribute Attribute;
         public readonly bool IsValueType;
         public readonly Type PropertyType;

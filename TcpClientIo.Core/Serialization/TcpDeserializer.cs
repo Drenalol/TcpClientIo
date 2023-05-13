@@ -96,7 +96,7 @@ namespace Drenalol.TcpClientIo.Serialization
                 value = _bitConverter.ConvertFromSequence(slice, property.PropertyType, property.Attribute.Reverse);
 
                 if (property.Attribute.TcpDataType == TcpDataType.Id)
-                    id = (TId) value;
+                    id = (TId)value;
                 else if (property.Attribute.TcpDataType == TcpDataType.Length)
                     length = value is int lengthValue ? lengthValue : Convert.ToInt32(value);
 
@@ -108,7 +108,7 @@ namespace Drenalol.TcpClientIo.Serialization
                 void SetValue()
                 {
                     if (property.IsValueType)
-                        data = (TData) property.Set(data, value);
+                        data = (TData)property.Set(data, value);
                     else
                         property.Set(data, value);
 

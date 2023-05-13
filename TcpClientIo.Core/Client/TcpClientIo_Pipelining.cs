@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Threading;
@@ -50,7 +49,7 @@ namespace Drenalol.TcpClientIo.Client
             catch (Exception exception)
             {
                 var exceptionType = exception.GetType();
-                _logger?.Fatal("TcpWriteAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
+                _logger?.Fatal(exception, "TcpWriteAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
                 _internalException = exception;
                 throw;
             }
@@ -125,7 +124,7 @@ namespace Drenalol.TcpClientIo.Client
             catch (Exception exception)
             {
                 var exceptionType = exception.GetType();
-                _logger?.Fatal("DeserializeResponseAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
+                _logger?.Fatal(exception, "DeserializeResponseAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
                 _internalException = exception;
                 throw;
             }

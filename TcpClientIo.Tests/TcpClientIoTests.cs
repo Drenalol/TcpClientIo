@@ -98,22 +98,40 @@ namespace Drenalol.TcpClientIo
         public async Task MockBodyInSequenceTest()
         {
             var tcpClient = GetClient<int, MockMemoryBody, MockMemoryBody>();
+            var cts = new CancellationTokenSource();
 
-            var bytes = new byte[] { 123, 124 };
-            var mock = new MockMemoryBody
-            {
-                Id = 1,
-                TestByte = 123,
-                TestByteArray = bytes,
-                Body = bytes.ToSequence()
-            };
-
-            await tcpClient.SendAsync(mock);
-            var response = (await tcpClient.ReceiveAsync(1)).Single();
-
+            await Parallel.ForEachAsync(Enumerable.Range(1, 1000000), cts.Token, SendAsync);
+            cts.Dispose();
             await tcpClient.DisposeAsync();
             Assert.True(tcpClient.IsBroken);
-            Assert.True(mock == response);
+            Assert.AreEqual(tcpClient.BytesRead, tcpClient.BytesWrite);
+            Assert.False(cts.IsCancellationRequested);
+            
+            async ValueTask SendAsync(int id, CancellationToken cancellationToken)
+            {
+                var bytes = new byte[TestContext.CurrentContext.Random.Next(1024 * 1024)];
+                TestContext.CurrentContext.Random.NextBytes(bytes);
+                var mock = new MockMemoryBody
+                {
+                    Id = id,
+                    TestByte = 123,
+                    TestByteArray = new byte[] { 111, 222 },
+                    Body = bytes.ToSequence()
+                };
+
+                await tcpClient.SendAsync(mock, cancellationToken);
+                var response = (await tcpClient.ReceiveAsync(id, cancellationToken)).Single();
+                
+                try
+                {
+                    Assert.True(mock == response);
+                }
+                catch
+                {
+                    // ReSharper disable once AccessToDisposedClosure
+                    cts.Cancel();
+                }
+            }
         }
 
         [TestCase(1000, 1, 5)]

@@ -91,7 +91,7 @@ namespace Drenalol.TcpClientIo.Serialization
                     return new[] { @byte }.ToSequence();
                 case byte[] byteArray:
                     return (reverse.GetValueOrDefault() ? Reverse(byteArray) : byteArray).ToSequence();
-                case ReadOnlySequence<byte> sequence: // TODO Reverse mode
+                case ReadOnlySequence<byte> sequence:
                     return sequence;
                 default:
                     try
