@@ -6,7 +6,7 @@ using Drenalol.TcpClientIo.Serialization.Strategies;
 
 namespace Drenalol.TcpClientIo.Serialization
 {
-    internal class TcpSerializer<TData> where TData : notnull
+    internal class TcpSerializer<TData> : TcpSerializerBase where TData : notnull
     {
         private readonly Func<int, byte[]> _byteArrayFactory;
         private readonly ReflectionHelper _reflection;
