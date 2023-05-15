@@ -130,7 +130,7 @@ namespace Drenalol.TcpClientIo
                 Task.Run(() =>
                 {
                     var serialize = serializer.Serialize(mock);
-                    _ = deserializer.Deserialize(new ReadOnlySequence<byte>(serialize.Request));
+                    _ = deserializer.Deserialize(new ReadOnlySequence<byte>(serialize.Raw));
                 });
         }
 
@@ -139,18 +139,18 @@ namespace Drenalol.TcpClientIo
         public void BaseConvertersTest(bool reverse)
         {
             var str = "Hello my friend";
-            var stringResult = _bitConverterHelper.ConvertToBytes(str, typeof(string), reverse);
-            var stringResultBack = _bitConverterHelper.ConvertFromBytes(new ReadOnlySequence<byte>(stringResult), typeof(string), reverse);
+            var stringResult = _bitConverterHelper.ConvertToSequence(str, typeof(string), reverse);
+            var stringResultBack = _bitConverterHelper.ConvertFromSequence(stringResult, typeof(string), reverse);
             Assert.AreEqual(str, stringResultBack);
 
             var datetime = DateTime.Now;
-            var dateTimeResult = _bitConverterHelper.ConvertToBytes(datetime, typeof(DateTime), reverse);
-            var dateTimeResultBack = _bitConverterHelper.ConvertFromBytes(new ReadOnlySequence<byte>(dateTimeResult), typeof(DateTime), reverse);
+            var dateTimeResult = _bitConverterHelper.ConvertToSequence(datetime, typeof(DateTime), reverse);
+            var dateTimeResultBack = _bitConverterHelper.ConvertFromSequence(dateTimeResult, typeof(DateTime), reverse);
             Assert.AreEqual(datetime, dateTimeResultBack);
 
             var guid = Guid.NewGuid();
-            var guidResult = _bitConverterHelper.ConvertToBytes(guid, typeof(Guid), reverse);
-            var guidResultBack = _bitConverterHelper.ConvertFromBytes(new ReadOnlySequence<byte>(guidResult), typeof(Guid), reverse);
+            var guidResult = _bitConverterHelper.ConvertToSequence(guid, typeof(Guid), reverse);
+            var guidResultBack = _bitConverterHelper.ConvertFromSequence(guidResult, typeof(Guid), reverse);
             Assert.AreEqual(guid, guidResultBack);
         }
     }

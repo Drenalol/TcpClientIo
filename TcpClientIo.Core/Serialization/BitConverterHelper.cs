@@ -7,6 +7,7 @@ using Drenalol.TcpClientIo.Converters;
 using Drenalol.TcpClientIo.Exceptions;
 using Drenalol.TcpClientIo.Extensions;
 using Drenalol.TcpClientIo.Options;
+using Nito.Disposables;
 
 namespace Drenalol.TcpClientIo.Serialization
 {
@@ -19,19 +20,21 @@ namespace Drenalol.TcpClientIo.Serialization
         public BitConverterHelper(TcpClientIoOptions options)
         {
             _options = options;
-            _customConverters = options.Converters.Select(
-                converter =>
-                {
-                    var converterType = converter.GetType();
-                    var type = converterType.BaseType;
+            _customConverters = options.Converters
+                .Select(
+                    converter =>
+                    {
+                        var converterType = converter.GetType();
+                        var type = converterType.BaseType;
 
-                    if (type == null)
-                        throw TcpClientIoException.ConverterError(converterType.Name);
+                        if (type == null)
+                            throw TcpClientIoException.ConverterError(converterType.Name);
 
-                    var genericType = type.GenericTypeArguments.Single();
-                    return new KeyValuePair<Type, TcpConverter>(genericType, converter);
-                }
-            ).ToDictionary(pair => pair.Key, pair => pair.Value);
+                        var genericType = type.GenericTypeArguments.Single();
+                        return new KeyValuePair<Type, TcpConverter>(genericType, converter);
+                    }
+                )
+                .ToDictionary(pair => pair.Key, pair => pair.Value);
 
             _builtInConvertersToBytes = new Dictionary<Type, MethodInfo>
             {
@@ -53,13 +56,18 @@ namespace Drenalol.TcpClientIo.Serialization
         private static byte[] Reverse(byte[] bytes)
         {
             ((Span<byte>)bytes).Reverse();
+
             return bytes;
         }
 
-        private static Sequence MergeSpans(ReadOnlySequence<byte> sequences, bool reverse)
+        private static IDisposable MergeSpans(in ReadOnlySequence<byte> sequences, bool reverse, out ReadOnlySpan<byte> readOnlySpan)
         {
             if (!reverse && sequences.IsSingleSegment)
-                return Sequence.Create(sequences.FirstSpan, null);
+            {
+                readOnlySpan = sequences.FirstSpan;
+
+                return Disposable.Create(null);
+            }
 
             var sequencesLength = (int)sequences.Length;
             var bytes = ArrayPool<byte>.Shared.Rent(sequencesLength);
@@ -69,39 +77,42 @@ namespace Drenalol.TcpClientIo.Serialization
             if (reverse)
                 span.Reverse();
 
-            return Sequence.Create(span, () => ArrayPool<byte>.Shared.Return(bytes));
+            readOnlySpan = span;
+            return Disposable.Create(() => ArrayPool<byte>.Shared.Return(bytes));
         }
 
-        public byte[] ConvertToBytes(object? propertyValue, Type propertyType, bool? reverse = null)
+        public ReadOnlySequence<byte> ConvertToSequence(object? propertyValue, Type propertyType, bool? reverse = null)
         {
             switch (propertyValue)
             {
                 case null:
                     throw TcpException.PropertyArgumentIsNull(propertyType.ToString());
                 case byte @byte:
-                    return new[] { @byte };
+                    return new[] { @byte }.ToSequence();
                 case byte[] byteArray:
-                    return reverse.GetValueOrDefault() ? Reverse(byteArray) : byteArray;
+                    return (reverse.GetValueOrDefault() ? Reverse(byteArray) : byteArray).ToSequence();
+                case ReadOnlySequence<byte> sequence:
+                    return sequence;
                 default:
                     try
                     {
                         if (_customConverters.TryConvert(propertyType, propertyValue, out var result))
-                            return reverse.GetValueOrDefault() ? Reverse(result) : result;
+                            return (reverse.GetValueOrDefault() ? Reverse(result) : result).ToSequence();
 
                         if (!_builtInConvertersToBytes.TryGetValue(propertyType, out var methodInfo))
                             throw TcpException.ConverterNotFoundType(propertyType.ToString());
 
                         result = (byte[])methodInfo.Invoke(null, new[] { propertyValue })!;
-                        return reverse ?? _options.PrimitiveValueReverse ? Reverse(result) : result;
+                        return (reverse ?? _options.PrimitiveValueReverse ? Reverse(result) : result).ToSequence();
                     }
-                    catch (Exception exception) when (!(exception is TcpException))
+                    catch (Exception exception) when (exception is not TcpException)
                     {
                         throw TcpException.ConverterUnknownError(propertyType.ToString(), exception.Message);
                     }
             }
         }
 
-        public object ConvertFromBytes(ReadOnlySequence<byte> slice, Type propertyType, bool? reverse = null)
+        public object ConvertFromSequence(in ReadOnlySequence<byte> slice, Type propertyType, bool? reverse = null)
         {
             if (propertyType == typeof(byte[]))
                 return reverse.GetValueOrDefault() ? Reverse(slice.ToArray()) : slice.ToArray();
@@ -109,35 +120,44 @@ namespace Drenalol.TcpClientIo.Serialization
             if (propertyType == typeof(byte))
                 return slice.FirstSpan[0];
 
-            var (span, returnArray) = MergeSpans(slice, propertyType.IsPrimitive ? reverse ?? _options.PrimitiveValueReverse : reverse.GetValueOrDefault());
+            if (propertyType == typeof(ReadOnlySequence<byte>))
+                return slice.Clone();
 
-            try
+            return FromPrimitive(slice);
+
+            object FromPrimitive(in ReadOnlySequence<byte> sequence)
             {
-                if (_customConverters.TryConvertBack(propertyType, span, out var result))
-                    return result;
+                var isPrimitiveReverse = propertyType.IsPrimitive
+                    ? reverse ?? _options.PrimitiveValueReverse
+                    : reverse.GetValueOrDefault();
 
-                return propertyType.Name switch
+                using (MergeSpans(sequence, isPrimitiveReverse, out var span))
                 {
-                    nameof(Boolean) => BitConverter.ToBoolean(span),
-                    nameof(Char) => BitConverter.ToChar(span),
-                    nameof(Double) => BitConverter.ToDouble(span),
-                    nameof(Int16) => BitConverter.ToInt16(span),
-                    nameof(Int32) => BitConverter.ToInt32(span),
-                    nameof(Int64) => BitConverter.ToInt64(span),
-                    nameof(Single) => BitConverter.ToSingle(span),
-                    nameof(UInt16) => BitConverter.ToUInt16(span),
-                    nameof(UInt32) => BitConverter.ToUInt32(span),
-                    nameof(UInt64) => BitConverter.ToUInt64(span),
-                    _ => throw TcpException.ConverterNotFoundType(propertyType.ToString())
-                };
-            }
-            catch (Exception exception) when (!(exception is TcpException))
-            {
-                throw TcpException.ConverterUnknownError(propertyType.ToString(), exception.Message);
-            }
-            finally
-            {
-                returnArray?.Invoke();
+                    try
+                    {
+                        if (_customConverters.TryConvertBack(propertyType, span, out var result))
+                            return result;
+
+                        return propertyType.Name switch
+                        {
+                            nameof(Boolean) => BitConverter.ToBoolean(span),
+                            nameof(Char) => BitConverter.ToChar(span),
+                            nameof(Double) => BitConverter.ToDouble(span),
+                            nameof(Int16) => BitConverter.ToInt16(span),
+                            nameof(Int32) => BitConverter.ToInt32(span),
+                            nameof(Int64) => BitConverter.ToInt64(span),
+                            nameof(Single) => BitConverter.ToSingle(span),
+                            nameof(UInt16) => BitConverter.ToUInt16(span),
+                            nameof(UInt32) => BitConverter.ToUInt32(span),
+                            nameof(UInt64) => BitConverter.ToUInt64(span),
+                            _ => throw TcpException.ConverterNotFoundType(propertyType.ToString())
+                        };
+                    }
+                    catch (Exception exception) when (exception is not TcpException)
+                    {
+                        throw TcpException.ConverterUnknownError(propertyType.ToString(), exception.Message);
+                    }
+                }
             }
         }
     }

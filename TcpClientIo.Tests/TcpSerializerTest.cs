@@ -7,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Drenalol.TcpClientIo.Converters;
 using Drenalol.TcpClientIo.Exceptions;
-using Drenalol.TcpClientIo.Extensions;
 using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Serialization;
 using Drenalol.TcpClientIo.Serialization.Pipelines;
@@ -35,8 +34,8 @@ namespace Drenalol.TcpClientIo
             var serializer = new TcpSerializer<Mock>(_bitConverterHelper, i => new byte[i]);
             var deserializer = new TcpDeserializer<long, Mock>(_bitConverterHelper, null!);
             var serialize = serializer.Serialize(ethalon);
-            Assert.IsTrue(serialize.Request.Length == ethalon.Size + ethalonHeaderLength);
-            var (_, deserialize) = deserializer.Deserialize(new ReadOnlySequence<byte>(serialize.Request));
+            Assert.IsTrue(serialize.Raw.Length == ethalon.Size + ethalonHeaderLength);
+            var (_, deserialize) = deserializer.Deserialize(new ReadOnlySequence<byte>(serialize.Raw));
             Assert.IsTrue(ethalon.Equals(deserialize));
         }
 
@@ -48,8 +47,8 @@ namespace Drenalol.TcpClientIo
 
             var serializer = new TcpSerializer<Mock>(_bitConverterHelper, i => new byte[i]);
             var serialize = serializer.Serialize(ethalon);
-            var deserializer = new TcpDeserializer<long, Mock>(_bitConverterHelper, new PipeReaderExecutor(PipeReader.Create(new MemoryStream(serialize.Request.ToArray()))));
-            Assert.IsTrue(serialize.Request.Length == ethalon.Size + ethalonHeaderLength);
+            var deserializer = new TcpDeserializer<long, Mock>(_bitConverterHelper, new PipeReaderExecutor(PipeReader.Create(new MemoryStream(serialize.Raw.ToArray()))));
+            Assert.IsTrue(serialize.Raw.Length == ethalon.Size + ethalonHeaderLength);
             var (_, deserialize) = await deserializer.DeserializePipeAsync(CancellationToken.None);
             Assert.IsTrue(ethalon.Equals(deserialize));
         }
@@ -75,7 +74,7 @@ namespace Drenalol.TcpClientIo
         public void BitConverterToBytesTest(object obj, int expected, bool reverse)
         {
             var converter = new BitConverterHelper(new TcpClientIoOptions());
-            Assert.That(converter.ConvertToBytes(obj, obj.GetType()).Length == expected, "converter.ConvertToBytes(obj, obj.GetType()).Length == expected");
+            Assert.That(converter.ConvertToSequence(obj, obj.GetType()).Length == expected, "converter.ConvertToBytes(obj, obj.GetType()).Length == expected");
         }
 
         [TestCase(new byte[] {25, 75}, typeof(short), false)]
@@ -84,7 +83,7 @@ namespace Drenalol.TcpClientIo
         public void BitConverterFromBytesTest(byte[] bytes, Type type, bool reverse)
         {
             var converter = new BitConverterHelper(new TcpClientIoOptions());
-            Assert.That(converter.ConvertFromBytes(new ReadOnlySequence<byte>(bytes), type, reverse).GetType() == type, "converter.ConvertFromBytes(bytes, type, reverse).GetType() == type");
+            Assert.That(converter.ConvertFromSequence(new ReadOnlySequence<byte>(bytes), type, reverse).GetType() == type, "converter.ConvertFromBytes(bytes, type, reverse).GetType() == type");
         }
 
         [Test]
@@ -99,7 +98,7 @@ namespace Drenalol.TcpClientIo
             for (var i = 0; i < 10000; i++)
             {
                 var serialize = serializer.Serialize(mock);
-                await pipe.Writer.WriteAsync(serialize.Request);
+                await pipe.Writer.WriteAsync(serialize.Raw);
             }
 
             sw.Stop();

@@ -41,7 +41,7 @@ namespace TcpClientIo.Benchmarks
                 IpAddress = "42.241.120.161",
                 Data = "amavin2@etsy.com: Adelina Mavin (Female) from 42.241.120.161"
             });
-            _arrayPool.Return(_request.RentedArray);
+            _request.ReturnRentedArray(_arrayPool);
             return _request;
         }
 
