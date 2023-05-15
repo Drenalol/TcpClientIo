@@ -38,7 +38,7 @@ namespace Drenalol.TcpClientIo.Serialization
             {
                 var lengthAttribute = _reflection.LengthProperty.Attribute;
                 var lengthSequence = metaReadResult.Slice(lengthAttribute.Length, lengthAttribute.Index);
-                var lengthValue = _bitConverter.ConvertFromBytes(lengthSequence, _reflection.LengthProperty.PropertyType, lengthAttribute.Reverse);
+                var lengthValue = _bitConverter.ConvertFromSequence(lengthSequence, _reflection.LengthProperty.PropertyType, lengthAttribute.Reverse);
                 var totalLength = _reflection.MetaLength + (lengthValue is int length ? length : Convert.ToInt32(lengthValue));
 
                 ReadOnlySequence<byte> sequence;
@@ -93,10 +93,10 @@ namespace Drenalol.TcpClientIo.Serialization
 
                 var slice = sequence.Slice(propertyIndex, sliceLength);
 
-                value = _bitConverter.ConvertFromBytes(slice, property.PropertyType, property.Attribute.Reverse);
+                value = _bitConverter.ConvertFromSequence(slice, property.PropertyType, property.Attribute.Reverse);
 
                 if (property.Attribute.TcpDataType == TcpDataType.Id)
-                    id = (TId) value;
+                    id = (TId)value;
                 else if (property.Attribute.TcpDataType == TcpDataType.Length)
                     length = value is int lengthValue ? lengthValue : Convert.ToInt32(value);
 
@@ -108,7 +108,7 @@ namespace Drenalol.TcpClientIo.Serialization
                 void SetValue()
                 {
                     if (property.IsValueType)
-                        data = (TData) property.Set(data, value);
+                        data = (TData)property.Set(data, value);
                     else
                         property.Set(data, value);
 
