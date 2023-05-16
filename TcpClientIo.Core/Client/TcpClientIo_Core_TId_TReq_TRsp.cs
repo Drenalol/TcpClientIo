@@ -130,7 +130,7 @@ namespace Drenalol.TcpClientIo.Client
             _baseCancellationToken = _baseCancellationTokenSource.Token;
             _bufferBlockRequests = new BufferBlock<SerializedRequest>();
             _completeResponses = new WaitingDictionary<TId, ITcpBatch<TOutput>>(SetupMiddlewareBuilder());
-            _arrayPool = ArrayPool<byte>.Create();
+            _arrayPool = TcpSerializerBase.Shared;
             var bitConverterHelper = new BitConverterHelper(_options);
             _serializer = new TcpSerializer<TInput>(bitConverterHelper, length => _arrayPool.Rent(length));
             _writeResetEvent = new AsyncManualResetEvent();

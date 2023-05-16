@@ -89,7 +89,7 @@ namespace Drenalol.TcpClientIo
         [Test]
         public async Task SerializeDeserializeSpeedTest()
         {
-            var pool = ArrayPool<byte>.Create();
+            var pool = TcpSerializerBase.Shared;
             var serializer = new TcpSerializer<Mock>(_bitConverterHelper, i => pool.Rent(i));
             var mock = Mock.Default();
             var sw = Stopwatch.StartNew();
