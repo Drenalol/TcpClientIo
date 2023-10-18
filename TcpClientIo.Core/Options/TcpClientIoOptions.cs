@@ -51,26 +51,27 @@ namespace Drenalol.TcpClientIo.Options
         /// <summary>
         /// Gets or sets a <see cref="TcpConverter"/> collection that will be used during serialization.
         /// </summary>
-        public IList<TcpConverter> Converters { get; set; }
+        public IList<TcpConverter> Converters { get; set; } = new List<TcpConverter>();
 
         /// <summary>
         /// Gets or sets a <see cref="PipeExecutorOptions"/> that will be used in wrappers of <see cref="PipeReader"/> or <see cref="PipeWriter"/>
         /// </summary>
         public PipeExecutor PipeExecutorOptions { get; set; }
-
-        public TcpClientIoOptions() => Converters = new List<TcpConverter>();
+        
+        public bool UseSharedArrayPool { get; set; }
 
         /// <summary>
         /// Gets default options
         /// <returns><see cref="TcpClientIoOptions"/></returns>
         /// </summary>
         public static TcpClientIoOptions Default =>
-            new TcpClientIoOptions
+            new()
             {
                 StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 65536),
                 StreamPipeWriterOptions = new StreamPipeWriterOptions(),
                 TcpClientSendTimeout = 60000,
-                TcpClientReceiveTimeout = 60000
+                TcpClientReceiveTimeout = 60000,
+                UseSharedArrayPool = true
             };
 
         /// <summary>

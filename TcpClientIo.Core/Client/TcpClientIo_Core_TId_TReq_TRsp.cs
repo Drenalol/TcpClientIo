@@ -43,7 +43,6 @@ namespace Drenalol.TcpClientIo.Client
         private readonly WaitingDictionary<TId, ITcpBatch<TOutput>> _completeResponses;
         private readonly TcpSerializer<TInput> _serializer;
         private readonly TcpDeserializer<TId, TOutput> _deserializer;
-        private readonly ArrayPool<byte> _arrayPool;
         private readonly AsyncManualResetEvent _writeResetEvent;
         private readonly AsyncManualResetEvent _readResetEvent;
         private readonly AsyncManualResetEvent _consumingResetEvent;
@@ -130,9 +129,9 @@ namespace Drenalol.TcpClientIo.Client
             _baseCancellationToken = _baseCancellationTokenSource.Token;
             _bufferBlockRequests = new BufferBlock<SerializedRequest>();
             _completeResponses = new WaitingDictionary<TId, ITcpBatch<TOutput>>(SetupMiddlewareBuilder());
-            _arrayPool = TcpSerializerBase.Shared;
+            TcpSerializerBase.ArrayPool = _options.UseSharedArrayPool ? ArrayPool<byte>.Shared : ArrayPool<byte>.Create();
             var bitConverterHelper = new BitConverterHelper(_options);
-            _serializer = new TcpSerializer<TInput>(bitConverterHelper, length => _arrayPool.Rent(length));
+            _serializer = new TcpSerializer<TInput>(bitConverterHelper, length => TcpSerializerBase.ArrayPool.Rent(length));
             _writeResetEvent = new AsyncManualResetEvent();
             _readResetEvent = new AsyncManualResetEvent();
             _consumingResetEvent = new AsyncManualResetEvent();

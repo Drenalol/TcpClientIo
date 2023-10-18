@@ -70,7 +70,7 @@ namespace Drenalol.TcpClientIo.Serialization
             }
 
             var sequencesLength = (int)sequences.Length;
-            var bytes = ArrayPool<byte>.Shared.Rent(sequencesLength);
+            var bytes = TcpSerializerBase.ArrayPool.Rent(sequencesLength);
             var span = new Span<byte>(bytes, 0, sequencesLength);
             sequences.CopyTo(span);
 
@@ -78,7 +78,7 @@ namespace Drenalol.TcpClientIo.Serialization
                 span.Reverse();
 
             readOnlySpan = span;
-            return Disposable.Create(() => ArrayPool<byte>.Shared.Return(bytes));
+            return Disposable.Create(() => TcpSerializerBase.ArrayPool.Return(bytes));
         }
 
         public ReadOnlySequence<byte> ConvertToSequence(object? propertyValue, Type propertyType, bool? reverse = null)

@@ -22,7 +22,7 @@ namespace TcpClientIo.Benchmarks
         [GlobalSetup]
         public void Ctor()
         {
-            _arrayPool = ArrayPool<byte>.Create();
+            _arrayPool = ArrayPool<byte>.Shared;
             var helper = new BitConverterHelper(TcpClientIoOptions.Default.RegisterConverter(new TcpUtf8StringConverter()));
             _serializer = new TcpSerializer<Mock>(helper, l => _arrayPool.Rent(l));
             _deserializer = new TcpDeserializer<long, Mock>(helper, null!);
