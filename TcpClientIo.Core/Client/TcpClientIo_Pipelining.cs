@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Drenalol.TcpClientIo.Batches;
 using Drenalol.TcpClientIo.Exceptions;
+using Drenalol.TcpClientIo.Serialization;
 
 namespace Drenalol.TcpClientIo.Client
 {
@@ -35,7 +36,7 @@ namespace Drenalol.TcpClientIo.Client
                     finally
                     {
                         Interlocked.Add(ref _bytesWrite, request.Raw.Length);
-                        request.ReturnRentedArray(_arrayPool, true);
+                        request.ReturnRentedArray(TcpSerializerBase.ArrayPool);
                     }
 
                     if (writeResult.IsCanceled || writeResult.IsCompleted)
@@ -183,20 +184,26 @@ namespace Drenalol.TcpClientIo.Client
         private void StopWriter(Exception? exception)
         {
             Diag("Completion NetworkStream PipeWriter started");
-            _networkStreamPipeWriter.CancelPendingFlush();
 
-            if (_tcpClient.Client.Connected)
-                _networkStreamPipeWriter.Complete(exception);
-            
-            if (_bufferBlockRequests.TryReceiveAll(out var requests))
+            try
             {
-                _bufferBlockRequests.Complete();
-
-                foreach (var request in requests) 
-                    request.ReturnRentedArray(_arrayPool, clearArray: true);
+                _networkStreamPipeWriter.CancelPendingFlush();
+                
+                if (_tcpClient.Client.Connected)
+                    _networkStreamPipeWriter.Complete(exception);
             }
-            else
-                _bufferBlockRequests.Complete();
+            finally
+            {
+                if (_bufferBlockRequests.TryReceiveAll(out var requests))
+                {
+                    _bufferBlockRequests.Complete();
+
+                    foreach (var request in requests) 
+                        request.ReturnRentedArray(TcpSerializerBase.ArrayPool);
+                }
+                else
+                    _bufferBlockRequests.Complete();
+            }
 
             if (!_baseCancellationTokenSource.IsCancellationRequested)
             {

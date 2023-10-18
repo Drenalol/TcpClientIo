@@ -14,6 +14,6 @@ namespace Drenalol.TcpClientIo.Serialization
             Raw = new ReadOnlyMemory<byte>(rentedArray, 0, realLength);
         }
 
-        internal void ReturnRentedArray(ArrayPool<byte> pool, bool clearArray = false) => pool.Return(_rentedArray, clearArray);
+        internal void ReturnRentedArray(ArrayPool<byte> pool) => pool.Return(_rentedArray);
     }
 }
