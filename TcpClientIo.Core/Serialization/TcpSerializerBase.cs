@@ -4,5 +4,5 @@ namespace Drenalol.TcpClientIo.Serialization;
 
 internal class TcpSerializerBase
 {
-    public static ArrayPool<byte> ArrayPool = null!;
+    public static readonly ArrayPool<byte> ArrayPool = ArrayPool<byte>.Shared;
 }

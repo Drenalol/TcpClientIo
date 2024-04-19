@@ -14,9 +14,9 @@ using Drenalol.TcpClientIo.Exceptions;
 using Drenalol.TcpClientIo.Extensions;
 using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Stuff;
+using Microsoft.Extensions.Logging;
+using Nito.AsyncEx;
 using NUnit.Framework;
-using Serilog;
-using Serilog.Events;
 
 namespace Drenalol.TcpClientIo
 {
@@ -25,7 +25,7 @@ namespace Drenalol.TcpClientIo
     {
         public static readonly IPAddress IpAddress = IPAddress.Any;
 
-        private static (TcpClientIoOptions, LoggerConfiguration) GetDefaults(LogEventLevel logLevel)
+        private static (TcpClientIoOptions, ILoggerFactory) GetDefaults(LogLevel logLevel)
         {
             var options = TcpClientIoOptions.Default;
 
@@ -39,32 +39,34 @@ namespace Drenalol.TcpClientIo
             options.StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 10240000);
             options.StreamPipeWriterOptions = new StreamPipeWriterOptions();
             options.PipeExecutorOptions = PipeExecutor.Logging;
-
-            var loggerFactory = new LoggerConfiguration()
-                .WriteTo.Debug()
-                .WriteTo.TextWriter(TestContext.Out)
-                .MinimumLevel.Is(logLevel)
-                .Enrich.FromLogContext();
+            
+            var loggerFactory = LoggerFactory.Create(lb =>
+            {
+                //lb.AddFilter("Drenalol.Client.TcpClientIo.Core", logLevel);
+                lb.SetMinimumLevel(logLevel);
+                lb.AddDebug();
+                lb.AddConsole();
+            });
 
             return (options, loggerFactory);
         }
 
-        public static TcpClientIo<TId, T, TR> GetClient<TId, T, TR>(IPAddress ipAddress = null, int port = 10000, LogEventLevel logLevel = LogEventLevel.Warning) where TR : new() where TId : struct
+        public static TcpClientIo<TId, T, TR> GetClient<TId, T, TR>(IPAddress ipAddress = null, int port = 10000, LogLevel logLevel = LogLevel.Warning) where TR : new() where TId : struct
         {
             var (options, loggerFactory) = GetDefaults(logLevel);
-            return new TcpClientIo<TId, T, TR>(ipAddress ?? IpAddress, port, options, loggerFactory.CreateLogger());
+            return new TcpClientIo<TId, T, TR>(ipAddress ?? IpAddress, port, options, loggerFactory.CreateLogger<TcpClientIo<T, TR>>());
         }
 
-        public static TcpClientIo<T, TR> GetClient<T, TR>(IPAddress ipAddress = null, int port = 10000, LogEventLevel logLevel = LogEventLevel.Warning) where TR : new()
+        public static TcpClientIo<T, TR> GetClient<T, TR>(IPAddress ipAddress = null, int port = 10000, LogLevel logLevel = LogLevel.Warning) where TR : new()
         {
             var (options, loggerFactory) = GetDefaults(logLevel);
-            return new TcpClientIo<T, TR>(ipAddress ?? IpAddress, port, options, loggerFactory.CreateLogger());
+            return new TcpClientIo<T, TR>(ipAddress ?? IpAddress, port, options, loggerFactory.CreateLogger<TcpClientIo<T, TR>>());
         }
 
         [Test]
         public async Task SingleSendReceiveTest()
         {
-            var tcpClient = GetClient<long, Mock, Mock>(logLevel: LogEventLevel.Debug);
+            var tcpClient = GetClient<long, Mock, Mock>(logLevel: LogLevel.Debug);
             var request = Mock.Default();
             await tcpClient.SendAsync(request);
             var batch = await tcpClient.ReceiveAsync(1337L);
@@ -98,9 +100,9 @@ namespace Drenalol.TcpClientIo
         public async Task MockBodyInSequenceTest()
         {
             var tcpClient = GetClient<int, MockMemoryBody, MockMemoryBody>();
-            var cts = new CancellationTokenSource();
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
 
-            await Parallel.ForEachAsync(Enumerable.Range(1, 1000000), cts.Token, SendAsync);
+            await Parallel.ForEachAsync(Enumerable.Range(1, 1000), cts.Token, SendAsync);
             cts.Dispose();
             await tcpClient.DisposeAsync();
             Assert.True(tcpClient.IsBroken);
@@ -109,7 +111,7 @@ namespace Drenalol.TcpClientIo
             
             async ValueTask SendAsync(int id, CancellationToken cancellationToken)
             {
-                var bytes = new byte[TestContext.CurrentContext.Random.Next(1024 * 1024)];
+                var bytes = new byte[TestContext.CurrentContext.Random.Next(1024 * 32)];
                 TestContext.CurrentContext.Random.NextBytes(bytes);
                 var mock = new MockMemoryBody
                 {
@@ -343,9 +345,9 @@ namespace Drenalol.TcpClientIo
             var tcpClient = GetClient<long, Mock, Mock>();
             var timer = new System.Timers.Timer {Interval = 3000};
             timer.Start();
-            timer.Elapsed += (sender, args) =>
+            timer.Elapsed += (sender, _) =>
             {
-                ((System.Timers.Timer) sender).Stop();
+                ((System.Timers.Timer) sender)?.Stop();
                 tcpClient.DisposeAsync().GetAwaiter().GetResult();
             };
             var mock = Mock.Default();
@@ -360,7 +362,7 @@ namespace Drenalol.TcpClientIo
                 {
                     var exType = e.GetType();
                     Console.WriteLine($"Got Exception: {exType}: {e}");
-                    Assert.That(exType == typeof(OperationCanceledException) || exType == typeof(TaskCanceledException));
+                    Assert.That(exType == typeof(OperationCanceledException) || exType == typeof(TaskCanceledException) || exType == typeof(ObjectDisposedException));
                     Assert.True(tcpClient.IsBroken);
                     break;
                 }

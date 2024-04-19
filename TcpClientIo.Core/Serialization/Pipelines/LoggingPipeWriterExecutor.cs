@@ -2,7 +2,7 @@ using System;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
-using Serilog;
+using Microsoft.Extensions.Logging;
 
 namespace Drenalol.TcpClientIo.Serialization.Pipelines
 {
@@ -21,7 +21,7 @@ namespace Drenalol.TcpClientIo.Serialization.Pipelines
         {
             var flushResult = await base.WriteAsync(source, cancellationToken);
             
-            _logger.Information(
+            _logger.LogInformation(
                 "[{Type:l}] Send: Length: {Length}, IsCanceled: {IsCanceled}, IsCompleted: {IsCompleted}",
                 _type,
                 source.Length,

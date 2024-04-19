@@ -7,6 +7,7 @@ using System.Threading.Tasks.Dataflow;
 using Drenalol.TcpClientIo.Batches;
 using Drenalol.TcpClientIo.Exceptions;
 using Drenalol.TcpClientIo.Serialization;
+using Microsoft.Extensions.Logging;
 
 namespace Drenalol.TcpClientIo.Client
 {
@@ -50,7 +51,7 @@ namespace Drenalol.TcpClientIo.Client
             catch (Exception exception)
             {
                 var exceptionType = exception.GetType();
-                _logger?.Fatal(exception, "TcpWriteAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
+                _logger?.LogCritical(exception, "TcpWriteAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
                 _internalException = exception;
                 throw;
             }
@@ -95,7 +96,7 @@ namespace Drenalol.TcpClientIo.Client
             }
             catch (Exception exception)
             {
-                _logger?.Fatal(exception, "TcpReadAsync catch: {Message}", exception.Message);
+                _logger?.LogCritical(exception, "TcpReadAsync catch: {Message}", exception.Message);
                 _internalException = exception;
                 throw;
             }
@@ -125,7 +126,7 @@ namespace Drenalol.TcpClientIo.Client
             catch (Exception exception)
             {
                 var exceptionType = exception.GetType();
-                _logger?.Fatal(exception, "DeserializeResponseAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
+                _logger?.LogCritical(exception, "DeserializeResponseAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
                 _internalException = exception;
                 throw;
             }
@@ -160,11 +161,11 @@ namespace Drenalol.TcpClientIo.Client
         {
             Diag("Completion NetworkStream PipeReader started");
 
-            foreach (var completedResponse in _completeResponses.Where(tcs => tcs.Value.Task.Status == TaskStatus.WaitingForActivation))
+            foreach (var completedResponse in _completeResponses.Where(tcs => tcs.Value.DelayedTask.Task.Status == TaskStatus.WaitingForActivation))
             {
                 var innerException = exception ?? TcpClientIoException.ConnectionBroken;
                 Diag($"Set force {innerException.GetType()} in {nameof(TaskCompletionSource<ITcpBatch<TOutput>>)} in {nameof(TaskStatus.WaitingForActivation)}");
-                completedResponse.Value.TrySetException(innerException);
+                completedResponse.Value.DelayedTask.TrySetException(innerException);
             }
 
             _networkStreamPipeReader.CancelPendingRead();

@@ -1,3 +1,5 @@
+using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO.Pipelines;
 using System.Net.Sockets;
@@ -58,7 +60,15 @@ namespace Drenalol.TcpClientIo.Options
         /// </summary>
         public PipeExecutor PipeExecutorOptions { get; set; }
         
+        /// <summary>
+        /// Use shared instance of <see cref="ArrayPool{T}"/>
+        /// </summary>
+        [Obsolete("Shared will be use always")]
         public bool UseSharedArrayPool { get; set; }
+        
+        public bool IsRemoveRetainItems { get; set; }
+        
+        public int RetainItemTtlMs { get; set; }
 
         /// <summary>
         /// Gets default options
@@ -71,7 +81,8 @@ namespace Drenalol.TcpClientIo.Options
                 StreamPipeWriterOptions = new StreamPipeWriterOptions(),
                 TcpClientSendTimeout = 60000,
                 TcpClientReceiveTimeout = 60000,
-                UseSharedArrayPool = true
+                UseSharedArrayPool = true,
+                IsRemoveRetainItems = false
             };
 
         /// <summary>

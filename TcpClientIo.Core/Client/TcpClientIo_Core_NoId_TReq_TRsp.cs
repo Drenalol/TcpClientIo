@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Drenalol.TcpClientIo.Batches;
 using Drenalol.TcpClientIo.Exceptions;
 using Drenalol.TcpClientIo.Options;
-using Serilog;
+using Microsoft.Extensions.Logging;
 
 namespace Drenalol.TcpClientIo.Client
 {

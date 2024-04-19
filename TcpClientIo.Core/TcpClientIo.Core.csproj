@@ -6,15 +6,14 @@
         <Authors>Bogdan Yanysh</Authors>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageId>TcpClientIo</PackageId>
-        <Version>1.5.7</Version>
-        <PackageVersion>1.5.7</PackageVersion>
+        <PackageVersion>1.6.0</PackageVersion>
         <PackageTags>TcpClient;TcpListener;Tcp;Serialization;Pipelines;Dataflow;Async;Threadsafe</PackageTags>
         <Description>Wrapper of TcpClient what help focus on WHAT you transfer over TCP not HOW (Async, Thread-safe, TcpSerialization with attribute schema, Big/Little endian, Cancellation support)</Description>
         <PackageProjectUrl>https://github.com/Drenalol/TcpClientIo</PackageProjectUrl>
         <RepositoryUrl>https://github.com/Drenalol/TcpClientIo</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <Title>TcpClientIo</Title>
-        <Copyright>© 2022 Bogdan Yanysh</Copyright>
+        <Copyright>© 2024 Bogdan Yanysh</Copyright>
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
@@ -24,8 +23,7 @@
 
     <ItemGroup>
         <PackageReference Include="Nito.Disposables" Version="2.4.0" />
-        <PackageReference Include="Serilog" Version="2.11.0" />
-        <PackageReference Include="WaitingDictionary" Version="1.0.6" />
+        <PackageReference Include="WaitingDictionary" Version="1.1.2" />
     </ItemGroup>
 
     <ItemGroup Condition="'$(TargetFramework)' == 'net5.0'">

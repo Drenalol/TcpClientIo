@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Drenalol.TcpClientIo.Batches;
 using Drenalol.TcpClientIo.Exceptions;
+using Microsoft.Extensions.Logging;
 
 namespace Drenalol.TcpClientIo.Client
 {
@@ -34,7 +35,7 @@ namespace Drenalol.TcpClientIo.Client
             }
             catch (Exception e)
             {
-                _logger?.Error(e, "SendAsync catch: {Message}", e.Message);
+                _logger?.LogError(e, "SendAsync catch: {Message}", e.Message);
                 throw;
             }
         }
@@ -87,7 +88,7 @@ namespace Drenalol.TcpClientIo.Client
                     internalToken.ThrowIfCancellationRequested();
 
                     var completedResponses = _completeResponses
-                        .Filter(p => p.Value.Task.Status == TaskStatus.RanToCompletion)
+                        .Filter(p => p.Value.DelayedTask.Task.Status == TaskStatus.RanToCompletion)
                         .ToArray();
 
                     if (completedResponses.Length == 0)
@@ -103,10 +104,8 @@ namespace Drenalol.TcpClientIo.Client
                     {
                         internalToken.ThrowIfCancellationRequested();
 
-                        if (await _completeResponses.TryRemoveAsync(key))
-                        {
-                            result.Add(await tcs.Task);
-                        }
+                        if (await _completeResponses.TryRemoveAsync(key)) 
+                            result.Add(await tcs.DelayedTask.Task);
                     }
                 }
                 catch (OperationCanceledException)
@@ -118,14 +117,12 @@ namespace Drenalol.TcpClientIo.Client
                 }
                 catch (Exception exception)
                 {
-                    _logger?.Error(exception, "GetConsumingAsyncEnumerable catch: {Message}", exception.Message);
+                    _logger?.LogError(exception, "GetConsumingAsyncEnumerable catch: {Message}", exception.Message);
                     throw;
                 }
 
                 foreach (var batch in result)
-                {
                     yield return batch;
-                }
             }
 
             internalCts?.Dispose();
