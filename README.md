@@ -146,12 +146,13 @@ var request = new RecursiveMock<RecursiveMock<RecursiveMock<long>>>();
 await tcpClient.SendAsync(request, CancellationToken.None);
 
 // Receive response
-var response = await tcpClient.ReceiveAsync(CancellationToken.None);
+var response = await tcpClient.ReceiveAsync(CancellationToken.None).Single();
 
 // Check data
-Assert.NotNull(response.Data); // 1st check RecursiveMock<RecursiveMock>
-Assert.NotNull(response.Data.Data); // 2nd check RecursiveMock<RecursiveMock>
-Assert.IsInstanceOf<long>(response.Data.Data.Data); // 3rd check RecursiveMock<long>
+Assert.NotNull(response); // check RecursiveMock
+Assert.NotNull(response.Data); // check RecursiveMock.RecursiveMock
+Assert.NotNull(response.Data.Data); // check RecursiveMock.RecursiveMock.RecursiveMock
+Assert.IsInstanceOf<long>(response.Data.Data.Data); // check RecursiveMock.RecursiveMock.RecursiveMock.long
 ```
 #### Attribute schema
 Properties

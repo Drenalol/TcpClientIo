@@ -142,7 +142,7 @@ namespace Drenalol.TcpClientIo.Client
             _deserializePipeWriter.CancelPendingFlush();
             _deserializePipeReader.CancelPendingRead();
 
-            if (_tcpClient.Client.Connected)
+            if (_tcpClient.Client?.Connected == true)
             {
                 _deserializePipeWriter.Complete(exception);
                 _deserializePipeReader.Complete(exception);
@@ -170,7 +170,7 @@ namespace Drenalol.TcpClientIo.Client
 
             _networkStreamPipeReader.CancelPendingRead();
 
-            if (_tcpClient.Client.Connected)
+            if (_tcpClient.Client?.Connected == true)
                 _networkStreamPipeReader.Complete(exception);
             
             if (!_baseCancellationTokenSource.IsCancellationRequested)
