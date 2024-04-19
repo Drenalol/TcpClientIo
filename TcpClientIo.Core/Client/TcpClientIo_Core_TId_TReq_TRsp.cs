@@ -1,5 +1,5 @@
 using System;
-using System.Buffers;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Linq;
@@ -15,9 +15,8 @@ using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Serialization;
 using Drenalol.TcpClientIo.Serialization.Pipelines;
 using Drenalol.WaitingDictionary;
+using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
-using Serilog;
-using Serilog.Core;
 
 namespace Drenalol.TcpClientIo.Client
 {
@@ -57,6 +56,7 @@ namespace Drenalol.TcpClientIo.Client
         private bool _disposing;
         private long _bytesWrite;
         private long _bytesRead;
+        private readonly IDisposable? _sourceContextScope;
         PipeReader IDuplexPipe.Input => _networkStreamPipeReader;
         PipeWriter IDuplexPipe.Output => _networkStreamPipeWriter;
 
@@ -122,14 +122,14 @@ namespace Drenalol.TcpClientIo.Client
         {
             var pipe = new Pipe(new PipeOptions(pauseWriterThreshold: long.MaxValue));
             Id = Guid.NewGuid();
-            _logger = logger?.ForContext(Constants.SourceContextPropertyName, "TcpClientIo");
+            _logger = logger;
+            _sourceContextScope = logger?.BeginScope(new Dictionary<string, object> { ["SourceContext"] = "TcpClientIo" });
             _options = tcpClientIoOptions ?? TcpClientIoOptions.Default;
             _batchRules = TcpBatchRules<TOutput>.Default;
             _baseCancellationTokenSource = new CancellationTokenSource();
             _baseCancellationToken = _baseCancellationTokenSource.Token;
             _bufferBlockRequests = new BufferBlock<SerializedRequest>();
-            _completeResponses = new WaitingDictionary<TId, ITcpBatch<TOutput>>(SetupMiddlewareBuilder());
-            TcpSerializerBase.ArrayPool = _options.UseSharedArrayPool ? ArrayPool<byte>.Shared : ArrayPool<byte>.Create();
+            _completeResponses = new WaitingDictionary<TId, ITcpBatch<TOutput>>(SetupMiddlewareBuilder(), TaskCreationOptions.None, tcpClientIoOptions is { IsRemoveRetainItems: true } ? tcpClientIoOptions.RetainItemTtlMs : default, logger);
             var bitConverterHelper = new BitConverterHelper(_options);
             _serializer = new TcpSerializer<TInput>(bitConverterHelper, length => TcpSerializerBase.ArrayPool.Rent(length));
             _writeResetEvent = new AsyncManualResetEvent();
@@ -145,7 +145,7 @@ namespace Drenalol.TcpClientIo.Client
             if (!_tcpClient.Connected)
                 throw new SocketException(10057);
 
-            _logger?.Information("Connected to {Endpoint}", _tcpClient.Client.RemoteEndPoint as IPEndPoint);
+            _logger?.LogInformation("Connected to {Endpoint}", _tcpClient.Client.RemoteEndPoint as IPEndPoint);
             _tcpClient.SendTimeout = _options.TcpClientSendTimeout;
             _tcpClient.ReceiveTimeout = _options.TcpClientReceiveTimeout;
             _networkStreamPipeReader = PipeReader.Create(_tcpClient.GetStream(), _options.StreamPipeReaderOptions);
@@ -192,7 +192,7 @@ namespace Drenalol.TcpClientIo.Client
         private void Diag(string message)
         {
             if (_logger != null)
-                _logger.Debug("{Message}", message);
+                _logger.LogDebug("{Message}", message);
             else
                 Debug.WriteLine(message);
         }
@@ -200,7 +200,8 @@ namespace Drenalol.TcpClientIo.Client
         public async ValueTask DisposeAsync()
         {
             _disposing = true;
-
+            _sourceContextScope?.Dispose();
+            
             if (_baseCancellationTokenSource is { IsCancellationRequested: false })
                 _baseCancellationTokenSource.Cancel();
 
