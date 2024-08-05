@@ -15,6 +15,8 @@ namespace Drenalol.TcpClientIo.Client
     {
         private async Task TcpWriteAsync()
         {
+            Exception? internalException = null;
+            
             try
             {
                 var networkStreamPipeWriterExecutor = CreatePipeWriterExecutor(_options.PipeExecutorOptions, _networkStreamPipeWriter, "NetworkStream");
@@ -22,10 +24,7 @@ namespace Drenalol.TcpClientIo.Client
                 while (true)
                 {
                     _baseCancellationToken.ThrowIfCancellationRequested();
-
-                    if (!await _bufferBlockRequests.OutputAvailableAsync(_baseCancellationToken))
-                        break;
-
+                    
                     var request = await _bufferBlockRequests.ReceiveAsync(_baseCancellationToken);
 
                     FlushResult writeResult;
@@ -46,25 +45,27 @@ namespace Drenalol.TcpClientIo.Client
             }
             catch (OperationCanceledException canceledException)
             {
-                _internalException = canceledException;
+                internalException = canceledException;
             }
             catch (Exception exception)
             {
                 var exceptionType = exception.GetType();
                 _logger?.LogCritical(exception, "TcpWriteAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
-                _internalException = exception;
+                internalException = exception;
                 throw;
             }
             finally
             {
                 _pipelineWriteEnded = true;
-                StopWriter(_internalException);
+                StopWriter(internalException);
                 _writeResetEvent.Set();
             }
         }
 
         private async Task TcpReadAsync()
         {
+            Exception? internalException = null;
+            
             try
             {
                 var networkStreamPipeReaderExecutor = CreatePipeReaderExecutor(_options.PipeExecutorOptions, _networkStreamPipeReader, "NetworkStream");
@@ -92,24 +93,26 @@ namespace Drenalol.TcpClientIo.Client
             }
             catch (OperationCanceledException canceledException)
             {
-                _internalException = canceledException;
+                internalException = canceledException;
             }
             catch (Exception exception)
             {
                 _logger?.LogCritical(exception, "TcpReadAsync catch: {Message}", exception.Message);
-                _internalException = exception;
+                internalException = exception;
                 throw;
             }
             finally
             {
                 _pipelineReadEnded = true;
-                StopReader(_internalException);
+                StopReader(internalException);
                 _readResetEvent.Set();
             }
         }
 
         private async Task DeserializeResponseAsync()
         {
+            Exception? internalException = null;
+            
             try
             {
                 while (true)
@@ -121,18 +124,18 @@ namespace Drenalol.TcpClientIo.Client
             }
             catch (OperationCanceledException canceledException)
             {
-                _internalException = canceledException;
+                internalException = canceledException;
             }
             catch (Exception exception)
             {
                 var exceptionType = exception.GetType();
                 _logger?.LogCritical(exception, "DeserializeResponseAsync Got {ExceptionType}, {Message}", exceptionType, exception.Message);
-                _internalException = exception;
+                internalException = exception;
                 throw;
             }
             finally
             {
-                StopDeserializeWriterReader(_internalException);
+                StopDeserializeWriterReader(internalException);
             }
         }
 

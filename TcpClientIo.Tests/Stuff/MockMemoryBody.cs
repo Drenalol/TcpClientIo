@@ -56,7 +56,7 @@ public class MockMemoryBody : IEquatable<MockMemoryBody>
         {
             var isEquals = Equals((byte)e1.Current!, (byte)e2.Current!);
             
-            Assert.True(isEquals, $"Index failed: {idx} - {e1.Current} == {e2.Current}");
+            Assert.That(isEquals, $"Index failed: {idx} - {e1.Current} == {e2.Current}");
 
             idx++;
         }

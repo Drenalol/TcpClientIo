@@ -48,7 +48,6 @@ namespace Drenalol.TcpClientIo.Client
         private readonly PipeReader _deserializePipeReader;
         private readonly PipeWriter _deserializePipeWriter;
         private readonly ILogger? _logger;
-        private Exception? _internalException;
         private PipeReader _networkStreamPipeReader = null!;
         private PipeWriter _networkStreamPipeWriter = null!;
         private bool _pipelineReadEnded;

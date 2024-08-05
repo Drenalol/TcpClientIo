@@ -34,9 +34,9 @@ namespace Drenalol.TcpClientIo
             var serializer = new TcpSerializer<Mock>(_bitConverterHelper, i => new byte[i]);
             var deserializer = new TcpDeserializer<long, Mock>(_bitConverterHelper, null!);
             var serialize = serializer.Serialize(ethalon);
-            Assert.IsTrue(serialize.Raw.Length == ethalon.Size + ethalonHeaderLength);
+            Assert.That(serialize.Raw.Length == ethalon.Size + ethalonHeaderLength);
             var (_, deserialize) = deserializer.Deserialize(new ReadOnlySequence<byte>(serialize.Raw));
-            Assert.IsTrue(ethalon.Equals(deserialize));
+            Assert.That(ethalon.Equals(deserialize));
         }
 
         [Test]
@@ -48,9 +48,9 @@ namespace Drenalol.TcpClientIo
             var serializer = new TcpSerializer<Mock>(_bitConverterHelper, i => new byte[i]);
             var serialize = serializer.Serialize(ethalon);
             var deserializer = new TcpDeserializer<long, Mock>(_bitConverterHelper, new PipeReaderExecutor(PipeReader.Create(new MemoryStream(serialize.Raw.ToArray()))));
-            Assert.IsTrue(serialize.Raw.Length == ethalon.Size + ethalonHeaderLength);
+            Assert.That(serialize.Raw.Length == ethalon.Size + ethalonHeaderLength);
             var (_, deserialize) = await deserializer.DeserializePipeAsync(CancellationToken.None);
-            Assert.IsTrue(ethalon.Equals(deserialize));
+            Assert.That(ethalon.Equals(deserialize));
         }
 
         [Test]
@@ -102,7 +102,7 @@ namespace Drenalol.TcpClientIo
             }
 
             sw.Stop();
-            Assert.Less(sw.ElapsedMilliseconds, 1000);
+            Assert.That(sw.ElapsedMilliseconds, Is.LessThan(1000));
             TestContext.WriteLine($"Serialize: {sw.Elapsed.ToString()}");
             sw.Reset();
             
@@ -113,11 +113,11 @@ namespace Drenalol.TcpClientIo
                 sw.Start();
                 var (id, data) = await deserializer.DeserializePipeAsync(CancellationToken.None);
                 sw.Stop();
-                Assert.NotNull(id);
-                Assert.NotNull(data);
+                Assert.That(id, Is.Not.Null);
+                Assert.That(data, Is.Not.Null);
             }
 
-            Assert.Less(sw.ElapsedMilliseconds, 1000);
+            Assert.That(sw.ElapsedMilliseconds, Is.LessThan(1000));
             TestContext.WriteLine($"Deserialize: {sw.Elapsed.ToString()}");
         }
     }
