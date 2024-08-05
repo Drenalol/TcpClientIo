@@ -15,7 +15,6 @@ using Drenalol.TcpClientIo.Extensions;
 using Drenalol.TcpClientIo.Options;
 using Drenalol.TcpClientIo.Stuff;
 using Microsoft.Extensions.Logging;
-using Nito.AsyncEx;
 using NUnit.Framework;
 
 namespace Drenalol.TcpClientIo
@@ -71,9 +70,9 @@ namespace Drenalol.TcpClientIo
             await tcpClient.SendAsync(request);
             var batch = await tcpClient.ReceiveAsync(1337L);
             var response = batch.First();
-            Assert.IsTrue(request.Equals(response));
+            Assert.That(request.Equals(response));
             await tcpClient.DisposeAsync();
-            Assert.True(tcpClient.IsBroken);
+            Assert.That(tcpClient.IsBroken);
         }
 
         [Test]
@@ -93,7 +92,7 @@ namespace Drenalol.TcpClientIo
             var batch = await tcpClient.ReceiveAsync(1);
 
             await tcpClient.DisposeAsync();
-            Assert.True(tcpClient.IsBroken);
+            Assert.That(tcpClient.IsBroken);
         }
         
         [Test]
@@ -105,9 +104,9 @@ namespace Drenalol.TcpClientIo
             await Parallel.ForEachAsync(Enumerable.Range(1, 1000), cts.Token, SendAsync);
             cts.Dispose();
             await tcpClient.DisposeAsync();
-            Assert.True(tcpClient.IsBroken);
-            Assert.AreEqual(tcpClient.BytesRead, tcpClient.BytesWrite);
-            Assert.False(cts.IsCancellationRequested);
+            Assert.That(tcpClient.IsBroken);
+            Assert.That(tcpClient.BytesRead, Is.EqualTo(tcpClient.BytesWrite));
+            Assert.That(cts.IsCancellationRequested, Is.False);
             
             async ValueTask SendAsync(int id, CancellationToken cancellationToken)
             {
@@ -126,7 +125,7 @@ namespace Drenalol.TcpClientIo
                 
                 try
                 {
-                    Assert.True(mock == response);
+                    Assert.That(mock == response);
                 }
                 catch
                 {
@@ -174,7 +173,7 @@ namespace Drenalol.TcpClientIo
                     {
                         var batch = await tcpClient.ReceiveAsync(id, cts.Token);
                         var mock = batch.First();
-                        Assert.IsTrue(mock.Size == mock.Data.Length);
+                        Assert.That(mock.Size == mock.Data.Length);
                         Interlocked.Increment(ref received);
                     }
                 }
@@ -271,7 +270,7 @@ namespace Drenalol.TcpClientIo
             await client.SendAsync(mock);
             var batch = await client.ReceiveAsync();
             var mockNoId = batch.First();
-            Assert.IsTrue(mock.Size == mockNoId.Size);
+            Assert.That(mock.Size == mockNoId.Size);
         }
 
         [Test]
@@ -286,8 +285,8 @@ namespace Drenalol.TcpClientIo
             await client.SendAsync(mock);
             var batch = await client.ReceiveAsync();
             var mockNoId = batch.First();
-            Assert.IsTrue(mock.Test == mockNoId.Test);
-            Assert.IsTrue(mock.Long == mockNoId.Long);
+            Assert.That(mock.Test == mockNoId.Test);
+            Assert.That(mock.Long == mockNoId.Long);
         }
 
         [Test]
@@ -323,7 +322,7 @@ namespace Drenalol.TcpClientIo
                     throw new Exception("Parallel.For has errors");
 
                 var packageResult = await tcpClient.ReceiveAsync(0);
-                Assert.NotNull(packageResult);
+                Assert.That(packageResult, Is.Not.Null);
                 var queue = packageResult.Count;
                 count += queue;
 
@@ -336,7 +335,7 @@ namespace Drenalol.TcpClientIo
             TestContext.WriteLine($"Non-UNIQ Sizes: {havingCount}");
 
             await tcpClient.DisposeAsync();
-            Assert.True(tcpClient.IsBroken);
+            Assert.That(tcpClient.IsBroken);
         }
 
         [Test]
@@ -363,7 +362,7 @@ namespace Drenalol.TcpClientIo
                     var exType = e.GetType();
                     Console.WriteLine($"Got Exception: {exType}: {e}");
                     Assert.That(exType == typeof(OperationCanceledException) || exType == typeof(TaskCanceledException) || exType == typeof(ObjectDisposedException));
-                    Assert.True(tcpClient.IsBroken);
+                    Assert.That(tcpClient.IsBroken);
                     break;
                 }
             }
@@ -393,7 +392,7 @@ namespace Drenalol.TcpClientIo
                     {
                         Console.WriteLine($"Got Exception: {e.GetType()}: {e}");
                         Assert.That(e.GetType() == typeof(OperationCanceledException) || e.GetType() == typeof(TaskCanceledException));
-                        Assert.False(tcpClient.IsBroken);
+                        Assert.That(tcpClient.IsBroken, Is.False);
                         attempts++;
                         break;
                     }
@@ -407,7 +406,7 @@ namespace Drenalol.TcpClientIo
             var mock = new MockNoIdEmptyBody {Length = 0, Empty = ""};
             var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>();
             await client.SendAsync(mock);
-            Assert.NotNull(await client.ReceiveAsync(default));
+            Assert.That(await client.ReceiveAsync(default), Is.Not.Null);
         }
 
         [Test]
@@ -420,7 +419,7 @@ namespace Drenalol.TcpClientIo
             var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: cfg.Port);
 
             Assert.CatchAsync<TcpClientIoException>(async () => await client.ReceiveAsync(0, CancellationToken.None));
-            Assert.True(client.IsBroken);
+            Assert.That(client.IsBroken);
         }
         
         [Test]
@@ -439,7 +438,7 @@ namespace Drenalol.TcpClientIo
                     await client.ReceiveAsync(0, cts2.Token);
                 }
             );
-            Assert.False(client.IsBroken);
+            Assert.That(client.IsBroken, Is.False);
         }
 
         [TestCase(true)]
@@ -462,8 +461,8 @@ namespace Drenalol.TcpClientIo
             }
             catch (Exception e)
             {
-                Assert.IsInstanceOf<TcpClientIoException>(e);
-                Assert.True(client.IsBroken);
+                Assert.That(e, Is.InstanceOf<TcpClientIoException>());
+                Assert.That(client.IsBroken);
             }
         }
 
@@ -479,7 +478,7 @@ namespace Drenalol.TcpClientIo
             cts.Cancel();
             await Task.Delay(5000, CancellationToken.None);
             Assert.CatchAsync<TcpClientIoException>(() => client.SendAsync(new MockNoIdEmptyBody(), CancellationToken.None));
-            Assert.True(client.IsBroken);
+            Assert.That(client.IsBroken);
         }
     }
 }

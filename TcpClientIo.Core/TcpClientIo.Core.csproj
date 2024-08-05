@@ -1,12 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFramework>net6.0</TargetFramework>
-        <LangVersion>10</LangVersion>
+        <TargetFramework>net8.0</TargetFramework>
         <RootNamespace>Drenalol.TcpClientIo</RootNamespace>
         <Authors>Bogdan Yanysh</Authors>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageId>TcpClientIo</PackageId>
-        <PackageVersion>1.6.2</PackageVersion>
+        <PackageVersion>2.0.0</PackageVersion>
         <PackageTags>TcpClient;TcpListener;Tcp;Serialization;Pipelines;Dataflow;Async;Threadsafe</PackageTags>
         <Description>Wrapper of TcpClient what help focus on WHAT you transfer over TCP not HOW (Async, Thread-safe, TcpSerialization with attribute schema, Big/Little endian, Cancellation support)</Description>
         <PackageProjectUrl>https://github.com/Drenalol/TcpClientIo</PackageProjectUrl>
@@ -22,18 +21,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Nito.Disposables" Version="2.4.0" />
+        <PackageReference Include="Nito.Disposables" Version="2.5.0" />
         <PackageReference Include="WaitingDictionary" Version="1.1.4" />
-    </ItemGroup>
-
-    <ItemGroup Condition="'$(TargetFramework)' == 'net5.0'">
-        <PackageReference Include="System.IO.Pipelines" Version="5.0.0" />
-        <PackageReference Include="System.Threading.Tasks.Dataflow" Version="5.0.0" />
-    </ItemGroup>
-    
-    <ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">
-        <PackageReference Include="System.IO.Pipelines" Version="6.0.3" />
-        <PackageReference Include="System.Threading.Tasks.Dataflow" Version="6.0.0" />
+        <PackageReference Include="System.IO.Pipelines" Version="8.0.0" />
+        <PackageReference Include="System.Threading.Tasks.Dataflow" Version="8.0.1" />
     </ItemGroup>
 
     <ItemGroup>

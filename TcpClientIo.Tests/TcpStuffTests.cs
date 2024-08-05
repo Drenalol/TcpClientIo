@@ -141,17 +141,17 @@ namespace Drenalol.TcpClientIo
             var str = "Hello my friend";
             var stringResult = _bitConverterHelper.ConvertToSequence(str, typeof(string), reverse);
             var stringResultBack = _bitConverterHelper.ConvertFromSequence(stringResult, typeof(string), reverse);
-            Assert.AreEqual(str, stringResultBack);
+            Assert.That(str, Is.EqualTo(stringResultBack));
 
             var datetime = DateTime.Now;
             var dateTimeResult = _bitConverterHelper.ConvertToSequence(datetime, typeof(DateTime), reverse);
             var dateTimeResultBack = _bitConverterHelper.ConvertFromSequence(dateTimeResult, typeof(DateTime), reverse);
-            Assert.AreEqual(datetime, dateTimeResultBack);
+            Assert.That(datetime, Is.EqualTo(dateTimeResultBack));
 
             var guid = Guid.NewGuid();
             var guidResult = _bitConverterHelper.ConvertToSequence(guid, typeof(Guid), reverse);
             var guidResultBack = _bitConverterHelper.ConvertFromSequence(guidResult, typeof(Guid), reverse);
-            Assert.AreEqual(guid, guidResultBack);
+            Assert.That(guid, Is.EqualTo(guidResultBack));
         }
     }
 }
