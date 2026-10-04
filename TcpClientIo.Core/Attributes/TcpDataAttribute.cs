@@ -1,38 +1,32 @@
-using System;
+namespace Drenalol.TcpClientIo.Attributes;
 
-namespace Drenalol.TcpClientIo.Attributes
+/// <summary>
+/// Maps a property to a position in the serialized byte array.
+/// </summary>
+[AttributeUsage(AttributeTargets.Property)]
+public class TcpDataAttribute(int index, int length = 0, TcpDataType tcpDataType = TcpDataType.MetaData) : Attribute
 {
-    [AttributeUsage(AttributeTargets.Property)]
-    public class TcpDataAttribute : Attribute
-    {
-        /// <summary>
-        /// Property position in Byte Array.
-        /// </summary>
-        public int Index { get; }
+    /// <summary>
+    /// Property position in Byte Array.
+    /// </summary>
+    public int Index { get; } = index;
 
-        /// <summary>
-        /// Property length in Byte Array. If TcpDataType set to TcpDataType.Body is ignored. Overwritten by the serializer.
-        /// </summary>
-        public int Length { get; }
+    /// <summary>
+    /// Property length in Byte Array. If TcpDataType set to TcpDataType.Body is ignored. Overwritten by the serializer.
+    /// </summary>
+    public int Length { get; } = length;
 
-        /// <summary>
-        /// Optional. Reverses the sequence of the elements in the serialized Byte Array.
-        /// <para>Used for cases where the receiving side uses a different endianness.</para>
-        /// </summary>
-        public bool Reverse { get; set; }
+    /// <summary>
+    /// Optional. Reverses the sequence of the elements in the serialized Byte Array.
+    /// <para>Used for cases where the receiving side uses a different endianness.</para>
+    /// </summary>
+    public bool Reverse { get; set; }
 
-        /// <summary>
-        /// Sets the serialization rule for this property.
-        /// </summary>
-        public TcpDataType TcpDataType { get; set; }
+    /// <summary>
+    /// Sets the serialization rule for this property.
+    /// </summary>
+    public TcpDataType TcpDataType { get; set; } = tcpDataType;
 
-        public TcpDataAttribute(int index, int length = 0, TcpDataType tcpDataType = TcpDataType.MetaData)
-        {
-            Index = index;
-            Length = length;
-            TcpDataType = tcpDataType;
-        }
-
-        public override string ToString() => $"{Index.ToString()}, {Length.ToString()}, {TcpDataType.ToString()}";
-    }
+    /// <inheritdoc/>
+    public override string ToString() => $"{Index}, {Length}, {TcpDataType}";
 }

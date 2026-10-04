@@ -1,13 +1,13 @@
-using System;
+namespace Drenalol.TcpClientIo.Converters;
 
-namespace Drenalol.TcpClientIo.Converters
+/// <summary>
+/// Guid converter to byte array and vice versa.
+/// </summary>
+public class TcpGuidConverter : TcpConverter<Guid>
 {
-    /// <summary>
-    /// Guid converter to byte array and vice versa.
-    /// </summary>
-    public class TcpGuidConverter : TcpConverter<Guid>
-    {
-        public override byte[] Convert(Guid input) => input.ToByteArray();
-        public override Guid ConvertBack(ReadOnlySpan<byte> input) => new Guid(input);
-    }
+    /// <inheritdoc/>
+    public override byte[] Convert(Guid input) => input.ToByteArray();
+
+    /// <inheritdoc/>
+    public override Guid ConvertBack(ReadOnlySpan<byte> input) => new(input);
 }

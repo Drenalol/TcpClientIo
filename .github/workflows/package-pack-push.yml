@@ -3,20 +3,61 @@ name: Push package
 on:
   push:
     branches: [ master, beta ]
+  pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     steps:
-    - uses: actions/checkout@v1
-    - name: Setup .NET Core
-      uses: actions/setup-dotnet@master
-      with:
-        dotnet-version: 6.0.x
-    - name: Pack
-      run: dotnet pack --configuration Release -o "./packages" TcpClientIo.Core
-    - name: Publish NuGet
-      env:
-        NUGET_AUTH_TOKEN: ${{secrets.NUGET_AUTH_TOKEN}}
-      run: dotnet nuget push -s https://www.nuget.org/api/v2/package -k $NUGET_AUTH_TOKEN ./packages/*.nupkg --skip-duplicate
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.x
+
+      - name: Build
+        run: dotnet build TcpClientIo.sln --configuration Release
+
+      - name: Test
+        run: dotnet test TcpClientIo.Tests --configuration Release --no-build
+
+  publish:
+    # Publishes the package on every push to master with the <PackageVersion> from TcpClientIo.Core.csproj.
+    # To ship a new package, bump <PackageVersion>, commit and push.
+    # It goes to two registries: GitHub Packages (shown on the repo Packages page, GITHUB_TOKEN)
+    # and nuget.org (NuGet Trusted Publishing/OIDC, needs a NUGET_USER secret with the nuget.org profile name).
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.x
+
+      - name: Pack
+        run: dotnet pack TcpClientIo.Core --configuration Release -o "./packages"
+
+      - name: Publish to GitHub Packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          dotnet nuget add source --username "$GITHUB_ACTOR" --password "$GITHUB_TOKEN" --store-password-in-clear-text --name github "https://nuget.pkg.github.com/Drenalol/index.json"
+          dotnet nuget push "./packages/*.nupkg" --api-key "$GITHUB_TOKEN" --source github --skip-duplicate
+
+      - name: NuGet login (OIDC to temp API key)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          # nuget.org profile name (NOT email), stored as a repository secret
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push to NuGet
+        run: dotnet nuget push "./packages/*.nupkg" --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json --skip-duplicate

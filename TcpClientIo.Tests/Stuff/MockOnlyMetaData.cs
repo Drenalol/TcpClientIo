@@ -1,19 +1,12 @@
 using Drenalol.TcpClientIo.Attributes;
 
-namespace Drenalol.TcpClientIo.Stuff
+namespace Drenalol.TcpClientIo.Stuff;
+
+public sealed class MockOnlyMetaData
 {
-    public class MockOnlyMetaData
-    {
-        [TcpData(0, 4)]
-        public int Test { get; set; }
+    [TcpData(0, 4)]
+    public int Test { get; set; } = 5555;
 
-        [TcpData(4, 8)]
-        public long Long { get; set; }
-
-        public MockOnlyMetaData()
-        {
-            Test = 5555;
-            Long = 12312312;
-        }
-    }
+    [TcpData(4, 8)]
+    public long Long { get; set; } = 12312312;
 }

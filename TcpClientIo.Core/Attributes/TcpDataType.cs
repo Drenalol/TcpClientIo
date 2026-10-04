@@ -1,36 +1,33 @@
-using System;
+namespace Drenalol.TcpClientIo.Attributes;
 
-namespace Drenalol.TcpClientIo.Attributes
+/// <summary>
+/// Serialization rule for a property marked with <see cref="TcpDataAttribute"/>.
+/// </summary>
+public enum TcpDataType
 {
     /// <summary>
-    /// 
+    /// Regular header property, serialized as-is.
     /// </summary>
-    public enum TcpDataType
-    {
-        /// <summary>
-        /// 
-        /// </summary>
-        MetaData,
+    MetaData,
 
-        /// <summary>
-        /// 
-        /// </summary>
-        Id,
+    /// <summary>
+    /// Identifier property, used to match responses with requests.
+    /// </summary>
+    Id,
 
-        /// <summary>
-        /// 
-        /// </summary>
-        Length,
+    /// <summary>
+    /// Body length property, overwritten by the serializer.
+    /// </summary>
+    Length,
 
-        /// <summary>
-        /// 
-        /// </summary>
-        Body,
+    /// <summary>
+    /// Body property, length is taken from the Length property.
+    /// </summary>
+    Body,
 
-        /// <summary>
-        /// 
-        /// </summary>
-        [Obsolete("Will be refactored in the future", true)]
-        Compose
-    }
+    /// <summary>
+    /// Composed property.
+    /// </summary>
+    [Obsolete("Will be refactored in the future", true)]
+    Compose
 }

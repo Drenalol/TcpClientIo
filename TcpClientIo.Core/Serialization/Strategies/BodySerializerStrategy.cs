@@ -1,57 +1,46 @@
-using System;
 using Drenalol.TcpClientIo.Exceptions;
 
-namespace Drenalol.TcpClientIo.Serialization.Strategies
+namespace Drenalol.TcpClientIo.Serialization.Strategies;
+
+internal class BodySerializerStrategy<TData>(ReflectionHelper reflectionHelper, BitConverterHelper bitConverterHelper) : SerializerStrategy<TData> where TData : notnull
 {
-    internal class BodySerializerStrategy<TData> : SerializerStrategy<TData> where TData : notnull
+    public override SerializeResult GetBodyData(TData value)
     {
-        private readonly ReflectionHelper _reflectionHelper;
-        private readonly BitConverterHelper _bitConverterHelper;
+        var bodyValue = reflectionHelper.BodyProperty!.Get(value);
 
-        public BodySerializerStrategy(ReflectionHelper reflectionHelper, BitConverterHelper bitConverterHelper)
+        if (bodyValue == null)
+            throw TcpException.SerializerBodyPropertyIsNull();
+
+        var serializedBody = bitConverterHelper.ConvertToSequence(bodyValue, reflectionHelper.BodyProperty.PropertyType, reflectionHelper.BodyProperty.Attribute.Reverse);
+
+        var (realLength, lengthValue) = CalculateRealLength(reflectionHelper.LengthProperty!, ref value, reflectionHelper.MetaLength, (int)serializedBody.Length);
+
+        return new SerializeResult(serializedBody, realLength, lengthValue);
+    }
+
+    private static (int Length, object LengthValue) CalculateRealLength(
+        TcpProperty lengthProperty,
+        ref TData data,
+        int metaLength,
+        int dataLength
+    )
+    {
+        var lengthValue = lengthProperty.PropertyType == typeof(int)
+            ? dataLength
+            : Convert.ChangeType(dataLength, lengthProperty.PropertyType);
+
+        if (lengthProperty.IsValueType)
+            data = (TData)lengthProperty.Set(data, lengthValue);
+        else
+            lengthProperty.Set(data, lengthValue);
+
+        try
         {
-            _reflectionHelper = reflectionHelper;
-            _bitConverterHelper = bitConverterHelper;
+            return ((int)lengthValue + metaLength, lengthValue);
         }
-
-        public override SerailizeResult GetBodyData(TData value)
+        catch (InvalidCastException)
         {
-            var bodyValue = _reflectionHelper.BodyProperty!.Get(value);
-
-            if (bodyValue == null)
-                throw TcpException.SerializerBodyPropertyIsNull();
-
-            var serializedBody = _bitConverterHelper.ConvertToSequence(bodyValue, _reflectionHelper.BodyProperty.PropertyType, _reflectionHelper.BodyProperty.Attribute.Reverse);
-
-            var realLength = CalculateRealLength(_reflectionHelper.LengthProperty!, ref value, _reflectionHelper.MetaLength, (int)serializedBody.Length);
-
-            return new SerailizeResult(serializedBody, realLength);
-        }
-
-        private static int CalculateRealLength(
-            TcpProperty lengthProperty,
-            ref TData data,
-            int metaLength,
-            int dataLength
-        )
-        {
-            var lengthValue = lengthProperty.PropertyType == typeof(int)
-                ? dataLength
-                : Convert.ChangeType(dataLength, lengthProperty.PropertyType);
-
-            if (lengthProperty.IsValueType)
-                data = (TData)lengthProperty.Set(data, lengthValue);
-            else
-                lengthProperty.Set(data, lengthValue);
-
-            try
-            {
-                return (int)lengthValue + metaLength;
-            }
-            catch (InvalidCastException)
-            {
-                return Convert.ToInt32(lengthValue) + metaLength;
-            }
+            return (Convert.ToInt32(lengthValue) + metaLength, lengthValue);
         }
     }
 }

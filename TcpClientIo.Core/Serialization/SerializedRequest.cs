@@ -1,19 +1,10 @@
-using System;
 using System.Buffers;
 
-namespace Drenalol.TcpClientIo.Serialization
+namespace Drenalol.TcpClientIo.Serialization;
+
+internal sealed class SerializedRequest(byte[] rentedArray, int realLength)
 {
-    public class SerializedRequest
-    {
-        private readonly byte[] _rentedArray;
-        internal readonly ReadOnlyMemory<byte> Raw;
+    internal readonly ReadOnlyMemory<byte> Raw = new(rentedArray, 0, realLength);
 
-        internal SerializedRequest(byte[] rentedArray, int realLength)
-        {
-            _rentedArray = rentedArray;
-            Raw = new ReadOnlyMemory<byte>(rentedArray, 0, realLength);
-        }
-
-        internal void ReturnRentedArray(ArrayPool<byte> pool) => pool.Return(_rentedArray);
-    }
+    internal void ReturnRentedArray(ArrayPool<byte> pool) => pool.Return(rentedArray);
 }

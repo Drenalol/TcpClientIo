@@ -1,33 +1,39 @@
-using System;
-using System.Collections.Generic;
 using Drenalol.TcpClientIo.Converters;
 
-namespace Drenalol.TcpClientIo.Extensions
+namespace Drenalol.TcpClientIo.Extensions;
+
+/// <summary>
+/// Dictionary lookup helpers for <see cref="TcpConverter"/> registries.
+/// </summary>
+public static class TcpConverterExtension
 {
-    public static class TcpConverterExtension
+    /// <summary>
+    /// Converts the value when a converter for <paramref name="type"/> is registered.
+    /// </summary>
+    public static bool TryConvert(this IReadOnlyDictionary<Type, TcpConverter> converters, Type type, object o, out byte[] result)
     {
-        public static bool TryConvert(this IReadOnlyDictionary<Type, TcpConverter> converters, Type type, object o, out byte[] result)
+        if (converters.TryGetValue(type, out var converter))
         {
-            if (converters.TryGetValue(type, out var converter))
-            {
-                result = converter.ConvertTo(o);
-                return true;
-            }
-
-            result = null!;
-            return false;
+            result = converter.ConvertTo(o);
+            return true;
         }
 
-        public static bool TryConvertBack(this IReadOnlyDictionary<Type, TcpConverter> converters, Type type, ReadOnlySpan<byte> span, out object result)
-        {
-            if (converters.TryGetValue(type, out var converter))
-            {
-                result = converter.ConvertBackTo(span);
-                return true;
-            }
+        result = null!;
+        return false;
+    }
 
-            result = default!;
-            return false;
+    /// <summary>
+    /// Converts bytes back when a converter for <paramref name="type"/> is registered.
+    /// </summary>
+    public static bool TryConvertBack(this IReadOnlyDictionary<Type, TcpConverter> converters, Type type, ReadOnlySpan<byte> span, out object result)
+    {
+        if (converters.TryGetValue(type, out var converter))
+        {
+            result = converter.ConvertBackTo(span);
+            return true;
         }
+
+        result = default!;
+        return false;
     }
 }
