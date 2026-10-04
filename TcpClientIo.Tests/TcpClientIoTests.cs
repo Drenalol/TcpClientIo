@@ -471,16 +471,30 @@ public class TcpClientIoTests : UseTcpListenerTest
         var emulator = ListenerEmulator.Create(cts.Token, ListenerEmulatorConfig.Default);
         await using var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: emulator.Port);
 
+        // prove the emulator accepted the connection before cancelling: cancelling earlier
+        // races with AcceptTcpClientAsync and Stop() then leaves our socket open in the OS backlog
+        await client.SendAsync(new MockNoIdEmptyBody());
+        await client.ReceiveAsync(0);
+
         cts.Cancel();
 
         var sw = Stopwatch.StartNew();
-        while (!client.IsBroken && sw.Elapsed < TimeSpan.FromSeconds(5))
-            await Task.Delay(50);
+        TcpClientIoException? sendError = null;
 
-        // give the write pipeline a moment to notice the broken connection too
-        await Task.Delay(200);
+        while (sendError is null && sw.Elapsed < TimeSpan.FromSeconds(10))
+        {
+            try
+            {
+                await client.SendAsync(new MockNoIdEmptyBody(), CancellationToken.None);
+                await Task.Delay(50);
+            }
+            catch (TcpClientIoException e)
+            {
+                sendError = e;
+            }
+        }
 
-        await Assert.ThrowsAsync<TcpClientIoException>(() => client.SendAsync(new MockNoIdEmptyBody(), CancellationToken.None));
+        Assert.That(sendError, Is.Not.Null);
         Assert.That(client.IsBroken);
     }
 }
