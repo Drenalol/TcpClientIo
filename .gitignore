@@ -9,3 +9,6 @@ MOCK_DATA*
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
+
+.DS_Store
+BenchmarkDotNet.Artifacts/

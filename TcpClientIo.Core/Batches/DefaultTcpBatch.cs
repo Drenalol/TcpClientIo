@@ -1,26 +1,23 @@
 using System.Collections;
-using System.Collections.Generic;
 
-namespace Drenalol.TcpClientIo.Batches
+namespace Drenalol.TcpClientIo.Batches;
+
+/// <summary>
+/// Default TcpBatch instance
+/// </summary>
+/// <typeparam name="TResponse"></typeparam>
+public sealed class DefaultTcpBatch<TResponse> : ITcpBatch<TResponse>
 {
-    /// <summary>
-    /// Default TcpBatch instance
-    /// </summary>
-    /// <typeparam name="TResponse"></typeparam>
-    public sealed class DefaultTcpBatch<TResponse> : ITcpBatch<TResponse>
-    {
-        private readonly IList<TResponse> _internalList;
-        public int Count => _internalList.Count;
+    private readonly List<TResponse> _internalList = [];
 
-        public DefaultTcpBatch()
-        {
-            _internalList = new List<TResponse>();
-        }
+    /// <inheritdoc/>
+    public int Count => _internalList.Count;
 
-        public void Add(TResponse response) => _internalList.Add(response);
-        
-        public IEnumerator<TResponse> GetEnumerator() => _internalList.GetEnumerator();
+    /// <inheritdoc/>
+    public void Add(TResponse response) => _internalList.Add(response);
 
-        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-    }
+    /// <inheritdoc/>
+    public IEnumerator<TResponse> GetEnumerator() => _internalList.GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

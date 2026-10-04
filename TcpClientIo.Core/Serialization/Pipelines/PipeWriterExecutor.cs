@@ -1,16 +1,10 @@
-using System;
 using System.IO.Pipelines;
-using System.Threading;
-using System.Threading.Tasks;
 
-namespace Drenalol.TcpClientIo.Serialization.Pipelines
+namespace Drenalol.TcpClientIo.Serialization.Pipelines;
+
+internal class PipeWriterExecutor(PipeWriter pipeWriter)
 {
-    internal class PipeWriterExecutor
-    {
-        private readonly PipeWriter _pipeWriter;
+    private readonly PipeWriter _pipeWriter = pipeWriter ?? throw new ArgumentNullException(nameof(pipeWriter));
 
-        public PipeWriterExecutor(PipeWriter pipeWriter) => _pipeWriter = pipeWriter;
-
-        public virtual async ValueTask<FlushResult> WriteAsync(ReadOnlyMemory<byte> source, CancellationToken cancellationToken = default) => await _pipeWriter.WriteAsync(source, cancellationToken);
-    }
+    public virtual async ValueTask<FlushResult> WriteAsync(ReadOnlyMemory<byte> source, CancellationToken cancellationToken = default) => await _pipeWriter.WriteAsync(source, cancellationToken);
 }

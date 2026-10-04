@@ -1,11 +1,8 @@
-using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO.Pipelines;
-using System.Linq;
 using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
 using Drenalol.TcpClientIo.Client;
 using Drenalol.TcpClientIo.Contracts;
 using Drenalol.TcpClientIo.Converters;
@@ -17,204 +14,210 @@ using Drenalol.TcpClientIo.Stuff;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 
-namespace Drenalol.TcpClientIo
+namespace Drenalol.TcpClientIo;
+
+[TestFixture(TestOf = typeof(TcpClientIo<,>))]
+public class TcpClientIoTests : UseTcpListenerTest
 {
-    [TestFixture(TestOf = typeof(TcpClientIo<,>))]
-    public class TcpClientIoTests : UseTcpListenerTest
+    public static readonly IPAddress IpAddress = IPAddress.Any;
+
+    private static readonly ConcurrentDictionary<LogLevel, (TcpClientIoOptions Options, ILoggerFactory LoggerFactory)> DefaultsCache = new();
+
+    private static (TcpClientIoOptions, ILoggerFactory) GetDefaults(LogLevel logLevel) =>
+        DefaultsCache.GetOrAdd(
+            logLevel,
+            static level =>
+            {
+                var options = TcpClientIoOptions.Default;
+
+                options.Converters = [new TcpGuidConverter(), new TcpDateTimeConverter(), new TcpUtf8StringConverter()];
+
+                options.StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 10240000);
+                options.StreamPipeWriterOptions = new StreamPipeWriterOptions();
+                options.PipeExecutorOptions = PipeExecutor.Logging;
+
+                var loggerFactory = LoggerFactory.Create(lb =>
+                {
+                    lb.SetMinimumLevel(level);
+                    lb.AddDebug();
+                    lb.AddConsole();
+                });
+
+                return (options, loggerFactory);
+            }
+        );
+
+    public TcpClientIo<TId, T, TR> GetClient<TId, T, TR>(int? port = null, LogLevel logLevel = LogLevel.Warning) where TR : new() where TId : struct where T : notnull
     {
-        public static readonly IPAddress IpAddress = IPAddress.Any;
+        var (options, loggerFactory) = GetDefaults(logLevel);
+        return new TcpClientIo<TId, T, TR>(IpAddress, port ?? EmulatorPort, options, loggerFactory.CreateLogger<TcpClientIo<T, TR>>());
+    }
 
-        private static (TcpClientIoOptions, ILoggerFactory) GetDefaults(LogLevel logLevel)
+    public TcpClientIo<T, TR> GetClient<T, TR>(int? port = null, LogLevel logLevel = LogLevel.Warning) where TR : new() where T : notnull
+    {
+        var (options, loggerFactory) = GetDefaults(logLevel);
+        return new TcpClientIo<T, TR>(IpAddress, port ?? EmulatorPort, options, loggerFactory.CreateLogger<TcpClientIo<T, TR>>());
+    }
+
+    [Test]
+    public async Task SingleSendReceiveTest()
+    {
+        await using var tcpClient = GetClient<long, Mock, Mock>(logLevel: LogLevel.Debug);
+        var request = Mock.Default();
+        await tcpClient.SendAsync(request);
+        var batch = await tcpClient.ReceiveAsync(1337L);
+        var response = batch.First();
+        Assert.That(response, Is.EqualTo(request));
+        await tcpClient.DisposeAsync();
+        Assert.That(tcpClient.IsBroken);
+    }
+
+    [Test]
+    public async Task SingleByteAndByteArrayTest()
+    {
+        await using var tcpClient = GetClient<int, MockByteBody, MockByteBody>();
+
+        var mock = new MockByteBody
         {
-            var options = TcpClientIoOptions.Default;
+            Id = 1,
+            Body = "TestHello",
+            TestByte = 123,
+            TestByteArray = [123, 124]
+        };
 
-            options.Converters = new List<TcpConverter>
+        await tcpClient.SendAsync(mock);
+        var batch = await tcpClient.ReceiveAsync(1);
+        Assert.That(batch.Single().Body, Is.EqualTo("TestHello"));
+
+        await tcpClient.DisposeAsync();
+        Assert.That(tcpClient.IsBroken);
+    }
+
+    [Test]
+    public async Task MockBodyInSequenceTest()
+    {
+        await using var tcpClient = GetClient<int, MockMemoryBody, MockMemoryBody>();
+        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+
+        await Parallel.ForEachAsync(Enumerable.Range(1, 1000), cts.Token, SendAsync);
+        cts.Dispose();
+        Assert.That(tcpClient.BytesRead, Is.EqualTo(tcpClient.BytesWrite));
+        Assert.That(cts.IsCancellationRequested, Is.False);
+
+        async ValueTask SendAsync(int id, CancellationToken cancellationToken)
+        {
+            var bytes = new byte[TestContext.CurrentContext.Random.Next(1024 * 32)];
+            TestContext.CurrentContext.Random.NextBytes(bytes);
+            var mock = new MockMemoryBody
             {
-                new TcpGuidConverter(),
-                new TcpDateTimeConverter(),
-                new TcpUtf8StringConverter()
-            };
-
-            options.StreamPipeReaderOptions = new StreamPipeReaderOptions(bufferSize: 10240000);
-            options.StreamPipeWriterOptions = new StreamPipeWriterOptions();
-            options.PipeExecutorOptions = PipeExecutor.Logging;
-            
-            var loggerFactory = LoggerFactory.Create(lb =>
-            {
-                //lb.AddFilter("Drenalol.Client.TcpClientIo.Core", logLevel);
-                lb.SetMinimumLevel(logLevel);
-                lb.AddDebug();
-                lb.AddConsole();
-            });
-
-            return (options, loggerFactory);
-        }
-
-        public static TcpClientIo<TId, T, TR> GetClient<TId, T, TR>(IPAddress ipAddress = null, int port = 10000, LogLevel logLevel = LogLevel.Warning) where TR : new() where TId : struct
-        {
-            var (options, loggerFactory) = GetDefaults(logLevel);
-            return new TcpClientIo<TId, T, TR>(ipAddress ?? IpAddress, port, options, loggerFactory.CreateLogger<TcpClientIo<T, TR>>());
-        }
-
-        public static TcpClientIo<T, TR> GetClient<T, TR>(IPAddress ipAddress = null, int port = 10000, LogLevel logLevel = LogLevel.Warning) where TR : new()
-        {
-            var (options, loggerFactory) = GetDefaults(logLevel);
-            return new TcpClientIo<T, TR>(ipAddress ?? IpAddress, port, options, loggerFactory.CreateLogger<TcpClientIo<T, TR>>());
-        }
-
-        [Test]
-        public async Task SingleSendReceiveTest()
-        {
-            var tcpClient = GetClient<long, Mock, Mock>(logLevel: LogLevel.Debug);
-            var request = Mock.Default();
-            await tcpClient.SendAsync(request);
-            var batch = await tcpClient.ReceiveAsync(1337L);
-            var response = batch.First();
-            Assert.That(request.Equals(response));
-            await tcpClient.DisposeAsync();
-            Assert.That(tcpClient.IsBroken);
-        }
-
-        [Test]
-        public async Task SingleByteAndByteArrayTest()
-        {
-            var tcpClient = GetClient<int, MockByteBody, MockByteBody>();
-
-            var mock = new MockByteBody
-            {
-                Id = 1,
-                Body = "TestHello",
+                Id = id,
                 TestByte = 123,
-                TestByteArray = new byte[] {123, 124}
+                TestByteArray = [111, 222],
+                Body = bytes.ToSequence()
             };
 
-            await tcpClient.SendAsync(mock);
-            var batch = await tcpClient.ReceiveAsync(1);
+            await tcpClient.SendAsync(mock, cancellationToken);
+            var response = (await tcpClient.ReceiveAsync(id, cancellationToken)).Single();
 
-            await tcpClient.DisposeAsync();
-            Assert.That(tcpClient.IsBroken);
-        }
-        
-        [Test]
-        public async Task MockBodyInSequenceTest()
-        {
-            var tcpClient = GetClient<int, MockMemoryBody, MockMemoryBody>();
-            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-
-            await Parallel.ForEachAsync(Enumerable.Range(1, 1000), cts.Token, SendAsync);
-            cts.Dispose();
-            await tcpClient.DisposeAsync();
-            Assert.That(tcpClient.IsBroken);
-            Assert.That(tcpClient.BytesRead, Is.EqualTo(tcpClient.BytesWrite));
-            Assert.That(cts.IsCancellationRequested, Is.False);
-            
-            async ValueTask SendAsync(int id, CancellationToken cancellationToken)
+            try
             {
-                var bytes = new byte[TestContext.CurrentContext.Random.Next(1024 * 32)];
-                TestContext.CurrentContext.Random.NextBytes(bytes);
-                var mock = new MockMemoryBody
-                {
-                    Id = id,
-                    TestByte = 123,
-                    TestByteArray = new byte[] { 111, 222 },
-                    Body = bytes.ToSequence()
-                };
+                Assert.That(response, Is.EqualTo(mock));
+            }
+            catch
+            {
+                // ReSharper disable once AccessToDisposedClosure
+                cts.Cancel();
+            }
+        }
+    }
 
-                await tcpClient.SendAsync(mock, cancellationToken);
-                var response = (await tcpClient.ReceiveAsync(id, cancellationToken)).Single();
-                
-                try
+    [TestCase(1000, 1, 5)]
+    [TestCase(1000, 4, 5)]
+    public async Task MultipleConsumersAsyncTest(int requests, int consumers, double timeout)
+    {
+        var requestsPerConsumer = requests / consumers;
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(TimeSpan.FromMinutes(timeout));
+        var consumersList = Enumerable.Range(0, consumers).Select(_ => GetClient<long, Mock, Mock>()).ToList();
+        var requestQueue = 0;
+        var waitersQueue = 0;
+        var bytesWrite = 0L;
+        var bytesRead = 0L;
+        var sended = 0;
+        var received = 0;
+
+        await Task.WhenAll(consumersList.Select(io => Task.Run(() => DoWork(io), cts.Token)).ToArray());
+
+        foreach (var io in consumersList)
+            await io.DisposeAsync();
+
+        async Task DoWork(ITcpClientIo<long, Mock, Mock> tcpClient)
+        {
+            try
+            {
+                var tasks = Enumerable.Range(0, requestsPerConsumer).Select(i => (long)i).Select(SendAsync)
+                    .Concat(Enumerable.Range(0, requestsPerConsumer).Select(i => (long)i).Select(ReceiveAsync))
+                    .ToList();
+
+                await Task.WhenAll(tasks);
+
+                async Task SendAsync(long id)
                 {
-                    Assert.That(mock == response);
+                    var mock = Mock.Default(id);
+                    await tcpClient.SendAsync(mock, cts.Token);
+                    Interlocked.Increment(ref sended);
                 }
-                catch
+
+                async Task ReceiveAsync(long id)
                 {
-                    // ReSharper disable once AccessToDisposedClosure
-                    cts.Cancel();
+                    var batch = await tcpClient.ReceiveAsync(id, cts.Token);
+                    var mock = batch.First();
+                    Assert.That(mock.Size, Is.EqualTo(mock.Data.Length));
+                    Interlocked.Increment(ref received);
                 }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+            finally
+            {
+                Interlocked.Add(ref bytesWrite, tcpClient.BytesWrite);
+                Interlocked.Add(ref bytesRead, tcpClient.BytesRead);
+                Interlocked.Add(ref requestQueue, tcpClient.Requests);
+                Interlocked.Add(ref waitersQueue, tcpClient.Waiters);
             }
         }
 
-        [TestCase(1000, 1, 5)]
-        [TestCase(1000, 4, 5)]
-        public void MultipleConsumersAsyncTest(int requests, int consumers, double timeout)
-        {
-            var requestsPerConsumer = requests / consumers;
-            var cts = new CancellationTokenSource();
-            cts.CancelAfter(TimeSpan.FromMinutes(timeout));
-            var consumersList = Enumerable.Range(0, consumers).Select(i => GetClient<long, Mock, Mock>()).ToList();
-            var requestQueue = 0;
-            var waitersQueue = 0;
-            var bytesWrite = 0L;
-            var bytesRead = 0L;
-            var sended = 0;
-            var received = 0;
+        TestContext.WriteLine($"Requests: {requestQueue}");
+        TestContext.WriteLine($"Waiters: {waitersQueue}");
+        TestContext.WriteLine($"Sent: {sended}");
+        TestContext.WriteLine($"Received: {received}");
+        TestContext.WriteLine($"BytesWrite: {Math.Round(bytesWrite / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
+        TestContext.WriteLine($"BytesRead: {Math.Round(bytesRead / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
+    }
 
-            Task.WaitAll(consumersList.Select(io => Task.Run(() => DoWork(io), cts.Token)).ToArray());
+    [TestCase(1000, true)]
+    [TestCase(1000, false)]
+    public async Task ConsumingAsyncEnumerableTest(int requests, bool expandBatch)
+    {
+        var sended = 0;
+        var received = 0;
+        using var cts = new CancellationTokenSource();
+        await using ITcpClientIo<long, Mock, Mock> tcpClient = GetClient<long, Mock, Mock>();
 
-            void DoWork(ITcpClientIo<long, Mock, Mock> tcpClient)
-            {
-                try
-                {
-                    var list = new List<Task>();
-                    list.AddRange(Enumerable.Range(0, requestsPerConsumer).Select(i => (long) i).Select(SendAsync));
-                    list.AddRange(Enumerable.Range(0, requestsPerConsumer).Select(i => (long) i).Select(ReceiveAsync));
-
-                    Task.WaitAll(list.ToArray());
-
-                    async Task SendAsync(long id)
-                    {
-                        var mock = Mock.Default(id);
-                        await tcpClient.SendAsync(mock, cts.Token);
-                        Interlocked.Increment(ref sended);
-                    }
-
-                    async Task ReceiveAsync(long id)
-                    {
-                        var batch = await tcpClient.ReceiveAsync(id, cts.Token);
-                        var mock = batch.First();
-                        Assert.That(mock.Size == mock.Data.Length);
-                        Interlocked.Increment(ref received);
-                    }
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e.Message);
-                }
-                finally
-                {
-                    Interlocked.Add(ref bytesWrite, tcpClient.BytesWrite);
-                    Interlocked.Add(ref bytesRead, tcpClient.BytesRead);
-                    Interlocked.Add(ref requestQueue, tcpClient.Requests);
-                    Interlocked.Add(ref waitersQueue, tcpClient.Waiters);
-                }
-            }
-
-            TestContext.WriteLine($"Requests: {requestQueue.ToString()}");
-            TestContext.WriteLine($"Waiters: {waitersQueue.ToString()}");
-            TestContext.WriteLine($"Sended: {sended.ToString()}");
-            TestContext.WriteLine($"Received: {received.ToString()}");
-            TestContext.WriteLine($"BytesWrite: {Math.Round(bytesWrite / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
-            TestContext.WriteLine($"BytesRead: {Math.Round(bytesRead / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
-        }
-
-        [TestCase(1000, true)]
-        [TestCase(1000, false)]
-        public async Task ConsumingAsyncEnumerableTest(int requests, bool expandBatch)
-        {
-            var sended = 0;
-            var received = 0;
-            var cts = new CancellationTokenSource();
-            ITcpClientIo<long, Mock, Mock> tcpClient = GetClient<long, Mock, Mock>();
-
-            _ = Enumerable.Range(0, requests).Select(async i =>
+        var sendTasks = Enumerable.Range(0, requests).Select(
+            async i =>
             {
                 var mock = Mock.Default(expandBatch ? 0 : i);
                 await tcpClient.SendAsync(mock, cts.Token);
                 Interlocked.Increment(ref sended);
-            }).ToArray();
+            }
+        ).ToArray();
+        _ = Task.WhenAll(sendTasks).ContinueWith(t => TestContext.WriteLine(t.Exception?.GetBaseException()), TaskContinuationOptions.OnlyOnFaulted);
 
-            _ = Task.Run(async () =>
+        _ = Task.Run(
+            async () =>
             {
                 while (received < requests && !cts.IsCancellationRequested)
                 {
@@ -222,263 +225,262 @@ namespace Drenalol.TcpClientIo
                 }
 
                 cts.Cancel();
-            }, cts.Token);
+            },
+            cts.Token
+        );
 
-            try
+        try
+        {
+            if (expandBatch)
             {
-                if (expandBatch)
+                await foreach (var _ in tcpClient.GetExpandableConsumingAsyncEnumerable(cts.Token))
                 {
-                    await foreach (var _ in tcpClient.GetExpandableConsumingAsyncEnumerable(cts.Token))
-                    {
-                        Interlocked.Increment(ref received);
-                    }
-                }
-                else
-                {
-                    await foreach (var _ in tcpClient.GetConsumingAsyncEnumerable(cts.Token))
-                    {
-                        Interlocked.Increment(ref received);
-                    }
+                    Interlocked.Increment(ref received);
                 }
             }
-            catch (TaskCanceledException)
+            else
             {
+                await foreach (var _ in tcpClient.GetConsumingAsyncEnumerable(cts.Token))
+                {
+                    Interlocked.Increment(ref received);
+                }
+            }
+        }
+        catch (TaskCanceledException)
+        {
+        }
+        catch (Exception e)
+        {
+            TestContext.WriteLine(e);
+        }
+        finally
+        {
+            TestContext.WriteLine($"Requests: {tcpClient.Requests}");
+            TestContext.WriteLine($"Waiters: {tcpClient.Waiters}");
+            TestContext.WriteLine($"Sent: {sended}");
+            TestContext.WriteLine($"Received: {received}");
+            TestContext.WriteLine($"BytesWrite: {Math.Round(tcpClient.BytesWrite / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
+            TestContext.WriteLine($"BytesRead: {Math.Round(tcpClient.BytesRead / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
+        }
+    }
+
+    [Test]
+    public async Task NoIdTest()
+    {
+        await using var client = GetClient<MockNoId, MockNoId>();
+        var mock = new MockNoId
+        {
+            Body = "Qwerty!"
+        };
+        await client.SendAsync(mock);
+        var batch = await client.ReceiveAsync();
+        var mockNoId = batch.First();
+        Assert.That(mockNoId.Size, Is.EqualTo(mock.Size));
+        Assert.That(mockNoId.Body, Is.EqualTo("Qwerty!"));
+    }
+
+    [Test]
+    public async Task NoIdNoBodyTest()
+    {
+        await using var client = GetClient<MockOnlyMetaData, MockOnlyMetaData>();
+        var mock = new MockOnlyMetaData
+        {
+            Test = 1337,
+            Long = 777788889999
+        };
+        await client.SendAsync(mock);
+        var batch = await client.ReceiveAsync();
+        var mockNoId = batch.First();
+        Assert.That(mockNoId.Test, Is.EqualTo(mock.Test));
+        Assert.That(mockNoId.Long, Is.EqualTo(mock.Long));
+    }
+
+    [Test]
+    public async Task SameIdTest()
+    {
+        const int requests = 10;
+        var list = new List<int>();
+        var count = 0;
+        var error = 0;
+
+        await using var tcpClient = GetClient<long, Mock, Mock>();
+
+        var sendAll = Task.Run(
+            async () => await Parallel.ForEachAsync(
+                Enumerable.Range(0, requests),
+                async (_, token) =>
+                {
+                    var mock = Mock.Default(0);
+
+                    try
+                    {
+                        await tcpClient.SendAsync(mock, token);
+                    }
+                    catch
+                    {
+                        Interlocked.Increment(ref error);
+                    }
+                }
+            )
+        );
+
+        while (count < requests)
+        {
+            var delay = TestContext.CurrentContext.Random.Next(1, 200);
+            await Task.Delay(delay);
+
+            if (error > 0)
+                throw new Exception("Parallel.For has errors");
+
+            var packageResult = await tcpClient.ReceiveAsync(0);
+            Assert.That(packageResult, Is.Not.Null);
+            var queue = packageResult.Count;
+            count += queue;
+
+            list.AddRange(packageResult.Select(mock => mock.Size));
+
+            TestContext.WriteLine($"({count}/{requests}) +{queue}, by {delay} ms, SendQueue: {tcpClient.Requests}, ReadCount: {tcpClient.Waiters}");
+        }
+
+        await sendAll;
+
+        var havingCount = list.GroupBy(u => u).Where(p => p.Count() > 1).Aggregate("", (acc, next) => $"{next.Key}, {acc}");
+        TestContext.WriteLine($"Non-UNIQ Sizes: {havingCount}");
+
+        await tcpClient.DisposeAsync();
+        Assert.That(tcpClient.IsBroken);
+    }
+
+    [Test]
+    public async Task DisposeTest()
+    {
+        var tcpClient = GetClient<long, Mock, Mock>();
+        var dispose = Task.Delay(3000).ContinueWith(_ => tcpClient.DisposeAsync().AsTask());
+        var mock = Mock.Default();
+        while (true)
+        {
+            try
+            {
+                await tcpClient.SendAsync(mock);
+                await tcpClient.ReceiveAsync(mock.Id);
             }
             catch (Exception e)
             {
-                TestContext.WriteLine(e);
-            }
-            finally
-            {
-                TestContext.WriteLine($"Requests: {tcpClient.Requests.ToString()}");
-                TestContext.WriteLine($"Waiters: {tcpClient.Waiters.ToString()}");
-                TestContext.WriteLine($"Sended: {sended.ToString()}");
-                TestContext.WriteLine($"Received: {received.ToString()}");
-                TestContext.WriteLine($"BytesWrite: {Math.Round(tcpClient.BytesWrite / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
-                TestContext.WriteLine($"BytesRead: {Math.Round(tcpClient.BytesRead / 1024000.0, 2).ToString(CultureInfo.CurrentCulture)} MegaBytes");
+                Console.WriteLine($"Got Exception: {e.GetType()}: {e}");
+                Assert.That(e, Is.InstanceOf<OperationCanceledException>().Or.InstanceOf<ObjectDisposedException>());
+                Assert.That(tcpClient.IsBroken);
+                break;
             }
         }
 
-        [Test]
-        public async Task NoIdTest()
+        await dispose.Unwrap();
+    }
+
+    [Test]
+    public async Task CancelSendReceiveTest()
+    {
+        await using var tcpClient = GetClient<long, Mock, Mock>();
+        var mock = Mock.Default();
+        var attempts = 0;
+        while (attempts < 3)
         {
-            var client = GetClient<MockNoId, MockNoId>();
-            var mock = new MockNoId
-            {
-                Body = "Qwerty!"
-            };
-            await client.SendAsync(mock);
-            var batch = await client.ReceiveAsync();
-            var mockNoId = batch.First();
-            Assert.That(mock.Size == mockNoId.Size);
-        }
+            var cts = new CancellationTokenSource();
+            cts.CancelAfter(TimeSpan.FromSeconds(3));
 
-        [Test]
-        public async Task NoIdNoBodyTest()
-        {
-            var client = GetClient<MockOnlyMetaData, MockOnlyMetaData>();
-            var mock = new MockOnlyMetaData
-            {
-                Test = 1337,
-                Long = 777788889999
-            };
-            await client.SendAsync(mock);
-            var batch = await client.ReceiveAsync();
-            var mockNoId = batch.First();
-            Assert.That(mock.Test == mockNoId.Test);
-            Assert.That(mock.Long == mockNoId.Long);
-        }
-
-        [Test]
-        public async Task SameIdTest()
-        {
-            const int requests = 10;
-            var list = new List<int>();
-            var count = 0;
-            var error = 0;
-
-            var tcpClient = GetClient<long, Mock, Mock>();
-
-            _ = Task.Run(() => Parallel.For(0, requests, i =>
-            {
-                var mock = Mock.Default(0);
-
-                try
-                {
-                    tcpClient.SendAsync(mock).GetAwaiter().GetResult();
-                }
-                catch
-                {
-                    Interlocked.Increment(ref error);
-                }
-            }));
-
-            while (count < requests)
-            {
-                var delay = TestContext.CurrentContext.Random.Next(1, 200);
-                await Task.Delay(delay);
-
-                if (error > 0)
-                    throw new Exception("Parallel.For has errors");
-
-                var packageResult = await tcpClient.ReceiveAsync(0);
-                Assert.That(packageResult, Is.Not.Null);
-                var queue = packageResult.Count;
-                count += queue;
-
-                list.AddRange(packageResult.Select(mock => mock.Size));
-
-                TestContext.WriteLine($"({count.ToString()}/{requests.ToString()}) +{queue.ToString()}, by {delay.ToString()} ms, SendQueue: {tcpClient.Requests.ToString()}, ReadCount: {tcpClient.Waiters.ToString()}");
-            }
-
-            var havingCount = list.GroupBy(u => u).Where(p => p.Count() > 1).Aggregate("", (acc, next) => $"{next.Key.ToString()}, {acc}");
-            TestContext.WriteLine($"Non-UNIQ Sizes: {havingCount}");
-
-            await tcpClient.DisposeAsync();
-            Assert.That(tcpClient.IsBroken);
-        }
-
-        [Test]
-        public async Task DisposeTest()
-        {
-            var tcpClient = GetClient<long, Mock, Mock>();
-            var timer = new System.Timers.Timer {Interval = 3000};
-            timer.Start();
-            timer.Elapsed += (sender, _) =>
-            {
-                ((System.Timers.Timer) sender)?.Stop();
-                tcpClient.DisposeAsync().GetAwaiter().GetResult();
-            };
-            var mock = Mock.Default();
             while (true)
             {
                 try
                 {
-                    await tcpClient.SendAsync(mock);
-                    await tcpClient.ReceiveAsync(mock.Id);
+                    await tcpClient.SendAsync(mock, cts.Token);
+                    await tcpClient.ReceiveAsync(mock.Id, cts.Token);
                 }
                 catch (Exception e)
                 {
-                    var exType = e.GetType();
-                    Console.WriteLine($"Got Exception: {exType}: {e}");
-                    Assert.That(exType == typeof(OperationCanceledException) || exType == typeof(TaskCanceledException) || exType == typeof(ObjectDisposedException));
-                    Assert.That(tcpClient.IsBroken);
+                    Console.WriteLine($"Got Exception: {e.GetType()}: {e}");
+                    Assert.That(e, Is.InstanceOf<OperationCanceledException>());
+                    Assert.That(tcpClient.IsBroken, Is.False);
+                    attempts++;
                     break;
                 }
             }
-
-            timer.Dispose();
         }
+    }
 
-        [Test]
-        public async Task CancelSendReceiveTest()
+    [Test]
+    public async Task EmptyBodyTest()
+    {
+        await using var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>();
+        var mock = new MockNoIdEmptyBody { Length = 0, Empty = "" };
+        await client.SendAsync(mock);
+        var batch = await client.ReceiveAsync(default);
+        Assert.That(batch, Is.Not.Null);
+        Assert.That(batch.Single().Empty, Is.Empty);
+    }
+
+    [Test]
+    public async Task ReceiveAndListenerDisconnectTest()
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        var emulator = ListenerEmulator.Create(cts.Token, ListenerEmulatorConfig.Default);
+        await using var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: emulator.Port);
+
+        await Assert.ThrowsAsync<TcpClientIoException>(async () => await client.ReceiveAsync(0, CancellationToken.None));
+        Assert.That(client.IsBroken);
+    }
+
+    [Test]
+    public async Task ReceiveAndCancelTaskTest()
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var emulator = ListenerEmulator.Create(cts.Token, ListenerEmulatorConfig.Default);
+        await using var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: emulator.Port);
+
+        using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        await Assert.ThrowsAsync<TaskCanceledException>(() => client.ReceiveAsync(0, cts2.Token));
+        Assert.That(client.IsBroken, Is.False);
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task ConsumeAndDisconnectTest(bool ownToken)
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        var emulator = ListenerEmulator.Create(cts.Token, ListenerEmulatorConfig.Default);
+        await using var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: emulator.Port);
+
+        using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        try
         {
-            await using var tcpClient = GetClient<long, Mock, Mock>();
-            var mock = Mock.Default();
-            var attempts = 0;
-            while (attempts < 3)
+            await foreach (var _ in client.GetExpandableConsumingAsyncEnumerable(ownToken ? cts2.Token : default))
             {
-                var cts = new CancellationTokenSource();
-                cts.CancelAfter(TimeSpan.FromSeconds(3));
-
-                while (true)
-                {
-                    try
-                    {
-                        await tcpClient.SendAsync(mock, cts.Token);
-                        await tcpClient.ReceiveAsync(mock.Id, cts.Token);
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine($"Got Exception: {e.GetType()}: {e}");
-                        Assert.That(e.GetType() == typeof(OperationCanceledException) || e.GetType() == typeof(TaskCanceledException));
-                        Assert.That(tcpClient.IsBroken, Is.False);
-                        attempts++;
-                        break;
-                    }
-                }
             }
+            Assert.Fail("Expected TcpClientIoException");
         }
-
-        [Test]
-        public async Task EmptyBodyTest()
+        catch (Exception e)
         {
-            var mock = new MockNoIdEmptyBody {Length = 0, Empty = ""};
-            var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>();
-            await client.SendAsync(mock);
-            Assert.That(await client.ReceiveAsync(default), Is.Not.Null);
-        }
-
-        [Test]
-        public void ReceiveAndListenerDisconnectTest()
-        {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-            var cfg = ListenerEmulatorConfig.Default;
-            cfg.Port = TestContext.CurrentContext.Random.Next(10001, 12001);
-            ListenerEmulator.Create(cts.Token, cfg);
-            var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: cfg.Port);
-
-            Assert.CatchAsync<TcpClientIoException>(async () => await client.ReceiveAsync(0, CancellationToken.None));
+            Assert.That(e, Is.InstanceOf<TcpClientIoException>());
             Assert.That(client.IsBroken);
         }
-        
-        [Test]
-        public void ReceiveAndCancelTaskTest()
-        {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            var cfg = ListenerEmulatorConfig.Default;
-            cfg.Port = TestContext.CurrentContext.Random.Next(10001, 12001);
-            ListenerEmulator.Create(cts.Token, cfg);
-            var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: cfg.Port);
+    }
 
-            Assert.CatchAsync<TaskCanceledException>(
-                async () =>
-                {
-                    using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-                    await client.ReceiveAsync(0, cts2.Token);
-                }
-            );
-            Assert.That(client.IsBroken, Is.False);
-        }
+    [Test]
+    public async Task ListenerDisconnectTest()
+    {
+        using var cts = new CancellationTokenSource();
+        var emulator = ListenerEmulator.Create(cts.Token, ListenerEmulatorConfig.Default);
+        await using var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: emulator.Port);
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public async Task ConsumeAndDisconnectTest(bool ownToken)
-        {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-            var cfg = ListenerEmulatorConfig.Default;
-            cfg.Port = 10001;
-            ListenerEmulator.Create(cts.Token, cfg);
-            var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: 10001);
+        cts.Cancel();
 
-            using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var sw = Stopwatch.StartNew();
+        while (!client.IsBroken && sw.Elapsed < TimeSpan.FromSeconds(5))
+            await Task.Delay(50);
 
-            try
-            {
-                await foreach (var _ in client.GetExpandableConsumingAsyncEnumerable(ownToken ? cts2.Token : default))
-                {
-                }
-            }
-            catch (Exception e)
-            {
-                Assert.That(e, Is.InstanceOf<TcpClientIoException>());
-                Assert.That(client.IsBroken);
-            }
-        }
+        // give the write pipeline a moment to notice the broken connection too
+        await Task.Delay(200);
 
-        [Test]
-        public async Task ListenerDisconnectTest()
-        {
-            using var cts = new CancellationTokenSource();
-            var cfg = ListenerEmulatorConfig.Default;
-            cfg.Port = 10001;
-            ListenerEmulator.Create(cts.Token, cfg);
-            var client = GetClient<int, MockNoIdEmptyBody, MockNoIdEmptyBody>(port: 10001);
-
-            cts.Cancel();
-            await Task.Delay(5000, CancellationToken.None);
-            Assert.CatchAsync<TcpClientIoException>(() => client.SendAsync(new MockNoIdEmptyBody(), CancellationToken.None));
-            Assert.That(client.IsBroken);
-        }
+        await Assert.ThrowsAsync<TcpClientIoException>(() => client.SendAsync(new MockNoIdEmptyBody(), CancellationToken.None));
+        Assert.That(client.IsBroken);
     }
 }

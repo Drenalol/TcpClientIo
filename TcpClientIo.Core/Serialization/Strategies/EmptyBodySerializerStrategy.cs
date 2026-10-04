@@ -1,11 +1,6 @@
-namespace Drenalol.TcpClientIo.Serialization.Strategies
+namespace Drenalol.TcpClientIo.Serialization.Strategies;
+
+internal class EmptyBodySerializerStrategy<TData>(ReflectionHelper reflectionHelper) : SerializerStrategy<TData> where TData : notnull
 {
-    internal class EmptyBodySerializerStrategy<TData> : SerializerStrategy<TData> where TData : notnull
-    {
-        private readonly ReflectionHelper _reflectionHelper;
-
-        public EmptyBodySerializerStrategy(ReflectionHelper reflectionHelper) => _reflectionHelper = reflectionHelper;
-
-        public override SerailizeResult GetBodyData(TData value) => new(null, _reflectionHelper.MetaLength);
-    }
+    public override SerializeResult GetBodyData(TData value) => new(null, reflectionHelper.MetaLength, null);
 }

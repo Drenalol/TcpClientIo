@@ -1,15 +1,18 @@
-using System.Collections.Generic;
+namespace Drenalol.TcpClientIo.Batches;
 
-namespace Drenalol.TcpClientIo.Batches
+/// <summary>
+/// Batch of responses.
+/// </summary>
+/// <typeparam name="TResponse"></typeparam>
+public interface ITcpBatch<TResponse> : IEnumerable<TResponse>
 {
     /// <summary>
-    /// Batch of responses.
+    /// Number of responses in the batch.
     /// </summary>
-    /// <typeparam name="TResponse"></typeparam>
-    /// <returns><see cref="ITcpBatch{TResponse}"/></returns>
-    public interface ITcpBatch<TResponse> : IEnumerable<TResponse>
-    {
-        int Count { get; }
-        void Add(TResponse response);
-    }
+    int Count { get; }
+
+    /// <summary>
+    /// Adds a response to the batch.
+    /// </summary>
+    void Add(TResponse response);
 }

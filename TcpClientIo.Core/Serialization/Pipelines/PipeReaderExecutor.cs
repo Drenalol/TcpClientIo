@@ -1,49 +1,42 @@
-using System;
 using System.IO;
 using System.IO.Pipelines;
-using System.Threading;
-using System.Threading.Tasks;
 
-namespace Drenalol.TcpClientIo.Serialization.Pipelines
+namespace Drenalol.TcpClientIo.Serialization.Pipelines;
+
+internal class PipeReaderExecutor(PipeReader reader)
 {
-    internal class PipeReaderExecutor
+    private readonly PipeReader _reader = reader ?? throw new ArgumentNullException(nameof(reader));
+
+    public async Task<ReadResult> ReadLengthAsync(long length, CancellationToken cancellationToken = default)
     {
-        private readonly PipeReader _reader;
+        ArgumentOutOfRangeException.ThrowIfLessThan(length, 1L);
 
-        public PipeReaderExecutor(PipeReader reader) => _reader = reader;
-
-        public async Task<ReadResult> ReadLengthAsync(long length, CancellationToken cancellationToken = default)
+        while (true)
         {
-            if (length < 1)
-                throw new ArgumentOutOfRangeException(nameof(length));
+            cancellationToken.ThrowIfCancellationRequested();
+            var readResult = await ReadAsync(cancellationToken);
 
-            while (true)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var readResult = await ReadAsync(cancellationToken);
+            if (readResult.IsCanceled)
+                throw new OperationCanceledException();
 
-                if (readResult.IsCanceled)
-                    throw new OperationCanceledException();
+            if (readResult.IsCompleted)
+                throw new EndOfStreamException();
 
-                if (readResult.IsCompleted)
-                    throw new EndOfStreamException();
+            if (readResult.Buffer.IsEmpty)
+                continue;
 
-                if (readResult.Buffer.IsEmpty)
-                    continue;
+            var readResultLength = readResult.Buffer.Length;
 
-                var readResultLength = readResult.Buffer.Length;
+            if (readResultLength >= length)
+                return readResult;
 
-                if (readResultLength >= length)
-                    return readResult;
-
-                Examine(readResult.Buffer.Start, readResult.Buffer.GetPosition(readResultLength));
-            }
+            Examine(readResult.Buffer.Start, readResult.Buffer.GetPosition(readResultLength));
         }
-
-        public virtual ValueTask<ReadResult> ReadAsync(CancellationToken cancellationToken = default) => _reader.ReadAsync(cancellationToken);
-
-        public void Consume(SequencePosition consume) => _reader.AdvanceTo(consume);
-
-        public void Examine(SequencePosition consumed, SequencePosition examined) => _reader.AdvanceTo(consumed, examined);
     }
+
+    public virtual ValueTask<ReadResult> ReadAsync(CancellationToken cancellationToken = default) => _reader.ReadAsync(cancellationToken);
+
+    public void Consume(SequencePosition consume) => _reader.AdvanceTo(consume);
+
+    public void Examine(SequencePosition consumed, SequencePosition examined) => _reader.AdvanceTo(consumed, examined);
 }

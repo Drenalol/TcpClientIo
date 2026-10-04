@@ -1,67 +1,79 @@
-using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.IO.Pipelines;
+using System.Net;
 using System.Net.Sockets;
-using System.Threading;
-using System.Threading.Tasks;
 
-namespace Drenalol.TcpClientIo.Emulator
+namespace Drenalol.TcpClientIo.Emulator;
+
+/// <summary>
+/// Echo TCP server: sends back exactly what it received. Drops a connection after <see cref="IdleTimeout"/>
+/// of silence and stops accepting when the token is cancelled.
+/// </summary>
+public sealed class ListenerEmulator(CancellationToken token, ListenerEmulatorConfig config)
 {
-    
-    public class ListenerEmulator
+    /// <summary>
+    /// Idle time after which the emulator closes an accepted connection. Tests rely on this value
+    /// being longer than their own cancellation timeouts.
+    /// </summary>
+    public static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(5);
+
+    private readonly TcpListener _listener = TcpListener.Create(config.Port);
+
+    /// <summary>
+    /// The port the emulator is actually listening on (useful when <see cref="ListenerEmulatorConfig.Port"/> is 0).
+    /// </summary>
+    public int Port => ((IPEndPoint)_listener.LocalEndpoint).Port;
+
+    public ListenerEmulator StartListening()
     {
-        private readonly ListenerEmulatorConfig _config;
-        private readonly CancellationToken _token;
-        private readonly TcpListener _listener;
+        _listener.Start();
+        _ = GetConnection();
+        return this;
+    }
 
-        private ListenerEmulator(CancellationToken token, ListenerEmulatorConfig config)
-        {
-            _token = token;
-            _config = config;
-            _listener = TcpListener.Create(_config.Port);
-            _listener.Start();
-            _ = GetConnection();
-        }
+    public static ListenerEmulator Create(CancellationToken token, ListenerEmulatorConfig args) => new ListenerEmulator(token, args).StartListening();
 
-        public static ListenerEmulator Create(CancellationToken token, ListenerEmulatorConfig args)
+    private async Task GetConnection()
+    {
+        try
         {
-            return new ListenerEmulator(token, args);
-        }
-
-        private async Task GetConnection()
-        {
-            while (!_token.IsCancellationRequested)
+            while (!token.IsCancellationRequested)
             {
-                var tcpClient = await _listener.AcceptTcpClientAsync();
-                _ = Task.Run(() => HandleConnection(tcpClient), _token);
+                var tcpClient = await _listener.AcceptTcpClientAsync(token);
+                _ = Task.Run(() => HandleConnection(tcpClient), CancellationToken.None);
             }
         }
-
-        private async Task HandleConnection(TcpClient tcpClient)
+        catch (Exception e) when (e is OperationCanceledException or ObjectDisposedException or InvalidOperationException)
         {
-            var sw = Stopwatch.StartNew();
-            var reader = PipeReader.Create(tcpClient.GetStream(), new StreamPipeReaderOptions(_config.ReaderMemoryPool ? MemoryPool<byte>.Shared : null, _config.ReaderBufferSize, _config.ReaderMinimumReadSize));
-            var writer = PipeWriter.Create(tcpClient.GetStream(), new StreamPipeWriterOptions(_config.WriterMemoryPool ? MemoryPool<byte>.Shared : null, _config.WriterBufferSize));
-            
-            while (tcpClient.Connected && !_token.IsCancellationRequested && sw.Elapsed < TimeSpan.FromSeconds(5))
+            // listener stopped, expected on shutdown
+        }
+    }
+
+    private async Task HandleConnection(TcpClient tcpClient)
+    {
+        var sw = Stopwatch.StartNew();
+        var reader = PipeReader.Create(tcpClient.GetStream(), new StreamPipeReaderOptions(config.ReaderMemoryPool ? MemoryPool<byte>.Shared : null, config.ReaderBufferSize, config.ReaderMinimumReadSize));
+        var writer = PipeWriter.Create(tcpClient.GetStream(), new StreamPipeWriterOptions(config.WriterMemoryPool ? MemoryPool<byte>.Shared : null, config.WriterBufferSize));
+
+        try
+        {
+            while (tcpClient.Connected && !token.IsCancellationRequested && sw.Elapsed < IdleTimeout)
             {
                 try
                 {
-                    _token.ThrowIfCancellationRequested();
-                    
-                    var readResult = await reader.ReadAsync(_token);
+                    token.ThrowIfCancellationRequested();
 
-                    _token.ThrowIfCancellationRequested();
-                    
+                    var readResult = await reader.ReadAsync(token);
+
+                    token.ThrowIfCancellationRequested();
+
                     if (readResult.Buffer.IsEmpty)
                         continue;
 
-                    if (readResult.Buffer.IsSingleSegment)
-                        await writer.WriteAsync(readResult.Buffer.First, _token);
-                    else
-                        foreach (var readOnlyMemory in readResult.Buffer)
-                            await writer.WriteAsync(readOnlyMemory, _token);
+                    foreach (var segment in readResult.Buffer)
+                        writer.Write(segment.Span);
+                    await writer.FlushAsync(token);
 
                     reader.AdvanceTo(readResult.Buffer.End);
                     sw.Restart();
@@ -76,7 +88,9 @@ namespace Drenalol.TcpClientIo.Emulator
                     break;
                 }
             }
-
+        }
+        finally
+        {
             await reader.CompleteAsync();
             await writer.CompleteAsync();
             tcpClient.Close();

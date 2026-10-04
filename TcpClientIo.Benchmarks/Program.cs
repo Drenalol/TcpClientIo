@@ -1,12 +1,8 @@
 ﻿using BenchmarkDotNet.Running;
 
-namespace TcpClientIo.Benchmarks
+namespace TcpClientIo.Benchmarks;
+
+internal static class Program
 {
-    internal static class Program
-    {
-        private static void Main()
-        {
-            BenchmarkRunner.Run<TcpSerializerBenchmark>();
-        }
-    }
+    private static void Main() => BenchmarkRunner.Run<TcpSerializerBenchmark>();
 }
